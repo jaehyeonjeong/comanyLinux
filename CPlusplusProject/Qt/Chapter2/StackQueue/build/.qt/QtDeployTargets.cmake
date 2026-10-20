@@ -1,0 +1,2 @@
+set(__QT_DEPLOY_TARGET_wsl_qt_console_FILE /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter2/StackQueue/build/wsl_qt_console)
+set(__QT_DEPLOY_TARGET_wsl_qt_console_TYPE EXECUTABLE)
