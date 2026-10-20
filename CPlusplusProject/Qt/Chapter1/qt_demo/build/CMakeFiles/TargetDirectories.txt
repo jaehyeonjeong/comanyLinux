@@ -1,5 +1,5 @@
-/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo.dir
-/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/edit_cache.dir
-/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/rebuild_cache.dir
-/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen_timestamp_deps.dir
-/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen.dir
+/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo.dir
+/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/edit_cache.dir
+/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/rebuild_cache.dir
+/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen_timestamp_deps.dir
+/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen.dir

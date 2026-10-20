@@ -1,27 +1,47 @@
 #include "mainwindow.h"
+#include <QtUiTools/QUiLoader> // UI 파일을 로드하기 위한 헤더
+#include <QFile>
+#include <QPushButton>
 #include <QMessageBox>
+#include <QVBoxLayout>
 
 MainWindow::MainWindow(QWidget *parent) : QWidget(parent) {
-    // [수정] showFullScreen() 대신 테두리를 없애고 크기를 강제로 키우는 방식을 사용합니다.
+    // 키오스크 스타일 (프레임리스) 설정
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
-    
-    // 일반적인 FHD 모니터 크기로 설정 (모니터 해상도에 맞게 조절 가능)
-    // 우선 테스트를 위해 1024x768 또는 1920x1080 등으로 지정해 보세요.
-    resize(1920, 1080); 
 
-    m_button = new QPushButton("키오스크 버튼 (클릭하세요)", this);
-    m_button->setFixedSize(300, 100); 
+    // 1. UI 파일 열기
+    QFile file("mainwindow.ui");
+    if (!file.open(QFile::ReadOnly)) {
+        QMessageBox::critical(this, "에러", "UI 파일을 열 수 없습니다.");
+        return;
+    }
 
-    m_layout = new QVBoxLayout(this);
-    m_layout->addWidget(m_button, 0, Qt::AlignCenter); 
-    setLayout(m_layout);
+    // 2. QUiLoader를 이용해 UI 동적 로드
+    QUiLoader loader;
+    m_ui = loader.load(&file, this);
+    file.close();
 
-    connect(m_button, &QPushButton::clicked, this, &MainWindow::onButtonClicked);
+    if (m_ui) {
+        // 3. [핵심] UI 파일 내부에 선언된 "myButton" 위젯 찾아오기
+        QPushButton *button = m_ui->findChild<QPushButton*>("myButton");
+        
+        if (button) {
+            // 큼직하게 스타일 변경
+            button->setFixedSize(1920, 1080);
+            
+            // 4. 찾은 위젯과 슬롯 함수 connect 연동
+            connect(button, &QPushButton::clicked, this, &MainWindow::onButtonClicked);
+        }
+
+        // 로드된 UI를 현재 창의 레이아웃으로 설정
+        QVBoxLayout *layout = new QVBoxLayout(this);
+        layout->addWidget(m_ui);
+        setLayout(layout);
+    }
 }
 
 MainWindow::~MainWindow() {}
 
 void MainWindow::onButtonClicked() {
-    // 팝업창이 전체화면 뒤로 숨는 것을 방지하기 위해 부모(this) 지정을 확실히 합니다.
-    QMessageBox::information(this, "알림", "버튼이 정상적으로 클릭되었습니다!");
+    QMessageBox::information(this, "성공", "UI 파일과 위젯이 완벽하게 연동되었습니다!");
 }

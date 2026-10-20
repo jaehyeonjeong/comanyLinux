@@ -1,5 +1,5 @@
-/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/EWIEGA46WW/moc_mainwindow.cpp: /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.h \
-  /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/moc_predefs.h \
+/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/EWIEGA46WW/moc_mainwindow.cpp: /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.h \
+  /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/moc_predefs.h \
   /usr/include/alloca.h \
   /usr/include/asm-generic/bitsperlong.h \
   /usr/include/asm-generic/errno-base.h \
@@ -426,15 +426,7 @@
   /usr/include/x86_64-linux-gnu/qt6/QtGui/qtguiglobal.h \
   /usr/include/x86_64-linux-gnu/qt6/QtGui/qtransform.h \
   /usr/include/x86_64-linux-gnu/qt6/QtGui/qwindowdefs.h \
-  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QPushButton \
-  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QVBoxLayout \
   /usr/include/x86_64-linux-gnu/qt6/QtWidgets/QWidget \
-  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qabstractbutton.h \
-  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qboxlayout.h \
-  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qgridlayout.h \
-  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qlayout.h \
-  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qlayoutitem.h \
-  /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qpushbutton.h \
   /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qsizepolicy.h \
   /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qtwidgets-config.h \
   /usr/include/x86_64-linux-gnu/qt6/QtWidgets/qtwidgetsexports.h \

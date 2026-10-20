@@ -53,10 +53,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo
+CMAKE_SOURCE_DIR = /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build
+CMAKE_BINARY_DIR = /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build
 
 # Utility rule file for wsl_qt_demo_autogen.
 
@@ -70,9 +70,9 @@ CMakeFiles/wsl_qt_demo_autogen: wsl_qt_demo_autogen/timestamp
 
 wsl_qt_demo_autogen/timestamp: /usr/lib/qt6/libexec/moc
 wsl_qt_demo_autogen/timestamp: CMakeFiles/wsl_qt_demo_autogen.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Automatic MOC for target wsl_qt_demo"
-	/usr/bin/cmake -E cmake_autogen /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen.dir/AutogenInfo.json ""
-	/usr/bin/cmake -E touch /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/timestamp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Automatic MOC for target wsl_qt_demo"
+	/usr/bin/cmake -E cmake_autogen /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen.dir/AutogenInfo.json ""
+	/usr/bin/cmake -E touch /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/timestamp
 
 CMakeFiles/wsl_qt_demo_autogen.dir/codegen:
 .PHONY : CMakeFiles/wsl_qt_demo_autogen.dir/codegen
@@ -91,6 +91,6 @@ CMakeFiles/wsl_qt_demo_autogen.dir/clean:
 .PHONY : CMakeFiles/wsl_qt_demo_autogen.dir/clean
 
 CMakeFiles/wsl_qt_demo_autogen.dir/depend:
-	cd /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen.dir/DependInfo.cmake "--color=$(COLOR)" wsl_qt_demo_autogen
+	cd /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen.dir/DependInfo.cmake "--color=$(COLOR)" wsl_qt_demo_autogen
 .PHONY : CMakeFiles/wsl_qt_demo_autogen.dir/depend
 

@@ -5,7 +5,10 @@ wsl_qt_demo: \
   CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o \
   CMakeFiles/wsl_qt_demo.dir/main.cpp.o \
   CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o \
+  /usr/lib/x86_64-linux-gnu/libQt6UiTools.so.6.10.2 \
+  /usr/lib/x86_64-linux-gnu/libQt6OpenGLWidgets.so.6.10.2 \
   /usr/lib/x86_64-linux-gnu/libQt6Widgets.so.6.10.2 \
+  /usr/lib/x86_64-linux-gnu/libQt6OpenGL.so.6.10.2 \
   /usr/lib/x86_64-linux-gnu/libQt6Gui.so.6.10.2 \
   /usr/lib/x86_64-linux-gnu/libGLX.so \
   /usr/lib/x86_64-linux-gnu/libOpenGL.so \
@@ -36,6 +39,7 @@ wsl_qt_demo: \
   /usr/lib/gcc/x86_64-linux-gnu/15/libgcc.a \
   /usr/lib/gcc/x86_64-linux-gnu/15/crtendS.o \
   /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/crtn.o \
+  /usr/lib/x86_64-linux-gnu/libQt6OpenGLWidgets.so.6.10.2 \
   /usr/lib/x86_64-linux-gnu/libQt6Gui.so.6.10.2 \
   /usr/lib/x86_64-linux-gnu/libm.so.6 \
   /usr/lib/x86_64-linux-gnu/libicui18n.so.78 \
@@ -47,6 +51,7 @@ wsl_qt_demo: \
   /usr/lib/x86_64-linux-gnu/libpcre2-16.so.0 \
   /usr/lib/x86_64-linux-gnu/libzstd.so.1 \
   /lib64/ld-linux-x86-64.so.2 \
+  /usr/lib/x86_64-linux-gnu/libQt6OpenGL.so.6.10.2 \
   /usr/lib/x86_64-linux-gnu/libEGL.so.1 \
   /usr/lib/x86_64-linux-gnu/libfontconfig.so.1 \
   /usr/lib/x86_64-linux-gnu/libX11.so.6 \
@@ -86,7 +91,13 @@ CMakeFiles/wsl_qt_demo.dir/main.cpp.o:
 
 CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o:
 
+/usr/lib/x86_64-linux-gnu/libQt6UiTools.so.6.10.2:
+
+/usr/lib/x86_64-linux-gnu/libQt6OpenGLWidgets.so.6.10.2:
+
 /usr/lib/x86_64-linux-gnu/libQt6Widgets.so.6.10.2:
+
+/usr/lib/x86_64-linux-gnu/libQt6OpenGL.so.6.10.2:
 
 /usr/lib/x86_64-linux-gnu/libQt6Gui.so.6.10.2:
 
@@ -148,6 +159,8 @@ CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o:
 
 /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/crtn.o:
 
+/usr/lib/x86_64-linux-gnu/libQt6OpenGLWidgets.so.6.10.2:
+
 /usr/lib/x86_64-linux-gnu/libQt6Gui.so.6.10.2:
 
 /usr/lib/x86_64-linux-gnu/libm.so.6:
@@ -169,6 +182,8 @@ CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o:
 /usr/lib/x86_64-linux-gnu/libzstd.so.1:
 
 /lib64/ld-linux-x86-64.so.2:
+
+/usr/lib/x86_64-linux-gnu/libQt6OpenGL.so.6.10.2:
 
 /usr/lib/x86_64-linux-gnu/libEGL.so.1:
 

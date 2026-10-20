@@ -53,10 +53,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo
+CMAKE_SOURCE_DIR = /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build
+CMAKE_BINARY_DIR = /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build
 
 # Utility rule file for wsl_qt_demo_autogen_timestamp_deps.
 
@@ -81,6 +81,6 @@ CMakeFiles/wsl_qt_demo_autogen_timestamp_deps.dir/clean:
 .PHONY : CMakeFiles/wsl_qt_demo_autogen_timestamp_deps.dir/clean
 
 CMakeFiles/wsl_qt_demo_autogen_timestamp_deps.dir/depend:
-	cd /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen_timestamp_deps.dir/DependInfo.cmake "--color=$(COLOR)" wsl_qt_demo_autogen_timestamp_deps
+	cd /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen_timestamp_deps.dir/DependInfo.cmake "--color=$(COLOR)" wsl_qt_demo_autogen_timestamp_deps
 .PHONY : CMakeFiles/wsl_qt_demo_autogen_timestamp_deps.dir/depend
 

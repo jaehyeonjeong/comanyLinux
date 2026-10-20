@@ -53,10 +53,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo
+CMAKE_SOURCE_DIR = /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build
+CMAKE_BINARY_DIR = /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build
 
 # Include any dependencies generated for this target.
 include CMakeFiles/wsl_qt_demo.dir/depend.make
@@ -71,9 +71,9 @@ include CMakeFiles/wsl_qt_demo.dir/flags.make
 
 wsl_qt_demo_autogen/timestamp: /usr/lib/qt6/libexec/moc
 wsl_qt_demo_autogen/timestamp: CMakeFiles/wsl_qt_demo.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Automatic MOC for target wsl_qt_demo"
-	/usr/bin/cmake -E cmake_autogen /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen.dir/AutogenInfo.json ""
-	/usr/bin/cmake -E touch /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/timestamp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Automatic MOC for target wsl_qt_demo"
+	/usr/bin/cmake -E cmake_autogen /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen.dir/AutogenInfo.json ""
+	/usr/bin/cmake -E touch /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/timestamp
 
 CMakeFiles/wsl_qt_demo.dir/codegen:
 .PHONY : CMakeFiles/wsl_qt_demo.dir/codegen
@@ -81,44 +81,44 @@ CMakeFiles/wsl_qt_demo.dir/codegen:
 CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o: CMakeFiles/wsl_qt_demo.dir/flags.make
 CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o: wsl_qt_demo_autogen/mocs_compilation.cpp
 CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o: CMakeFiles/wsl_qt_demo.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o -MF CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o.d -o CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o -c /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/mocs_compilation.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o -MF CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o.d -o CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o -c /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/mocs_compilation.cpp
 
 CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/mocs_compilation.cpp > CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/mocs_compilation.cpp > CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.i
 
 CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/mocs_compilation.cpp -o CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/mocs_compilation.cpp -o CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.s
 
 CMakeFiles/wsl_qt_demo.dir/main.cpp.o: CMakeFiles/wsl_qt_demo.dir/flags.make
-CMakeFiles/wsl_qt_demo.dir/main.cpp.o: /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/main.cpp
+CMakeFiles/wsl_qt_demo.dir/main.cpp.o: /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/main.cpp
 CMakeFiles/wsl_qt_demo.dir/main.cpp.o: CMakeFiles/wsl_qt_demo.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/wsl_qt_demo.dir/main.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/wsl_qt_demo.dir/main.cpp.o -MF CMakeFiles/wsl_qt_demo.dir/main.cpp.o.d -o CMakeFiles/wsl_qt_demo.dir/main.cpp.o -c /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/main.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/wsl_qt_demo.dir/main.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/wsl_qt_demo.dir/main.cpp.o -MF CMakeFiles/wsl_qt_demo.dir/main.cpp.o.d -o CMakeFiles/wsl_qt_demo.dir/main.cpp.o -c /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/main.cpp
 
 CMakeFiles/wsl_qt_demo.dir/main.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/wsl_qt_demo.dir/main.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/main.cpp > CMakeFiles/wsl_qt_demo.dir/main.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/main.cpp > CMakeFiles/wsl_qt_demo.dir/main.cpp.i
 
 CMakeFiles/wsl_qt_demo.dir/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/wsl_qt_demo.dir/main.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/main.cpp -o CMakeFiles/wsl_qt_demo.dir/main.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/main.cpp -o CMakeFiles/wsl_qt_demo.dir/main.cpp.s
 
 CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o: CMakeFiles/wsl_qt_demo.dir/flags.make
-CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o: /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.cpp
+CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o: /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.cpp
 CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o: CMakeFiles/wsl_qt_demo.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o -MF CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o.d -o CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o -c /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o -MF CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o.d -o CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o -c /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.cpp
 
 CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.cpp > CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.cpp > CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.i
 
 CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.cpp -o CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.cpp -o CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.s
 
 # Object files for target wsl_qt_demo
 wsl_qt_demo_OBJECTS = \
@@ -134,13 +134,16 @@ wsl_qt_demo: CMakeFiles/wsl_qt_demo.dir/main.cpp.o
 wsl_qt_demo: CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o
 wsl_qt_demo: CMakeFiles/wsl_qt_demo.dir/build.make
 wsl_qt_demo: CMakeFiles/wsl_qt_demo.dir/compiler_depend.ts
+wsl_qt_demo: /usr/lib/x86_64-linux-gnu/libQt6UiTools.so.6.10.2
+wsl_qt_demo: /usr/lib/x86_64-linux-gnu/libQt6OpenGLWidgets.so.6.10.2
 wsl_qt_demo: /usr/lib/x86_64-linux-gnu/libQt6Widgets.so.6.10.2
+wsl_qt_demo: /usr/lib/x86_64-linux-gnu/libQt6OpenGL.so.6.10.2
 wsl_qt_demo: /usr/lib/x86_64-linux-gnu/libQt6Gui.so.6.10.2
 wsl_qt_demo: /usr/lib/x86_64-linux-gnu/libGLX.so
 wsl_qt_demo: /usr/lib/x86_64-linux-gnu/libOpenGL.so
 wsl_qt_demo: /usr/lib/x86_64-linux-gnu/libQt6Core.so.6.10.2
 wsl_qt_demo: CMakeFiles/wsl_qt_demo.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX executable wsl_qt_demo"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX executable wsl_qt_demo"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/wsl_qt_demo.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
@@ -152,6 +155,6 @@ CMakeFiles/wsl_qt_demo.dir/clean:
 .PHONY : CMakeFiles/wsl_qt_demo.dir/clean
 
 CMakeFiles/wsl_qt_demo.dir/depend: wsl_qt_demo_autogen/timestamp
-	cd /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo.dir/DependInfo.cmake "--color=$(COLOR)" wsl_qt_demo
+	cd /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build /home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo.dir/DependInfo.cmake "--color=$(COLOR)" wsl_qt_demo
 .PHONY : CMakeFiles/wsl_qt_demo.dir/depend
 

@@ -1,16 +1,16 @@
 {
-	"BUILD_DIR" : "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen",
-	"CMAKE_BINARY_DIR" : "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build",
-	"CMAKE_CURRENT_BINARY_DIR" : "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build",
-	"CMAKE_CURRENT_SOURCE_DIR" : "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo",
+	"BUILD_DIR" : "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen",
+	"CMAKE_BINARY_DIR" : "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build",
+	"CMAKE_CURRENT_BINARY_DIR" : "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build",
+	"CMAKE_CURRENT_SOURCE_DIR" : "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo",
 	"CMAKE_EXECUTABLE" : "/usr/bin/cmake",
 	"CMAKE_LIST_FILES" : 
 	[
-		"/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/CMakeLists.txt",
-		"/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/4.2.3/CMakeSystem.cmake",
+		"/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/CMakeLists.txt",
+		"/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/4.2.3/CMakeSystem.cmake",
 		"/usr/share/cmake-4.2/Modules/CMakeSystemSpecificInitialize.cmake",
 		"/usr/share/cmake-4.2/Modules/Platform/Linux-Initialize.cmake",
-		"/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/4.2.3/CMakeCXXCompiler.cmake",
+		"/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/4.2.3/CMakeCXXCompiler.cmake",
 		"/usr/share/cmake-4.2/Modules/CMakeSystemSpecificInformation.cmake",
 		"/usr/share/cmake-4.2/Modules/CMakeGenericSystem.cmake",
 		"/usr/share/cmake-4.2/Modules/CMakeInitializeConfigs.cmake",
@@ -224,25 +224,70 @@
 		"/usr/lib/x86_64-linux-gnu/cmake/Qt6Widgets/Qt6WidgetsAdditionalTargetInfo.cmake",
 		"/usr/lib/x86_64-linux-gnu/cmake/Qt6Widgets/Qt6WidgetsMacros.cmake",
 		"/usr/lib/x86_64-linux-gnu/cmake/Qt6Widgets/Qt6WidgetsPlugins.cmake",
-		"/usr/lib/x86_64-linux-gnu/cmake/Qt6Widgets/Qt6WidgetsVersionlessAliasTargets.cmake"
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6Widgets/Qt6WidgetsVersionlessAliasTargets.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiTools/Qt6UiToolsConfigVersion.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiTools/Qt6UiToolsConfigVersionImpl.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiTools/Qt6UiToolsConfig.cmake",
+		"/usr/share/cmake-4.2/Modules/CMakeFindDependencyMacro.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiTools/Qt6UiToolsDependencies.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiPlugin/Qt6UiPluginConfigVersion.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiPlugin/Qt6UiPluginConfigVersionImpl.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiPlugin/Qt6UiPluginConfig.cmake",
+		"/usr/share/cmake-4.2/Modules/CMakeFindDependencyMacro.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiPlugin/Qt6UiPluginDependencies.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiPlugin/Qt6UiPluginTargets.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiPlugin/Qt6UiPluginAdditionalTargetInfo.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiPlugin/Qt6UiPluginVersionlessAliasTargets.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsConfigVersion.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsConfigVersionImpl.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsConfig.cmake",
+		"/usr/share/cmake-4.2/Modules/CMakeFindDependencyMacro.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsDependencies.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGL/Qt6OpenGLConfigVersion.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGL/Qt6OpenGLConfigVersionImpl.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGL/Qt6OpenGLConfig.cmake",
+		"/usr/share/cmake-4.2/Modules/CMakeFindDependencyMacro.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGL/Qt6OpenGLDependencies.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6/FindWrapVulkanHeaders.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGL/Qt6OpenGLTargets.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGL/Qt6OpenGLTargets-none.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGL/Qt6OpenGLAdditionalTargetInfo.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGL/Qt6OpenGLVersionlessAliasTargets.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsTargets.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsTargets-none.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsAdditionalTargetInfo.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsVersionlessAliasTargets.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiTools/Qt6UiToolsTargets.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiTools/Qt6UiToolsTargets-none.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiTools/Qt6UiToolsAdditionalTargetInfo.cmake",
+		"/usr/lib/x86_64-linux-gnu/cmake/Qt6UiTools/Qt6UiToolsVersionlessAliasTargets.cmake"
 	],
-	"CMAKE_SOURCE_DIR" : "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo",
+	"CMAKE_SOURCE_DIR" : "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo",
 	"CROSS_CONFIG" : false,
-	"DEP_FILE" : "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/deps",
+	"DEP_FILE" : "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/deps",
 	"DEP_FILE_RULE_NAME" : "wsl_qt_demo_autogen/timestamp",
 	"HEADERS" : 
 	[
 		[
-			"/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.h",
+			"/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.h",
 			"Mu",
 			"EWIEGA46WW/moc_mainwindow.cpp",
 			null
 		]
 	],
 	"HEADER_EXTENSIONS" : [ "h", "hh", "h++", "hm", "hpp", "hxx", "in", "txx" ],
-	"INCLUDE_DIR" : "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/include",
-	"MOC_COMPILATION_FILE" : "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/mocs_compilation.cpp",
-	"MOC_DEFINITIONS" : [ "QT_CORE_LIB", "QT_GUI_LIB", "QT_NO_DEBUG", "QT_WIDGETS_LIB" ],
+	"INCLUDE_DIR" : "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/include",
+	"MOC_COMPILATION_FILE" : "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/mocs_compilation.cpp",
+	"MOC_DEFINITIONS" : 
+	[
+		"QT_CORE_LIB",
+		"QT_GUI_LIB",
+		"QT_NO_DEBUG",
+		"QT_OPENGLWIDGETS_LIB",
+		"QT_OPENGL_LIB",
+		"QT_UITOOLS_LIB",
+		"QT_WIDGETS_LIB"
+	],
 	"MOC_DEPEND_FILTERS" : 
 	[
 		[
@@ -257,6 +302,9 @@
 		"/usr/include/x86_64-linux-gnu/qt6/QtCore",
 		"/usr/lib/x86_64-linux-gnu/qt6/mkspecs/linux-g++",
 		"/usr/include/x86_64-linux-gnu/qt6/QtGui",
+		"/usr/include/x86_64-linux-gnu/qt6/QtUiTools",
+		"/usr/include/x86_64-linux-gnu/qt6/QtOpenGLWidgets",
+		"/usr/include/x86_64-linux-gnu/qt6/QtOpenGL",
 		"/usr/include",
 		"/usr/include/c++/15",
 		"/usr/include/x86_64-linux-gnu/c++/15",
@@ -285,26 +333,26 @@
 		"-E",
 		"/usr/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp"
 	],
-	"MOC_PREDEFS_FILE" : "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/moc_predefs.h",
+	"MOC_PREDEFS_FILE" : "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/moc_predefs.h",
 	"MOC_RELAXED_MODE" : false,
 	"MOC_SKIP" : [],
 	"MULTI_CONFIG" : false,
 	"PARALLEL" : 16,
-	"PARSE_CACHE_FILE" : "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen.dir/ParseCache.txt",
+	"PARSE_CACHE_FILE" : "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen.dir/ParseCache.txt",
 	"QT_MOC_EXECUTABLE" : "/usr/lib/qt6/libexec/moc",
 	"QT_UIC_EXECUTABLE" : "",
 	"QT_VERSION_MAJOR" : 6,
 	"QT_VERSION_MINOR" : 10,
-	"SETTINGS_FILE" : "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen.dir/AutogenUsed.txt",
+	"SETTINGS_FILE" : "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/CMakeFiles/wsl_qt_demo_autogen.dir/AutogenUsed.txt",
 	"SOURCES" : 
 	[
 		[
-			"/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/main.cpp",
+			"/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/main.cpp",
 			"Mu",
 			null
 		],
 		[
-			"/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.cpp",
+			"/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.cpp",
 			"Mu",
 			null
 		]

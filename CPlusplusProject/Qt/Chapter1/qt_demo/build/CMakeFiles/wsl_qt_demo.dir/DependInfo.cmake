@@ -9,9 +9,9 @@ set(CMAKE_DEPENDS_LANGUAGES
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "" "wsl_qt_demo_autogen/timestamp" "custom" "wsl_qt_demo_autogen/deps"
-  "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/main.cpp" "CMakeFiles/wsl_qt_demo.dir/main.cpp.o" "gcc" "CMakeFiles/wsl_qt_demo.dir/main.cpp.o.d"
-  "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.cpp" "CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o" "gcc" "CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o.d"
-  "/home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/mocs_compilation.cpp" "CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o" "gcc" "CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o.d"
+  "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/main.cpp" "CMakeFiles/wsl_qt_demo.dir/main.cpp.o" "gcc" "CMakeFiles/wsl_qt_demo.dir/main.cpp.o.d"
+  "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/mainwindow.cpp" "CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o" "gcc" "CMakeFiles/wsl_qt_demo.dir/mainwindow.cpp.o.d"
+  "/home/jhjung/comanyLinux/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo_autogen/mocs_compilation.cpp" "CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o" "gcc" "CMakeFiles/wsl_qt_demo.dir/wsl_qt_demo_autogen/mocs_compilation.cpp.o.d"
   "" "wsl_qt_demo" "gcc" "CMakeFiles/wsl_qt_demo.dir/link.d"
   )
 
