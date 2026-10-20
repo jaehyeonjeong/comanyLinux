@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "wK8B0nKXtBs=",
+  "success": true,
+  "projectFilePath": "/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/GuiMessageBoxApp.csproj",
+  "expectedPackageFiles": [
+    "/home/jhjung/.nuget/packages/microsoft.windowsdesktop.app.ref/8.0.32/microsoft.windowsdesktop.app.ref.8.0.32.nupkg.sha512",
+    "/home/jhjung/.nuget/packages/microsoft.netcore.app.host.win-x64/8.0.32/microsoft.netcore.app.host.win-x64.8.0.32.nupkg.sha512"
+  ],
+  "logs": []
+}

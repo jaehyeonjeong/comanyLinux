@@ -1,0 +1,14 @@
+/home/jhjung/CSharpProject/Chapter1/MyStack/obj/Debug/net8.0/MyStack.GeneratedMSBuildEditorConfig.editorconfig
+/home/jhjung/CSharpProject/Chapter1/MyStack/obj/Debug/net8.0/MyStack.AssemblyInfoInputs.cache
+/home/jhjung/CSharpProject/Chapter1/MyStack/obj/Debug/net8.0/MyStack.AssemblyInfo.cs
+/home/jhjung/CSharpProject/Chapter1/MyStack/obj/Debug/net8.0/MyStack.csproj.CoreCompileInputs.cache
+/home/jhjung/CSharpProject/Chapter1/MyStack/bin/Debug/net8.0/MyStack
+/home/jhjung/CSharpProject/Chapter1/MyStack/bin/Debug/net8.0/MyStack.deps.json
+/home/jhjung/CSharpProject/Chapter1/MyStack/bin/Debug/net8.0/MyStack.runtimeconfig.json
+/home/jhjung/CSharpProject/Chapter1/MyStack/bin/Debug/net8.0/MyStack.dll
+/home/jhjung/CSharpProject/Chapter1/MyStack/bin/Debug/net8.0/MyStack.pdb
+/home/jhjung/CSharpProject/Chapter1/MyStack/obj/Debug/net8.0/MyStack.dll
+/home/jhjung/CSharpProject/Chapter1/MyStack/obj/Debug/net8.0/refint/MyStack.dll
+/home/jhjung/CSharpProject/Chapter1/MyStack/obj/Debug/net8.0/MyStack.pdb
+/home/jhjung/CSharpProject/Chapter1/MyStack/obj/Debug/net8.0/MyStack.genruntimeconfig.cache
+/home/jhjung/CSharpProject/Chapter1/MyStack/obj/Debug/net8.0/ref/MyStack.dll

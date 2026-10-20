@@ -1,0 +1,14 @@
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/bin/Debug/net8.0-windows/GuiMessageBoxApp
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/bin/Debug/net8.0-windows/GuiMessageBoxApp.deps.json
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/bin/Debug/net8.0-windows/GuiMessageBoxApp.runtimeconfig.json
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/bin/Debug/net8.0-windows/GuiMessageBoxApp.dll
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/bin/Debug/net8.0-windows/GuiMessageBoxApp.pdb
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/obj/Debug/net8.0-windows/GuiMessageBoxApp.GeneratedMSBuildEditorConfig.editorconfig
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/obj/Debug/net8.0-windows/GuiMessageBoxApp.AssemblyInfoInputs.cache
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/obj/Debug/net8.0-windows/GuiMessageBoxApp.AssemblyInfo.cs
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/obj/Debug/net8.0-windows/GuiMessageBoxApp.csproj.CoreCompileInputs.cache
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/obj/Debug/net8.0-windows/GuiMessageBoxApp.dll
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/obj/Debug/net8.0-windows/refint/GuiMessageBoxApp.dll
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/obj/Debug/net8.0-windows/GuiMessageBoxApp.pdb
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/obj/Debug/net8.0-windows/GuiMessageBoxApp.genruntimeconfig.cache
+/home/jhjung/CSharpProject/Chapter2/GuiMessageBoxApp/obj/Debug/net8.0-windows/ref/GuiMessageBoxApp.dll

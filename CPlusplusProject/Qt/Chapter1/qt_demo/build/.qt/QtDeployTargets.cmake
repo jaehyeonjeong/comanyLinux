@@ -1,0 +1,2 @@
+set(__QT_DEPLOY_TARGET_wsl_qt_demo_FILE /home/jhjung/CPlusplusProject/Qt/Chapter1/qt_demo/build/wsl_qt_demo)
+set(__QT_DEPLOY_TARGET_wsl_qt_demo_TYPE EXECUTABLE)

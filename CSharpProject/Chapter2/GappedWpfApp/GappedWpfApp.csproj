@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- 💡 WPF 기능을 활성화하는 핵심 옵션 -->
+    <UseWPF>true</UseWPF>
+    
+    <!-- 리눅스에서 윈도우 타겟 빌드를 허용 -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>
+

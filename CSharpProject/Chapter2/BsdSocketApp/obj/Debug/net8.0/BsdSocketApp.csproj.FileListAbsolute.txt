@@ -1,0 +1,14 @@
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/obj/Debug/net8.0/BsdSocketApp.GeneratedMSBuildEditorConfig.editorconfig
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/obj/Debug/net8.0/BsdSocketApp.AssemblyInfoInputs.cache
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/obj/Debug/net8.0/BsdSocketApp.AssemblyInfo.cs
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/obj/Debug/net8.0/BsdSocketApp.csproj.CoreCompileInputs.cache
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/bin/Debug/net8.0/BsdSocketApp
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/bin/Debug/net8.0/BsdSocketApp.deps.json
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/bin/Debug/net8.0/BsdSocketApp.runtimeconfig.json
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/bin/Debug/net8.0/BsdSocketApp.dll
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/bin/Debug/net8.0/BsdSocketApp.pdb
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/obj/Debug/net8.0/BsdSocketApp.dll
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/obj/Debug/net8.0/refint/BsdSocketApp.dll
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/obj/Debug/net8.0/BsdSocketApp.pdb
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/obj/Debug/net8.0/BsdSocketApp.genruntimeconfig.cache
+/home/jhjung/CSharpProject/Chapter2/BsdSocketApp/obj/Debug/net8.0/ref/BsdSocketApp.dll

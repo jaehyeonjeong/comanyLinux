@@ -1,0 +1,14 @@
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/obj/Debug/net8.0/HighPerfStack.GeneratedMSBuildEditorConfig.editorconfig
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/obj/Debug/net8.0/HighPerfStack.AssemblyInfoInputs.cache
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/obj/Debug/net8.0/HighPerfStack.AssemblyInfo.cs
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/obj/Debug/net8.0/HighPerfStack.csproj.CoreCompileInputs.cache
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/bin/Debug/net8.0/HighPerfStack
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/bin/Debug/net8.0/HighPerfStack.deps.json
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/bin/Debug/net8.0/HighPerfStack.runtimeconfig.json
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/bin/Debug/net8.0/HighPerfStack.dll
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/bin/Debug/net8.0/HighPerfStack.pdb
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/obj/Debug/net8.0/HighPerfStack.dll
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/obj/Debug/net8.0/refint/HighPerfStack.dll
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/obj/Debug/net8.0/HighPerfStack.pdb
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/obj/Debug/net8.0/HighPerfStack.genruntimeconfig.cache
+/home/jhjung/CSharpProject/Chapter1/HighPerfStack/obj/Debug/net8.0/ref/HighPerfStack.dll

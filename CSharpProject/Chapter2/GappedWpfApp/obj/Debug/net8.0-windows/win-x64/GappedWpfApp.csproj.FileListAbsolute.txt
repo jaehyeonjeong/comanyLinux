@@ -1,0 +1,14 @@
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/bin/Debug/net8.0-windows/win-x64/GappedWpfApp.exe
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/bin/Debug/net8.0-windows/win-x64/GappedWpfApp.deps.json
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/bin/Debug/net8.0-windows/win-x64/GappedWpfApp.runtimeconfig.json
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/bin/Debug/net8.0-windows/win-x64/GappedWpfApp.dll
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/bin/Debug/net8.0-windows/win-x64/GappedWpfApp.pdb
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/obj/Debug/net8.0-windows/win-x64/GappedWpfApp.GeneratedMSBuildEditorConfig.editorconfig
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/obj/Debug/net8.0-windows/win-x64/GappedWpfApp.AssemblyInfoInputs.cache
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/obj/Debug/net8.0-windows/win-x64/GappedWpfApp.AssemblyInfo.cs
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/obj/Debug/net8.0-windows/win-x64/GappedWpfApp.csproj.CoreCompileInputs.cache
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/obj/Debug/net8.0-windows/win-x64/GappedWpfApp.dll
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/obj/Debug/net8.0-windows/win-x64/refint/GappedWpfApp.dll
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/obj/Debug/net8.0-windows/win-x64/GappedWpfApp.pdb
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/obj/Debug/net8.0-windows/win-x64/GappedWpfApp.genruntimeconfig.cache
+/home/jhjung/CSharpProject/Chapter2/GappedWpfApp/obj/Debug/net8.0-windows/win-x64/ref/GappedWpfApp.dll

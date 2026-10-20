@@ -1,0 +1,14 @@
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/bin/Debug/net8.0/MyFirstApp
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/bin/Debug/net8.0/MyFirstApp.deps.json
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/bin/Debug/net8.0/MyFirstApp.runtimeconfig.json
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/bin/Debug/net8.0/MyFirstApp.dll
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/bin/Debug/net8.0/MyFirstApp.pdb
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/obj/Debug/net8.0/MyFirstApp.GeneratedMSBuildEditorConfig.editorconfig
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/obj/Debug/net8.0/MyFirstApp.AssemblyInfoInputs.cache
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/obj/Debug/net8.0/MyFirstApp.AssemblyInfo.cs
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/obj/Debug/net8.0/MyFirstApp.csproj.CoreCompileInputs.cache
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/obj/Debug/net8.0/MyFirstApp.dll
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/obj/Debug/net8.0/refint/MyFirstApp.dll
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/obj/Debug/net8.0/MyFirstApp.pdb
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/obj/Debug/net8.0/MyFirstApp.genruntimeconfig.cache
+/home/jhjung/CSharpProject/Chapter1/MyFirstApp/MyFirstApp/obj/Debug/net8.0/ref/MyFirstApp.dll
