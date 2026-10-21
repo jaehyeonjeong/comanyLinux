@@ -1,0 +1,5 @@
+/home/jhjung/comanyLinux/CSharpProject/Chapter3/HelloQtPi/build/CMakeFiles/HelloQtPi.dir
+/home/jhjung/comanyLinux/CSharpProject/Chapter3/HelloQtPi/build/CMakeFiles/edit_cache.dir
+/home/jhjung/comanyLinux/CSharpProject/Chapter3/HelloQtPi/build/CMakeFiles/rebuild_cache.dir
+/home/jhjung/comanyLinux/CSharpProject/Chapter3/HelloQtPi/build/CMakeFiles/HelloQtPi_autogen_timestamp_deps.dir
+/home/jhjung/comanyLinux/CSharpProject/Chapter3/HelloQtPi/build/CMakeFiles/HelloQtPi_autogen.dir

@@ -1,0 +1,2 @@
+set(__QT_DEPLOY_TARGET_HelloQtPi_FILE /home/jhjung/comanyLinux/CSharpProject/Chapter3/HelloQtPi/build/HelloQtPi)
+set(__QT_DEPLOY_TARGET_HelloQtPi_TYPE EXECUTABLE)
