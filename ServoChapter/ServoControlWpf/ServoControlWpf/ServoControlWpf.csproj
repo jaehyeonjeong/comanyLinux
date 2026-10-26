@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>ServoControlWpf</RootNamespace>
+    <AssemblyName>ServoControlWpf</AssemblyName>
+    <!-- .NET 8 런타임이 없고 더 새 버전만 있는 PC에서도 실행되게 함 -->
+    <RollForward>LatestMajor</RollForward>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <SatelliteResourceLanguages>ko</SatelliteResourceLanguages>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 테스트 프로젝트가 internal 멤버에 접근할 수 있게 함 -->
+    <InternalsVisibleTo Include="ServoControlWpf.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 하드웨어 없이 테스트하기 위한 가짜 pigpiod (연결 방식 "에뮬레이터") -->
+    <ProjectReference Include="..\PigpioEmulator\PigpioEmulator.csproj" />
+  </ItemGroup>
+
+</Project>

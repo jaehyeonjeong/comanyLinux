@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>ServoControlWpf 설계 과정과 운용 원리</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+  html { font-family: "Malgun Gothic", "맑은 고딕", "Segoe UI", sans-serif; font-size: 10.5pt; color: #1d1d1f; line-height: 1.55; }
+  body { margin: 0; }
+  h1 { font-size: 22pt; margin: 0 0 4px 0; color: #0b3d63; }
+  .sub { color: #555; font-size: 11pt; margin-bottom: 2px; }
+  .meta { color: #777; font-size: 9.5pt; margin-bottom: 14px; }
+  h2 { font-size: 15pt; color: #0b3d63; border-bottom: 2px solid #0b3d63; padding-bottom: 3px; margin: 22px 0 10px 0; page-break-after: avoid; }
+  h3 { font-size: 12pt; color: #1a4f7a; margin: 16px 0 6px 0; page-break-after: avoid; }
+  p { margin: 5px 0 8px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 6px 0 10px 0; font-size: 9.6pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #c9ced6; padding: 4px 7px; vertical-align: top; text-align: left; }
+  th { background: #e8eef5; font-weight: bold; }
+  td.c, th.c { text-align: center; }
+  code { font-family: Consolas, "D2Coding", monospace; font-size: 9.3pt; background: #f1f3f6; padding: 0 3px; border-radius: 3px; }
+  pre { font-family: Consolas, "D2Coding", monospace; font-size: 9pt; background: #f4f6f9; border: 1px solid #d9dee6; border-left: 4px solid #0b3d63; padding: 8px 10px; white-space: pre-wrap; margin: 6px 0 10px 0; page-break-inside: avoid; }
+  .box { border: 1px solid #c9ced6; border-radius: 6px; padding: 8px 12px; margin: 8px 0 12px 0; background: #fafbfd; page-break-inside: avoid; }
+  .tip { background: #eef7ee; border-color: #9fcf9f; }
+  .warn { background: #fff5e8; border-color: #f0b86e; }
+  .why { background: #eef3fb; border-color: #9fb9e0; }
+  .box b.t { display: block; margin-bottom: 3px; color: #0b3d63; }
+  figure { margin: 10px 0 14px 0; text-align: center; page-break-inside: avoid; }
+  figcaption { font-size: 9.2pt; color: #555; margin-top: 4px; }
+  svg { max-width: 100%; height: auto; }
+  svg text { font-family: "Malgun Gothic", "맑은 고딕", sans-serif; }
+  img.shot { width: 100%; border: 1px solid #c9ced6; border-radius: 4px; }
+  .pb { page-break-before: always; }
+  ul, ol { margin: 4px 0 8px 0; padding-left: 22px; }
+  li { margin: 2px 0; }
+  .toc { columns: 2; column-gap: 24px; font-size: 9.8pt; }
+  .toc div { margin: 1px 0; }
+  .small { font-size: 9pt; color: #666; }
+  .kw { color: #0b3d63; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>ServoControlWpf 설계 과정과 운용 원리</h1>
+<div class="sub">Windows(WPF) 에서 WSL 과 Raspberry Pi 4 B 를 거쳐 HiTEC HS-311 서보를 움직이는 프로그램 — 왜, 무엇을, 어떻게 만들었나</div>
+<div class="meta">작성 정재현 (Claude Code 와 함께 작성) · 2026. 10. 26. · Rev. 1.0 · 함께 보는 문서: <i>ServoControl 동작 원리와 소스코드</i>, <i>Raspberry Pi 4B + HS-311 데이터시트</i></div>
+
+<div class="box">
+  <b class="t">이 문서는 누구를 위한 것인가</b>
+  처음 보는 사람도 따라올 수 있게 썼습니다. 각 장은 <b>왜 → 무엇을 → 어떻게</b> 순서입니다.
+  프로그램을 <b>쓰는 방법</b>만 알고 싶으면 10장 "운용 원리와 기법" 과 13장 "만들기·실행하기" 를 먼저 보세요.
+</div>
+
+<h3>차례</h3>
+<div class="toc">
+  <div>1. 한눈에 보기</div>
+  <div>2. 출발점 — 기존 Qt 프로그램이 하던 일</div>
+  <div>3. 요구사항 정리와 결정 과정</div>
+  <div>4. 세 가지 연결 길 — 직접 · WSL 터널 · 에뮬레이터</div>
+  <div>5. 프로그램 구조 — Qt MVC → WPF MVVM</div>
+  <div>6. 데이터 흐름 — 다이얼을 돌리면 일어나는 일</div>
+  <div>7. pigpiod 16바이트 명령</div>
+  <div>8. WSL 접근 — WPF 가 리눅스를 부르는 법</div>
+  <div>9. 화면 설계</div>
+  <div>10. 운용 원리와 기법</div>
+  <div>11. 안전 장치 (소프트웨어)</div>
+  <div>12. 테스트와 검증 결과</div>
+  <div>13. 만들기·실행하기</div>
+  <div>14. 한계와 다음 단계</div>
+</div>
+
+<!-- ═══════════════════════════════ 1 ═══════════════════════════════ -->
+<h2>1. 한눈에 보기</h2>
+<p><b>한 줄 요약:</b> 서보는 "펄스 길이" 로 각도를 받는다. 그 펄스를 Raspberry Pi 의 <span class="kw">pigpiod</span> 가 만들어 주고,
+Windows 의 WPF 프로그램은 "GPIO18 을 1500 µs 로" 같은 <b>16바이트 명령</b>을 TCP 로 보내기만 한다.
+명령을 보내는 길은 세 가지 — <b>직접</b>, <b>WSL 터널</b>, <b>에뮬레이터</b>(가짜 Pi) — 중에서 고른다.</p>
+
+<figure>
+<svg viewBox="0 0 900 330" width="900" height="330">
+  <defs><marker id="ar" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0b3d63"/></marker>
+  <marker id="ar2" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#b26a00"/></marker></defs>
+  <!-- PC box -->
+  <rect x="15" y="20" width="330" height="290" rx="10" fill="#f3f6fb" stroke="#9fb9e0"/>
+  <text x="30" y="45" font-size="15" font-weight="bold" fill="#0b3d63">Windows PC (192.168.10.1)</text>
+  <rect x="35" y="60" width="290" height="70" rx="6" fill="#fff" stroke="#0b3d63" stroke-width="2"/>
+  <text x="50" y="85" font-size="14" font-weight="bold">ServoControlWpf (WPF)</text>
+  <text x="50" y="106" font-size="11" fill="#444">카메라 뷰·다이얼·각도/펄스·메모리·스윕·보정</text>
+  <text x="50" y="122" font-size="11" fill="#444">→ 각도를 µs 로 바꿔 16바이트 명령 전송</text>
+  <rect x="35" y="150" width="130" height="60" rx="6" fill="#fff" stroke="#888"/>
+  <text x="50" y="172" font-size="12" font-weight="bold">WSL (Ubuntu)</text>
+  <text x="50" y="190" font-size="10" fill="#444">ssh -L 터널 · 스크립트</text>
+  <rect x="195" y="150" width="130" height="60" rx="6" fill="#fff8ee" stroke="#b26a00"/>
+  <text x="210" y="172" font-size="12" font-weight="bold" fill="#7a4f01">가짜 pigpiod</text>
+  <text x="210" y="190" font-size="10" fill="#444">에뮬레이터 127.0.0.1</text>
+  <rect x="35" y="230" width="290" height="62" rx="6" fill="#fff" stroke="#888" stroke-dasharray="4 3"/>
+  <text x="50" y="252" font-size="12" font-weight="bold" fill="#555">ServoControl (Qt, WSL 에서 실행)</text>
+  <text x="50" y="270" font-size="10" fill="#555">기존 프로그램 · 같은 pigpiod 에 같은 명령</text>
+  <!-- Pi box -->
+  <rect x="520" y="20" width="365" height="200" rx="10" fill="#f1f8f1" stroke="#9fcf9f"/>
+  <text x="535" y="45" font-size="15" font-weight="bold" fill="#1a7f37">Raspberry Pi 4 B (192.168.10.2)</text>
+  <rect x="540" y="60" width="150" height="60" rx="6" fill="#fff" stroke="#1a7f37" stroke-width="2"/>
+  <text x="555" y="84" font-size="13" font-weight="bold">pigpiod</text>
+  <text x="555" y="102" font-size="10" fill="#444">TCP 8888 · DMA 펄스</text>
+  <rect x="720" y="60" width="150" height="60" rx="6" fill="#fff" stroke="#1a7f37"/>
+  <text x="735" y="84" font-size="13" font-weight="bold">GPIO18 (12번 핀)</text>
+  <text x="735" y="102" font-size="10" fill="#444">50 Hz, 500~2500 µs</text>
+  <rect x="540" y="140" width="150" height="60" rx="6" fill="#fff" stroke="#888"/>
+  <text x="555" y="164" font-size="13" font-weight="bold">sshd</text>
+  <text x="555" y="182" font-size="10" fill="#444">터널일 때 거쳐 감</text>
+  <!-- Servo -->
+  <rect x="720" y="250" width="150" height="60" rx="6" fill="#fff" stroke="#333" stroke-width="2"/>
+  <text x="735" y="274" font-size="13" font-weight="bold">HS-311 서보</text>
+  <text x="735" y="292" font-size="10" fill="#444">외부 5 V · GND 공통</text>
+  <!-- arrows -->
+  <line x1="325" y1="80" x2="540" y2="80" stroke="#0b3d63" stroke-width="2.5" marker-end="url(#ar)"/>
+  <text x="340" y="72" font-size="11" fill="#0b3d63">① 직접: 이더넷 TCP 8888</text>
+  <line x1="165" y1="180" x2="540" y2="170" stroke="#0b3d63" stroke-width="2.5" marker-end="url(#ar)"/>
+  <text x="300" y="195" font-size="11" fill="#0b3d63">② WSL 터널: ssh -L 18888:127.0.0.1:8888</text>
+  <path d="M615 140 L615 125" stroke="#0b3d63" stroke-width="2.5" marker-end="url(#ar)"/>
+  <line x1="180" y1="130" x2="260" y2="150" stroke="#b26a00" stroke-width="2.5" marker-end="url(#ar2)"/>
+  <text x="130" y="145" font-size="11" fill="#7a4f01">③ 에뮬</text>
+  <line x1="690" y1="90" x2="720" y2="90" stroke="#1a7f37" stroke-width="2.5" marker-end="url(#ar)"/>
+  <line x1="795" y1="120" x2="795" y2="250" stroke="#333" stroke-width="2.5" marker-end="url(#ar)"/>
+  <text x="805" y="190" font-size="11" fill="#333">펄스 신호</text>
+</svg>
+<figcaption>그림 1. 전체 구성. 서보를 직접 움직이는 것은 언제나 Pi 의 pigpiod 다. WPF 는 "어느 길로 명령을 보내느냐" 만 다르다.</figcaption>
+</figure>
+
+<table>
+<tr><th style="width:18%">연결 방식</th><th style="width:40%">명령이 가는 길</th><th>언제 쓰나</th></tr>
+<tr><td><b>① 직접 연결</b></td><td>WPF → 이더넷 → Pi <code>192.168.10.2:8888</code></td><td>평소. Pi 에 <code>pi_setup.sh</code> 로 원격 허용을 해 둔 경우. 가장 빠름</td></tr>
+<tr><td><b>② WSL 터널</b></td><td>WPF → <code>wsl.exe</code> → <code>ssh -L</code> → Pi 의 <code>127.0.0.1:8888</code></td><td>통신을 WSL/SSH 로 보내고 싶을 때. Pi 쪽 원격 허용 설정이 없어도 됨</td></tr>
+<tr><td><b>③ 에뮬레이터</b></td><td>WPF → <code>127.0.0.1</code> → 앱 안의 가짜 pigpiod</td><td>Pi 가 없을 때. 실제와 같은 TCP 명령 경로를 그대로 검증</td></tr>
+</table>
+
+<!-- ═══════════════════════════════ 2 ═══════════════════════════════ -->
+<h2>2. 출발점 — 기존 Qt 프로그램이 하던 일</h2>
+<p>새 프로그램을 만들기 전에, 먼저 있던 것을 정확히 알아야 합니다. 폴더 <code>ServoChapter\ServoControl</code> 에 Qt/C++ 프로그램과 PDF 3종이 있었습니다.</p>
+
+<h3>2-1. 서보는 어떻게 움직이나 (쉬운 설명)</h3>
+<p>RC 서보는 <b>"얼마나 긴 전기 신호를 받았느냐"</b> 로 자기 팔(혼)을 어디에 둘지 정합니다.
+20 ms(1초에 50번) 마다 짧은 High 펄스가 오는데, 그 펄스의 <b>길이</b>가 각도입니다.</p>
+
+<figure>
+<svg viewBox="0 0 880 150" width="880" height="150">
+  <text x="10" y="22" font-size="12" fill="#444">20 ms 주기 (50 Hz)</text>
+  <polyline points="10,110 60,110 60,50 90,50 90,110 260,110 260,50 290,50 290,110 460,110 460,50 490,50 490,110 660,110" fill="none" stroke="#0b3d63" stroke-width="3"/>
+  <line x1="60" y1="130" x2="260" y2="130" stroke="#888" stroke-dasharray="4 3"/><text x="130" y="145" font-size="11" fill="#666">20 ms</text>
+  <line x1="60" y1="40" x2="90" y2="40" stroke="#c62828" stroke-width="2"/><text x="40" y="34" font-size="11" fill="#c62828">1500 µs = 0°</text>
+  <text x="700" y="55" font-size="12">1100 µs → −40°</text>
+  <text x="700" y="80" font-size="12">1500 µs → 0° (중립)</text>
+  <text x="700" y="105" font-size="12">1900 µs → +40°</text>
+  <text x="700" y="130" font-size="12" fill="#c62828">0 µs (펄스 없음) → 힘을 뺌</text>
+</svg>
+<figcaption>그림 2. HS-311 은 중립 1500 µs 에서 10 µs 마다 1° 씩 움직인다 (제조사 공식 범위 ±40° = 1100~1900 µs).</figcaption>
+</figure>
+
+<div class="box tip"><b class="t">비유</b>
+서보는 "같은 말을 계속 들어야 그 자리를 지키는" 장치입니다. 펄스를 끊으면(0) 힘을 빼고 손으로 돌릴 수 있게 됩니다.
+그래서 프로그램에는 항상 <b>[출력 끄기]</b> 버튼이 있고, 종료할 때도 꼭 0 을 보냅니다.</div>
+
+<h3>2-2. 기존 구조 (Qt MVC)</h3>
+<table>
+<tr><th style="width:26%">Qt 파일</th><th style="width:12%">계층</th><th>역할</th></tr>
+<tr><td><code>model/servospec.h</code></td><td>Model</td><td>HS-311 사양, 각도↔펄스 변환, 값 검사</td></tr>
+<tr><td><code>model/servodriver.h</code></td><td>Model</td><td>"펄스를 내보낸다" 는 약속(인터페이스). 원격/시뮬레이션 교체 가능</td></tr>
+<tr><td><code>model/remotepigpiodriver.*</code></td><td>Model</td><td>QTcpSocket 으로 pigpiod 에 16바이트 명령 전송</td></tr>
+<tr><td><code>model/servomodel.*</code></td><td>Model</td><td>현재 각도·출력 상태, 드라이버 교체, <code>changed()</code> 신호</td></tr>
+<tr><td><code>view/servogauge.*</code>, <code>view/mainwindow.*</code></td><td>View</td><td>반원 게이지(드래그), 다이얼, 버튼, 위치 메모리, 스윕, 보정 화면</td></tr>
+<tr><td><code>controller/servocontroller.*</code></td><td>Controller</td><td>요청 처리, 연결/해제, 스윕 타이머, 설정 저장, 오류 처리</td></tr>
+<tr><td><code>pi_setup.sh · deploy.sh · pi_info.sh</code></td><td>스크립트</td><td>pigpio 설치·원격 허용 / Pi 로 전송·빌드·실행 / Pi 정보 수집 (WSL 에서 실행)</td></tr>
+</table>
+<p>핵심 사실 세 가지를 PDF 와 코드에서 확인했습니다.</p>
+<ul>
+<li><b>통신 규약</b>: TCP 8888, 요청·응답 모두 16바이트, 명령은 SERVO(8)·HWVER(17)·PIGPV(26) 세 개뿐.</li>
+<li><b>네트워크</b>: PC 192.168.10.1 ↔ Pi 192.168.10.2 이더넷 1:1. SSH 별명 <code>rpi</code>, 키 인증. pigpiod 는 127.0.0.1 과 192.168.10.1 만 허용.</li>
+<li><b>안전 규칙</b>: 범위 밖 각도는 잘라서 출력, 통신 끊기면 자동 해제 후 재접속해 0 전송, 종료 시 펄스 0.</li>
+</ul>
+
+<!-- ═══════════════════════════════ 3 ═══════════════════════════════ -->
+<h2>3. 요구사항 정리와 결정 과정</h2>
+<p>요청은 <b>"WPF 도 WSL 에 접근해서 라즈베리파이를 제어하는 프로그램"</b> 이었습니다. 이 한 문장에는 해석이 여러 가지라서, 만들기 전에 네 가지를 물어 결정했습니다.</p>
+
+<table>
+<tr><th style="width:22%">질문</th><th style="width:30%">선택지</th><th style="width:18%">결정</th><th>이유</th></tr>
+<tr><td>WPF 가 Pi 로 명령을 보내는 길은?</td><td>(a) 직접 TCP + WSL 은 스크립트용 (b) WSL SSH 터널만 (c) 둘 다 선택 가능</td><td><b>(c) 둘 다</b></td><td>직접 연결은 빠르고 간단, 터널은 "WSL 을 거친다" 는 요구를 글자 그대로 만족하고 Pi 설정이 없어도 됨. 화면에서 고르게 함</td></tr>
+<tr><td>기능 범위는?</td><td>Qt 와 동일한 전체 기능 / 핵심 제어만</td><td><b>전체 기능</b></td><td>다이얼·위치 메모리·스윕·보정·설정 저장·단축키까지 1:1 이식. 교육용으로 Qt 코드와 대응 관계를 유지. (이후 왼쪽 게이지는 카메라 뷰로, 펄스폭은 입력 가능하게 발전 — 9장)</td></tr>
+<tr><td>이 PC 에 WSL 이 없는데?</td><td>다른 PC 에서 실행 / 여기 설치 / ssh.exe 대체</td><td><b>다른 PC 에서 실행</b></td><td>여기서는 빌드·시뮬레이션·에뮬레이터로 검증. WSL 이 없으면 앱이 안내 메시지를 보여 주도록 함</td></tr>
+<tr><td>프로젝트 위치·.NET 버전?</td><td>net8.0 / net10.0</td><td><b><code>ServoChapter\ServoControlWpf</code>, net8.0-windows</b></td><td>LTS. <code>RollForward=LatestMajor</code> 로 런타임 10 에서도 실행</td></tr>
+</table>
+
+<p>작업 중에 추가된 요청 세 가지도 반영했습니다.</p>
+<table>
+<tr><th style="width:36%">추가 요청</th><th>반영</th></tr>
+<tr><td>설계 과정을 PDF 로, 별도 폴더에, 이해하기 쉽게</td><td>이 문서. 폴더 <code>ServoControlWpf_설계문서</code>. 기존 PDF 와 같은 방식(HTML → Chromium 인쇄)</td></tr>
+<tr><td>프로그램 운용 원리와 기법도 작성</td><td>10장 "운용 원리와 기법"</td></tr>
+<tr><td>지금 하드웨어가 없어서 에뮬레이션 필요</td><td>가짜 pigpiod 를 만들어 ① 앱 안의 "에뮬레이터" 연결 모드, ② 콘솔 프로그램 <code>pigpio-emu</code>, ③ 자동 테스트에 사용</td></tr>
+</table>
+
+<div class="box why"><b class="t">결정의 공통 원칙</b>
+<b>"Pi 쪽은 건드리지 않는다."</b> pigpiod 와 스크립트는 그대로 두고, Windows 쪽에서만 길을 추가했습니다. 그래서 Qt 프로그램과 WPF 프로그램이 같은 Pi 에 번갈아 접속할 수 있습니다.</div>
+
+<!-- ═══════════════════════════════ 4 ═══════════════════════════════ -->
+<h2 class="pb">4. 세 가지 연결 길 — 직접 · WSL 터널 · 에뮬레이터</h2>
+
+<h3>4-1. ① 직접 연결 — 왜 Pi 설정을 바꾸지 않아도 되나</h3>
+<p>Qt 프로그램은 WSL 안에서 돌았는데, WSL2 는 기본적으로 <b>NAT</b> 방식이라 WSL 이 보낸 패킷은 Windows 의 주소(192.168.10.1)로 바뀌어 나갑니다.
+즉 Pi 의 pigpiod 는 지금까지도 "192.168.10.1 에서 온 접속" 을 받고 있었습니다. Windows 에서 직접 접속해도 Pi 가 보기에는 똑같은 주소이므로, <code>pi_setup.sh</code> 가 허용해 둔 목록을 그대로 씁니다.</p>
+
+<h3>4-2. ② WSL 터널 — "WSL 을 거쳐서" 를 글자 그대로</h3>
+<figure>
+<svg viewBox="0 0 880 120" width="880" height="120">
+  <defs><marker id="a3" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0b3d63"/></marker></defs>
+  <rect x="10" y="30" width="150" height="60" rx="6" fill="#fff" stroke="#0b3d63" stroke-width="2"/><text x="25" y="55" font-size="12" font-weight="bold">WPF</text><text x="25" y="75" font-size="10">TcpClient</text>
+  <rect x="230" y="30" width="190" height="60" rx="6" fill="#fff" stroke="#888"/><text x="245" y="55" font-size="12" font-weight="bold">WSL: ssh -N -L</text><text x="245" y="75" font-size="10">127.0.0.1:18888 에서 듣기</text>
+  <rect x="490" y="30" width="150" height="60" rx="6" fill="#fff" stroke="#1a7f37"/><text x="505" y="55" font-size="12" font-weight="bold">Pi: sshd</text><text x="505" y="75" font-size="10">암호화된 SSH</text>
+  <rect x="710" y="30" width="160" height="60" rx="6" fill="#fff" stroke="#1a7f37" stroke-width="2"/><text x="725" y="55" font-size="12" font-weight="bold">Pi: pigpiod</text><text x="725" y="75" font-size="10">127.0.0.1:8888 로 받음</text>
+  <line x1="160" y1="60" x2="230" y2="60" stroke="#0b3d63" stroke-width="2.5" marker-end="url(#a3)"/><text x="150" y="110" font-size="10" fill="#555">localhost 포워딩 (WSL2 기본)</text>
+  <line x1="420" y1="60" x2="490" y2="60" stroke="#0b3d63" stroke-width="2.5" marker-end="url(#a3)"/><text x="415" y="110" font-size="10" fill="#555">이더넷, 포트 22</text>
+  <line x1="640" y1="60" x2="710" y2="60" stroke="#0b3d63" stroke-width="2.5" marker-end="url(#a3)"/><text x="650" y="110" font-size="10" fill="#555">Pi 내부</text>
+</svg>
+<figcaption>그림 3. WSL 터널. WPF 는 자기 PC 의 127.0.0.1:18888 에 접속할 뿐인데, ssh 가 그 데이터를 Pi 의 8888 로 옮겨 준다.</figcaption>
+</figure>
+<p>앱이 실행하는 명령은 이것입니다.</p>
+<pre>wsl.exe [-d 배포판] -e ssh -N -o BatchMode=yes -o ExitOnForwardFailure=yes -o ConnectTimeout=5 \
+        -L 127.0.0.1:18888:127.0.0.1:8888 rpi</pre>
+<table>
+<tr><th style="width:30%">옵션</th><th>뜻 (쉽게)</th></tr>
+<tr><td><code>-N</code></td><td>원격에서 명령을 실행하지 않고 "통로" 만 연다</td></tr>
+<tr><td><code>-L 127.0.0.1:18888:127.0.0.1:8888</code></td><td>내 쪽 18888 로 들어온 것을 저쪽(Pi) 의 8888 로 보낸다</td></tr>
+<tr><td><code>-o BatchMode=yes</code></td><td>비밀번호나 "yes/no" 질문을 하지 않는다 (창이 없으니 물어봐도 답할 수 없음 → 키 인증 필수)</td></tr>
+<tr><td><code>-o ExitOnForwardFailure=yes</code></td><td>포트를 못 열면 바로 종료 → 앱이 실패를 빨리 알 수 있음</td></tr>
+</table>
+<p>앱은 터널을 띄운 뒤 <b>127.0.0.1:18888 이 열릴 때까지 최대 10초</b> 기다리고, 그 다음부터는 ①과 똑같은 <code>RemotePigpioDriver</code> 로 접속합니다.
+이미 누가 18888 을 열어 두었다면(앱이 비정상 종료돼 ssh 가 남은 경우) 새로 띄우지 않고 그대로 씁니다. 연결 해제·종료 시 <code>Process.Kill(entireProcessTree)</code> 로 wsl.exe 와 그 안의 ssh 를 함께 닫습니다.</p>
+
+<h3>4-3. ③ 에뮬레이터 — 하드웨어 없이 "진짜 경로" 를 시험</h3>
+<p>Pi 가 없을 때 그냥 화면만 움직이는 "시뮬레이션" 은 통신 코드를 전혀 검사하지 못합니다. 그래서 <b>진짜 pigpiod 처럼 대답하는 가짜 서버</b>를 만들었습니다.</p>
+<ul>
+<li>같은 16바이트 규약으로 응답. SERVO 는 펄스 범위(0, 500~2500)와 GPIO 번호를 검사해 진짜처럼 −7, −2 오류를 돌려줌.</li>
+<li>HWVER → <code>0xc03111</code>(Pi 4B), PIGPV → 79 를 돌려주므로 연결 바에 "Pi 리비전 c03111 · pigpio v79" 가 뜸.</li>
+<li>서보의 <b>물리 움직임</b>도 흉내: 목표 각도를 향해 0.19 s/60°(HS-311 @4.8 V) 속도로 움직이는 "현재 각도" 를 계산.</li>
+<li>앱은 에뮬레이터 모드에서도 ①과 <b>완전히 같은</b> <code>RemotePigpioDriver</code> 를 쓴다. 다른 점은 접속 주소가 127.0.0.1 이라는 것뿐.</li>
+</ul>
+<div class="box tip"><b class="t">에뮬레이터로 확인된 것</b>
+상단 바에 "가짜 Pi 수신 #138: SERVO gpio=18 출력 끔" 처럼 <b>가짜 Pi 가 실제로 받은 바이트</b>가 표시됩니다. 즉 "화면이 움직였다" 가 아니라 "TCP 로 올바른 명령이 도착했다" 를 눈으로 확인합니다.</div>
+
+<h3>4-4. 비교</h3>
+<table>
+<tr><th></th><th class="c">① 직접</th><th class="c">② WSL 터널</th><th class="c">③ 에뮬레이터</th></tr>
+<tr><td>필요한 것</td><td>Pi + pigpiod 원격 허용(pi_setup.sh)</td><td>Pi + WSL + ssh 키 인증(별명 rpi)</td><td>없음</td></tr>
+<tr><td>명령 지연</td><td>LAN 수 ms</td><td>SSH 암호화 추가, 보통 10 ms 이내</td><td>1 ms 이내</td></tr>
+<tr><td>Pi 가 보는 접속 주소</td><td>192.168.10.1</td><td>127.0.0.1</td><td>(해당 없음)</td></tr>
+<tr><td>장점</td><td>가장 단순·빠름</td><td>암호화, Pi 설정 불필요, "WSL 경유" 요구 충족</td><td>Pi 없이 통신 코드 검증, 교육·시연</td></tr>
+<tr><td>단점</td><td>pigpiod 가 허용 주소를 알아야 함</td><td>WSL·ssh 준비 필요, 터널 여는 데 1~3초</td><td>실제 서보 반응은 볼 수 없음</td></tr>
+</table>
+
+<!-- ═══════════════════════════════ 5 ═══════════════════════════════ -->
+<h2 class="pb">5. 프로그램 구조 — Qt MVC → WPF MVVM</h2>
+<p>Qt 의 <b>MVC</b>(Model-View-Controller) 를 WPF 의 <b>MVVM</b>(Model-View-ViewModel) 으로 옮겼습니다. 이름만 다르고 역할은 거의 같습니다.
+가장 큰 차이는 View 와 ViewModel 이 <b>"바인딩"</b> 으로 자동 연결된다는 점입니다 — Qt 의 <code>connect(signal, slot)</code> 을 XAML 한 줄이 대신합니다.</p>
+
+<figure>
+<svg viewBox="0 0 900 250" width="900" height="250">
+  <defs><marker id="a5" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0b3d63"/></marker></defs>
+  <rect x="10" y="20" width="250" height="210" rx="8" fill="#f3f6fb" stroke="#9fb9e0"/><text x="25" y="45" font-size="14" font-weight="bold" fill="#0b3d63">View (화면)</text>
+  <text x="25" y="70" font-size="11">MainWindow.xaml — 배치·바인딩</text>
+  <text x="25" y="90" font-size="11">ServoDial — 다이얼 · ServoCameraView — 카메라 뷰</text>
+  <text x="25" y="110" font-size="11">DialogService — 오류 창, 폴더 선택</text>
+  <text x="25" y="140" font-size="10" fill="#555">계산·통신 코드 없음</text>
+  <rect x="325" y="20" width="250" height="210" rx="8" fill="#f1f8f1" stroke="#9fcf9f"/><text x="340" y="45" font-size="14" font-weight="bold" fill="#1a7f37">ViewModel (= Qt Controller)</text>
+  <text x="340" y="70" font-size="11">MainViewModel — 요청 처리, 연결,</text>
+  <text x="340" y="86" font-size="11">  스윕 타이머, 메모리, 보정, 설정 저장</text>
+  <text x="340" y="106" font-size="11">WslViewModel — 스크립트·ssh 실행, 로그</text>
+  <text x="340" y="130" font-size="11">RelayCommand — 버튼 ↔ 메서드</text>
+  <rect x="640" y="20" width="250" height="210" rx="8" fill="#fff8ee" stroke="#f0b86e"/><text x="655" y="45" font-size="14" font-weight="bold" fill="#7a4f01">Model (상태·하드웨어)</text>
+  <text x="655" y="70" font-size="11">ServoSpec — 사양, 각도↔펄스</text>
+  <text x="655" y="88" font-size="11">ServoModel — 각도·출력 상태</text>
+  <text x="655" y="106" font-size="11">IServoDriver — 인터페이스</text>
+  <text x="655" y="124" font-size="11">  RemotePigpioDriver / SimulatedDriver</text>
+  <text x="655" y="142" font-size="11">PigpioClient — 16바이트 TCP</text>
+  <text x="655" y="160" font-size="11">WslSshTunnel — ssh 터널 프로세스</text>
+  <text x="655" y="178" font-size="11">AppSettings — JSON 저장</text>
+  <line x1="260" y1="120" x2="325" y2="120" stroke="#0b3d63" stroke-width="2" marker-end="url(#a5)"/><text x="262" y="112" font-size="9" fill="#0b3d63">Command</text>
+  <line x1="325" y1="150" x2="260" y2="150" stroke="#0b3d63" stroke-width="2" marker-end="url(#a5)"/><text x="248" y="170" font-size="9" fill="#0b3d63">PropertyChanged</text>
+  <line x1="575" y1="120" x2="640" y2="120" stroke="#0b3d63" stroke-width="2" marker-end="url(#a5)"/><text x="578" y="112" font-size="9" fill="#0b3d63">SetAngle…</text>
+  <line x1="640" y1="150" x2="575" y2="150" stroke="#0b3d63" stroke-width="2" marker-end="url(#a5)"/><text x="590" y="170" font-size="9" fill="#0b3d63">Changed</text>
+</svg>
+<figcaption>그림 4. 세 계층. View 는 "명령" 만 보내고, ViewModel 이 Model 을 바꾸고, Model 이 Changed 로 알리면 ViewModel 이 PropertyChanged 로 화면을 갱신한다.</figcaption>
+</figure>
+
+<table>
+<tr><th style="width:27%">Qt (C++)</th><th style="width:30%">WPF (C#)</th><th>비고</th></tr>
+<tr><td><code>model/servospec.h</code></td><td><code>Model\ServoSpec.cs</code></td><td><code>record struct</code>. 변환식 그대로. 테스트 11개</td></tr>
+<tr><td><code>model/servodriver.h</code></td><td><code>Model\IServoDriver.cs</code></td><td>실패는 <code>bool + QString*</code> 대신 <code>ServoException</code>(<code>LinkLost</code> 플래그) 으로</td></tr>
+<tr><td><code>model/remotepigpiodriver.*</code></td><td><code>Model\PigpioClient.cs</code> + <code>RemotePigpioDriver.cs</code></td><td>바이트 처리(PigpioClient) 와 서보 동작(Driver) 을 둘로 나눠 가짜 서버로 단위 테스트 가능</td></tr>
+<tr><td>(없음)</td><td><code>Model\WslSshTunnel.cs</code></td><td>신규. 터널 프로세스의 수명 관리</td></tr>
+<tr><td><code>model/servomodel.*</code></td><td><code>Model\ServoModel.cs</code></td><td><code>changed()</code> → <code>Changed</code> 이벤트</td></tr>
+<tr><td><code>QSettings</code> (.conf)</td><td><code>Model\AppSettings.cs</code> (JSON)</td><td><code>%APPDATA%\VI\ServoControl.json</code></td></tr>
+<tr><td><code>controller/servocontroller.*</code></td><td><code>ViewModel\MainViewModel.cs</code></td><td>슬롯 하나 = 메서드 하나. <code>QSignalBlocker</code> → <code>_syncing</code> 플래그</td></tr>
+<tr><td>(없음)</td><td><code>ViewModel\WslViewModel.cs</code>, <code>Services\WslService.cs</code></td><td>신규. wsl.exe 호출, 스크립트/ssh 실행, 로그</td></tr>
+<tr><td><code>view/servogauge.*</code> (반원 게이지, 드래그 입력)</td><td><code>View\ServoCameraView.cs</code></td><td>역할이 바뀜: <b>서보에 올려진 카메라의 움직임</b>을 위에서 본 그림으로 보여 주는 <b>표시 전용</b> 화면. 마우스 입력 없음, 서보 속도로 회전 애니메이션</td></tr>
+<tr><td><code>QDial</code> (Qt 기본 위젯)</td><td><code>View\ServoDial.cs</code></td><td>WPF 에 다이얼이 없어 직접 만든 원형 노브. 270° 스윕, 눈금, 드래그·휠·방향키. UI 자동화 RangeValue 패턴 지원</td></tr>
+<tr><td><code>view/mainwindow.*</code></td><td><code>View\MainWindow.xaml(.cs)</code></td><td>배치는 XAML, 코드 비하인드는 전체화면·Enter·휠·스크롤 네 가지만</td></tr>
+<tr><td><code>main.cpp</code></td><td><code>App.xaml.cs</code></td><td>조립, 종료 시 펄스 0</td></tr>
+<tr><td>(없음)</td><td><code>PigpioEmulator\</code>, <code>PigpioEmulatorCli\</code></td><td>신규. 가짜 pigpiod 라이브러리 + 콘솔</td></tr>
+</table>
+
+<h3>5-1. 폴더 구조</h3>
+<pre>ServoChapter\
+├─ ServoControl\                  기존 Qt (수정 안 함; 스크립트 3개를 WPF 가 재사용)
+├─ ServoControlWpf\               ★ WPF 솔루션
+│  ├─ ServoControlWpf.sln · README.md
+│  ├─ ServoControlWpf\            앱  (Model · ViewModel · View · Services)
+│  ├─ ServoControlWpf.Tests\      xUnit 34개
+│  ├─ PigpioEmulator\             가짜 pigpiod 라이브러리
+│  └─ PigpioEmulatorCli\          가짜 pigpiod 콘솔 (pigpio-emu)
+└─ ServoControlWpf_설계문서\        ★ 이 문서 (HTML 원본 + PDF + 화면 캡처)</pre>
+
+<!-- ═══════════════════════════════ 6 ═══════════════════════════════ -->
+<h2 class="pb">6. 데이터 흐름 — 슬라이더를 움직이면 일어나는 일</h2>
+<p>Qt 문서의 "다이얼을 돌렸을 때" 와 같은 7단계입니다. 번호를 따라가 보세요.</p>
+<ol>
+<li><b>MainWindow</b>: 슬라이더 값이 바뀜 → 바인딩이 <code>MainViewModel.Angle</code> 에 값을 넣음</li>
+<li><b>MainViewModel.Angle setter</b>: 스윕 중이면 멈추고 <code>_model.SetAngle(angle)</code></li>
+<li><b>ServoModel.SetAngle</b>: 범위로 자른 뒤 <code>ServoSpec.AngleToPulse()</code> 로 펄스 계산 → <code>driver.WritePulse(µs)</code></li>
+<li><b>RemotePigpioDriver → PigpioClient</b>: SERVO(8, 18, µs) 16바이트 전송 → 응답 <code>res</code> 확인</li>
+<li><b>pigpiod</b> (또는 가짜 pigpiod): GPIO18 펄스 폭 변경 → 서보 이동</li>
+<li><b>ServoModel</b>: 성공하면 각도 저장 후 <code>Changed</code> 이벤트</li>
+<li><b>MainViewModel.SyncFromModel</b>: <code>_syncing = true</code> 상태로 Angle·Pulse·IsOutputOn 등 <code>PropertyChanged</code> → 다이얼·각도 줄·펄스 줄 갱신, 왼쪽 카메라 뷰는 (연결된 상태라면) 새 목표를 향해 서보 속도로 회전 시작. 연결 해제 상태면 카메라 뷰는 움직이지 않음</li>
+</ol>
+<div class="box warn"><b class="t">무한 루프 막기</b>
+7번에서 슬라이더 값을 다시 넣을 때, 슬라이더는 또 "값이 바뀌었다" 고 ViewModel 에 알립니다. 그냥 두면 "갱신 → 요청 → 갱신 → …" 이 반복됩니다.
+Qt 는 <code>QSignalBlocker</code> 로 막았고, WPF 판은 <code>_syncing</code> 플래그가 켜져 있으면 <code>Angle</code> setter 가 값만 저장하고 명령을 보내지 않습니다.</div>
+
+<h3>6-1. 펄스폭으로 조작하면</h3>
+<p>펄스 줄(슬라이더·입력칸)을 바꾸면 ViewModel 의 <code>PulseInput</code> setter 가 받습니다. 사양 범위(최소~최대 펄스)로 자른 뒤 <code>ServoSpec.PulseToAngle()</code> 로 각도를 구해 위 2번부터 같은 길을 갑니다.
+즉 <b>모델이 기억하는 것은 언제나 "각도" 하나</b>이고, 펄스폭은 사양으로 계산한 값입니다. 그래서 7번 갱신 때 각도 줄·다이얼·카메라 뷰·펄스 줄이 모두 같은 상태를 보여 주고, 보정값을 바꾸면 펄스 줄의 범위와 값도 함께 바뀝니다.</p>
+<table>
+<tr><th style="width:34%">입력</th><th>따라 바뀌는 것</th></tr>
+<tr><td>각도 줄 / 다이얼 / ± 버튼</td><td>펄스 줄 = <code>AngleToPulse(각도)</code>, 서보 출력, 카메라 뷰 회전</td></tr>
+<tr><td>펄스 줄 (예 1650 µs)</td><td>각도 = <code>PulseToAngle(1650)</code> = 15.0°, 다이얼·각도 줄, 서보 출력, 카메라 뷰 회전</td></tr>
+<tr><td>범위 밖 펄스 (예 2400, 공식값일 때)</td><td>최대 1900 µs 로 잘려 40°</td></tr>
+<tr><td>보정 적용 (예 확장값)</td><td>펄스 줄 범위 600~2400, 현재 각도에 맞는 펄스로 다시 계산</td></tr>
+</table>
+
+<h3>6-2. 실패했을 때</h3>
+<p>4번에서 실패하면 <code>ServoException</code> 이 올라옵니다. <code>LinkLost</code> 가 true(연결 끊김·시간 초과) 이면 ViewModel 이 <b>먼저 연결을 정리</b>(시뮬레이션 드라이버로 교체, 이전 드라이버가 재접속해 0 전송) 하고 오류 창을 띄웁니다.
+pigpio 가 거부한 오류(−7 등) 는 연결을 유지한 채 메시지만 보여 줍니다. 어느 경우든 Model 의 각도는 바뀌지 않으므로 화면이 "실제 서보 상태" 와 어긋나지 않습니다.</p>
+
+<!-- ═══════════════════════════════ 7 ═══════════════════════════════ -->
+<h2>7. pigpiod 16바이트 명령</h2>
+<p>pigpiod 는 TCP 8888 로 명령을 받습니다. 요청과 응답은 모두 <b>4바이트 정수 4개</b>(리틀엔디언 = 낮은 바이트가 먼저) 입니다.</p>
+<table>
+<tr><th style="width:12%">구분</th><th class="c">바이트 0~3</th><th class="c">4~7</th><th class="c">8~11</th><th class="c">12~15</th></tr>
+<tr><td>요청</td><td class="c">cmd (명령 번호)</td><td class="c">p1</td><td class="c">p2</td><td class="c">p3 (= 0)</td></tr>
+<tr><td>응답</td><td class="c">cmd (같은 값)</td><td class="c">p1</td><td class="c">p2</td><td class="c">res (0 이상 성공, 음수 오류)</td></tr>
+</table>
+<table>
+<tr><th style="width:14%">명령</th><th class="c" style="width:8%">번호</th><th style="width:28%">p1 / p2</th><th>용도</th></tr>
+<tr><td>SERVO</td><td class="c">8</td><td>GPIO 번호 / 펄스폭(µs)</td><td>서보 펄스 설정. 0 이면 출력 끔. 500~2500 만 허용</td></tr>
+<tr><td>HWVER</td><td class="c">17</td><td>— / —</td><td>연결 직후 Pi 하드웨어 리비전 읽기 (예 0xc03111 = Pi 4B)</td></tr>
+<tr><td>PIGPV</td><td class="c">26</td><td>— / —</td><td>연결 직후 pigpio 버전 읽기</td></tr>
+</table>
+<pre>예) "GPIO18 을 1500 µs 로"   →  08 00 00 00 · 12 00 00 00 · dc 05 00 00 · 00 00 00 00
+    (8 = SERVO, 18 = 0x12, 1500 = 0x05dc)
+C# 에서는  BinaryPrimitives.WriteUInt32LittleEndian(req[0..4], cmd)  처럼 넣는다.</pre>
+<p>이 바이트 열이 정확히 나가는지는 자동 테스트 <code>Servo_SendsExactly16BytesLittleEndian</code> 이 가짜 서버로 받아서 확인합니다. 오류 코드는 한글로 바꿔 보여 줍니다: −2 "사용할 수 없는 GPIO 번호", −7 "펄스폭은 0 또는 500~2500 µs", −41 "권한 없음".</p>
+
+<!-- ═══════════════════════════════ 8 ═══════════════════════════════ -->
+<h2>8. WSL 접근 — WPF 가 리눅스를 부르는 법</h2>
+<p>Windows 프로그램이 WSL 을 쓰는 가장 확실한 방법은 <code>wsl.exe</code> 를 실행하는 것입니다. WPF 앱은 다음 네 가지 모양으로 부릅니다.</p>
+<table>
+<tr><th style="width:24%">하는 일</th><th style="width:46%">실행하는 명령</th><th>비고</th></tr>
+<tr><td>WSL 이 있나, 배포판은?</td><td><code>wsl.exe -l -q</code></td><td>출력이 <b>UTF-16LE</b> → <code>Encoding.Unicode</code> 로 읽어야 함 (안 그러면 글자 사이에 빈 문자가 끼어 깨짐)</td></tr>
+<tr><td>스크립트 실행</td><td><code>wsl.exe [-d 배포판] --cd "D:\…\ServoControl" -e bash ./pi_info.sh rpi</code></td><td><code>--cd</code> 가 Windows 경로를 <code>/mnt/d/…</code> 로 자동 변환. 출력은 UTF-8</td></tr>
+<tr><td>Pi 에 명령 한 줄</td><td><code>wsl.exe -e ssh -o BatchMode=yes -o ConnectTimeout=5 rpi "systemctl is-active pigpiod"</code></td><td>키 인증 필수 (비밀번호를 받을 창이 없음)</td></tr>
+<tr><td>터널 열기</td><td><code>wsl.exe -e ssh -N -L 127.0.0.1:18888:127.0.0.1:8888 rpi</code></td><td>4-2 절</td></tr>
+</table>
+<div class="box why"><b class="t">왜 pi_setup.sh 만 새 터미널 창에서 여나</b>
+<code>pi_setup.sh</code> 는 Pi 에서 <code>sudo apt-get install</code> 을 하고 <code>ssh -t</code> 로 접속합니다. 비밀번호를 물어볼 수 있는데, 출력을 가로채는 "보이지 않는 실행" 에서는 답을 입력할 방법이 없어 멈춰 버립니다.
+그래서 이 스크립트만 <b>콘솔 창을 그대로 띄워</b>(<code>CreateNoWindow=false</code>) 사람이 직접 입력할 수 있게 했습니다. 나머지(<code>pi_info.sh</code>, <code>deploy.sh</code>, ssh 명령) 는 출력을 앱의 로그 창에 실시간으로 보여 줍니다.</div>
+<p>모든 외부 실행은 <code>Services\ProcessRunner</code> 한 곳을 거칩니다: 줄 단위로 stdout/stderr 를 받아 UI 스레드로 넘기고, [취소] 를 누르면 프로세스 트리를 통째로 끝냅니다. WSL 이 없는 PC 에서는 "이 PC에 WSL이 설치되어 있지 않습니다. 'wsl --install' 로 설치하세요." 를 보여 주고 앱은 계속 동작합니다(이 PC 에서 확인됨).</p>
+
+<!-- ═══════════════════════════════ 9 ═══════════════════════════════ -->
+<h2>9. 화면 설계</h2>
+<p>Qt 화면과 같은 세 칸 배치입니다. 오른쪽 칸은 탭 두 개("서보", "WSL / Pi 관리") 로 나눴습니다.</p>
+<figure><img class="shot" src="screenshot_emulator_dial.png" alt="에뮬레이터 모드, 다이얼로 조종 중인 화면"><figcaption>그림 5. 에뮬레이터에 연결해 다이얼로 +25° 를 준 화면. 왼쪽은 서보 위 카메라가 +25° 를 향해 시야(파란 쐐기)를 비추는 모습, 가운데는 원형 다이얼과 그 아래 각도 줄(25.0°)·펄스 줄(1875 µs)이 서로 묶여 있다(보정값 800/1500/2100 µs 기준). 상단에 "Pi 리비전 c03111 · pigpio v79" 와 가짜 Pi 가 받은 SERVO 명령(1875 µs)이 보인다.</figcaption></figure>
+<table>
+<tr><th style="width:18%">영역</th><th style="width:44%">위젯</th><th>내보내는 명령 (ViewModel)</th></tr>
+<tr><td>상단 연결 바</td><td>연결 방식 콤보(직접/WSL 터널/에뮬레이터), Pi 주소·포트 또는 ssh 별명·배포판·로컬 포트, [연결] 토글, ● 표시등, 장치 정보, 에뮬 수신 표시</td><td><code>ConnectToggleCommand</code></td></tr>
+<tr><td>왼쪽 카메라 뷰</td><td><code>ServoCameraView</code> — 위에서 내려다본 서보 본체(HS-311)와 혼 위의 카메라, 카메라 시야(FOV 62°) 쐐기, 허용 범위 호와 끝 표시, 30° 눈금, 현재 각도·목표·펄스·상태 글자. <b>표시 전용</b>(마우스 입력 없음). <b>연결됐을 때만</b> 움직이고, 해제 상태에서는 "연결 안 됨" 안내만 표시</td><td>없음 (<code>Angle</code>·<code>IsOutputOn</code>·<code>Pulse</code>·<code>IsConnected</code> 를 읽기만 함)</td></tr>
+<tr><td>가운데 다이얼 조종</td><td><b>원형 다이얼 <code>ServoDial</code></b>(노브를 끌어 돌림, 휠 1칸 = 1°, ←/→ 1°, PgUp/PgDn 10°, 가운데 각도·펄스폭 표시), <b>각도 줄</b>(슬라이더 + 입력칸 °) 과 <b>펄스 줄</b>(슬라이더 + 입력칸 µs) — 어느 쪽을 바꿔도 다른 쪽이 따라 바뀜, 출력 상태, −10/−1/0°/+1/+10, 최소/최대, [출력 끄기]</td><td><code>Angle</code> · <code>PulseInput</code> 양방향 바인딩, <code>NudgeCommand</code>, <code>CenterCommand</code>, <code>GoMin/GoMaxCommand</code>, <code>ReleaseCommand</code></td></tr>
+<tr><td>탭 "서보"</td><td>위치 메모리 P1~P4(이동 + 현재 위치 저장), 스윕 시작/정지 + 속도 5~200 °/s, 보정 6칸 + [적용][공식값][확장값], 배선 메모</td><td><code>PresetRecall/StoreCommand</code>, <code>ToggleSweepCommand</code>, <code>ApplySpec/Official/ExtendedCommand</code></td></tr>
+<tr><td>탭 "WSL / Pi 관리"</td><td>WSL 상태 + [WSL 확인], 배포판·ssh 별명·스크립트 폴더, [Pi 상태 확인][pi_info.sh][deploy.sh][pi_setup.sh ↗][취소], ssh 명령 입력, 검은 로그 창</td><td><code>WslViewModel</code> 의 커맨드들</td></tr>
+<tr><td>상태 바</td><td>4초 뒤 사라지는 안내문</td><td><code>StatusText</code></td></tr>
+</table>
+<p>키보드: ←/→ = 1° 이동, Space = 출력 끄기, F11 = 전체화면. 모양은 Qt 스타일시트를 옮겼습니다(제목 22px <code>#0b3d63</code>, 출력 끄기 빨강 <code>#c62828</code>, 연결됨 초록 <code>#1a7f37</code>).</p>
+
+<h3>9-1. 다이얼은 어떻게 만들었나</h3>
+<p>WPF 에는 Qt 의 <code>QDial</code> 같은 기본 다이얼이 없습니다. 처음에는 슬라이더로 대신했지만 "다이얼 조종" 이라는 이름과 맞지 않아, <code>FrameworkElement</code> 를 상속해 <b>직접 그리는 노브</b>를 만들었습니다.</p>
+<ul>
+<li><b>그리기</b>: 값 범위(최소~최대)를 화면 각도 −135°~+135°(270°) 에 비례로 펼친다. 바깥에 1° 눈금과 10° 숫자, 안쪽에 0° 부터 현재 값까지 파란 호, 가운데에 노브와 포인터, 노브 안에 각도 숫자.</li>
+<li><b>조작</b>: 노브를 누르거나 끌면 중심에서 본 마우스 방향각을 <code>atan2</code> 로 구해 값으로 바꾼다(1° 단위로 맞춤). 아래쪽 빈 90° 구간을 가리키면 가까운 끝으로. 휠 1칸 = 1°, 포커스가 있으면 ←/→ 1°, PgUp/PgDn 10°, Home/End 끝.</li>
+<li><b>연결</b>: <code>Value</code> 가 양방향 바인딩이라 <code>ViewModel.Angle</code> 과 바로 묶인다. 모델이 바뀌면 다이얼이 따라 돌고, 다이얼을 돌리면 6장의 흐름대로 서보 명령이 나간다.</li>
+<li><b>검증</b>: "마우스 위치 → 값" 계산은 단위 테스트 10개로, 실제 조작은 UI 자동화(RangeValue 패턴·마우스 메시지)로 확인.</li>
+</ul>
+
+<h3>9-2. 왼쪽 화면 — 서보에 올려진 카메라의 움직임</h3>
+<p>처음에는 왼쪽에 반원 "미터기" 게이지를 두고 드래그로도 조종하게 했지만, 조종은 다이얼 하나로 충분하고 왼쪽은 <b>"지금 모터가 실제로 어떻게 움직이는가"</b> 를 보여 주는 편이 직관적이라 바꿨습니다.
+이 프로젝트의 서보는 카메라를 좌우로 돌리는(팬) 용도이므로, 위에서 내려다본 서보 본체 위에 카메라를 올린 그림을 그립니다.</p>
+<ul>
+<li><b>표시 전용</b>: <code>IsHitTestVisible = false</code> 로 마우스를 전혀 받지 않습니다. 눌러도 각도가 바뀌지 않습니다(자동 테스트로 확인).</li>
+<li><b>실제 속도로 움직임</b>: 바인딩된 <code>Angle</code> 은 "명령한 목표" 이고, 그림의 카메라는 그 목표를 향해 HS-311 속도(0.19 s/60° ≈ 316 °/s)로 회전합니다. 그래서 −40° → +40° 명령을 주면 약 0.25 초 동안 돌아가는 모습이 보이고, 글자에 "→ 목표 +40.0° 로 회전 중" 이 표시됩니다.</li>
+<li><b>시야(FOV)</b>: 카메라 앞으로 62°(Pi 카메라 모듈 v2 수평 시야) 쐐기를 반투명하게 그려, 카메라가 어디를 보고 있는지 알 수 있습니다.</li>
+<li><b>상태 표현</b>: 출력이 꺼지면 카메라가 회색이 되고 시야가 사라집니다(힘이 빠진 상태). 허용 범위는 연한 파란 호, 범위 끝에 닿아 있으면 "끝단 — '지잉' 소리가 나면 범위를 줄이세요" 경고가 뜹니다.</li>
+<li><b>Model 과의 관계</b>: 애니메이션은 화면 안에서만 일어납니다. Model 의 각도(= 서보에 보낸 명령)는 즉시 바뀌고, 그림만 뒤따라갑니다. 에뮬레이터도 같은 속도로 "현재 각도" 를 흉내 내므로 둘이 거의 일치합니다.</li>
+<li><b>연결됐을 때만 움직임</b>: <code>IsConnected</code> 가 바인딩되어 있어, <b>연결 해제 상태에서는 다이얼·각도·펄스를 아무리 바꿔도 카메라는 제자리</b>입니다. 그림은 반투명 막으로 흐려지고 "연결 안 됨 — Pi 또는 에뮬레이터에 [연결]하면 카메라 움직임이 여기에 표시됩니다" 안내만 보입니다.
+이유는 단순합니다. 연결이 없으면 서보로 명령이 나가지 않으므로 실제 모터도 움직이지 않는데, 화면이 움직이면 "지금 모터가 돌고 있다" 는 거짓 정보가 됩니다.
+구동 조건은 <code>연결됨 AND 출력 켜짐</code> 하나로 묶었고(<code>IsDriven</code>), 연결 직후 출력이 꺼진 상태에서는 회색 카메라가 마지막 위치에 머물다가 첫 명령으로 출력이 켜질 때 목표를 향해 출발합니다. 연결을 끊으면 회전 중이던 카메라도 그 자리에서 멈춥니다(실제 서보도 힘이 빠지면 그 자리에 머묾).</li>
+</ul>
+<figure><img class="shot" src="screenshot_camera_moving.png" alt="카메라가 목표를 향해 회전 중인 화면"><figcaption>그림 6. −40° 에서 +40° 로 명령한 직후(약 60 ms 뒤) 캡처. 다이얼·펄스 줄은 이미 목표(+40°, 2100 µs)를 가리키지만, 왼쪽 카메라는 +3.4° 를 지나며 "→ 목표 +40.0° 로 회전 중" 이라고 표시한다. 실제 서보가 움직이는 데 걸리는 시간(80° ≈ 0.25 s)을 그대로 보여 준다.</figcaption></figure>
+<figure><img class="shot" src="screenshot_camera_disconnected.png" alt="연결 해제 상태의 카메라 뷰"><figcaption>그림 6-1. 연결을 끊은 뒤 다이얼을 +40° 로 돌린 화면. 오른쪽 다이얼·각도 줄·펄스 줄은 +40°, 1900 µs 를 가리키지만, 왼쪽 카메라는 끊기 전 위치(−20°)에 회색으로 멈춰 있고 "연결 안 됨" 안내가 덮여 있다. 명령이 서보로 나가지 않으니 화면도 움직이지 않는다.</figcaption></figure>
+
+<!-- ═══════════════════════════════ 10 ═══════════════════════════════ -->
+<h2 class="pb">10. 운용 원리와 기법</h2>
+<p>이 장은 "프로그램을 어떻게 돌리고, 왜 그렇게 해야 하는가" 를 다룹니다. 처음 운용하는 사람은 10-6 절차와 10-7 안전 수칙만 먼저 읽어도 됩니다.</p>
+
+<h3>10-1. 서보 제어의 원리 — 펄스 폭이 곧 각도</h3>
+<ul>
+<li><b>프레임</b>: 20 ms 마다 한 번(50 Hz). 이 주기는 거의 모든 아날로그 서보의 약속입니다.</li>
+<li><b>폭</b>: HS-311 은 1500 µs 가 0°, ±400 µs 가 ±40°. 즉 <b>10 µs = 1°</b>. 프로그램의 <code>AngleToPulse</code> 가 이 비례식을 계산합니다(중립 기준으로 + 쪽, − 쪽 따로).</li>
+<li><b>데드밴드 5 µs</b>: 펄스가 5 µs 이내로 바뀌면 서보가 움직이지 않습니다. 0.5° 미만 변화는 의미가 없다는 뜻이므로, 프로그램은 1° 단위 조작을 기본으로 둡니다.</li>
+<li><b>위치 유지</b>: 같은 펄스를 계속 받으면 서보는 외부 힘에 저항하며 그 자리를 지킵니다(이때 전류가 흐릅니다). 펄스 0 이면 힘을 뺍니다.</li>
+<li><b>속도</b>: 0.19 s/60°(4.8 V). 80° 를 가려면 약 0.25 초. 스윕 속도를 200 °/s 넘게 올려도 서보가 따라오지 못합니다(최대 약 315 °/s).</li>
+</ul>
+
+<h3>10-2. 왜 pigpiod 인가 — "한 번 말하면 계속 해 주는" 데몬</h3>
+<p>리눅스 프로그램이 GPIO 를 직접 켰다 껐다 하면 운영체제의 다른 작업 때문에 타이밍이 흔들려 서보가 떨립니다.
+<span class="kw">pigpiod</span> 는 Pi 의 <b>DMA 하드웨어</b>로 펄스를 만들기 때문에 µs 단위로 정확하고, 한 번 "GPIO18 에 1500 µs" 라고 하면 <b>다음 명령이 올 때까지 스스로 계속</b> 내보냅니다.</p>
+<div class="box tip"><b class="t">운용에 미치는 뜻</b>
+<ul>
+<li>프로그램은 <b>각도가 바뀔 때만</b> 명령을 보내면 됩니다. 네트워크가 잠깐 느려져도 서보는 마지막 위치를 지킵니다.</li>
+<li>반대로 <b>접속이 끊겨도 펄스는 계속 나갑니다.</b> 그래서 프로그램은 끊긴 뒤에도 0.5 초 재접속을 시도해 0 을 보내고, 종료 때도 꼭 0 을 보냅니다. 비정상 종료 후 서보가 계속 힘을 주고 있으면 Pi 에서 <code>pigs s 18 0</code> 으로 끌 수 있습니다.</li>
+</ul></div>
+
+<h3>10-3. 네트워크 원리 — 누가 누구로 보이나</h3>
+<table>
+<tr><th style="width:26%">상황</th><th style="width:30%">Pi 의 pigpiod 가 보는 출발 주소</th><th>허용되려면</th></tr>
+<tr><td>Qt 앱 (WSL2 NAT 안)</td><td>192.168.10.1 (Windows 호스트)</td><td rowspan="2"><code>pigpiod -n 127.0.0.1 -n 192.168.10.1</code> (pi_setup.sh 가 설정)</td></tr>
+<tr><td>WPF 직접 연결</td><td>192.168.10.1</td></tr>
+<tr><td>WPF WSL 터널</td><td>127.0.0.1 (Pi 자신)</td><td>기본 설정 그대로 허용</td></tr>
+<tr><td>Pi 화면에서 Qt 앱</td><td>127.0.0.1</td><td>기본 설정 그대로 허용</td></tr>
+</table>
+<p>WSL2 네트워크를 "미러 모드" 로 바꾼 PC 라면 WSL 도 자기 주소를 그대로 쓰므로, 그때는 <code>pi_setup.sh rpi &lt;WSL 주소&gt;</code> 로 허용 주소를 하나 더 넣어야 합니다. 터널 모드는 이 문제와 무관합니다.</p>
+
+<h3>10-4. SSH 터널 기법 — 준비와 점검</h3>
+<ol>
+<li>WSL 터미널에서 <code>ssh rpi</code> 가 <b>비밀번호 없이</b> 들어가는지 확인합니다. 안 되면 <code>ssh-keygen</code> 후 <code>ssh-copy-id rpi</code>.</li>
+<li><code>~/.ssh/config</code> 에 별명이 있어야 합니다: <pre>Host rpi
+    HostName 192.168.10.2
+    User user</pre></li>
+<li>손으로 터널을 시험하려면: <code>ssh -N -L 127.0.0.1:18888:127.0.0.1:8888 rpi</code> 를 한 창에서 띄우고, Windows 에서 WPF 를 "직접 연결 · 127.0.0.1 · 18888" 로 접속해도 똑같이 됩니다.</li>
+<li>앱은 18888 이 이미 열려 있으면 재사용합니다. 남은 터널을 지우려면 WSL 에서 <code>pkill -f "ssh -N"</code>.</li>
+<li>ssh 가 바로 죽으면 앱 오류 창에 ssh 의 stderr(예: "Host key verification failed") 가 그대로 표시됩니다. 그 문장으로 원인을 찾습니다.</li>
+</ol>
+
+<h3>10-5. 보정 기법 — 내 서보에 맞추기</h3>
+<p>서보는 개체마다 중립과 끝단이 조금씩 다릅니다. 보정은 <b>"중립 → 끝단 → 저장"</b> 순서입니다.</p>
+<ol>
+<li><b>중립 맞추기</b>: [0°] 를 누르고 혼이 원하는 중앙을 가리키는지 봅니다. 어긋나면 "중립 펄스" 를 10 µs 씩 바꿔 [적용]. (10 µs = 1°)</li>
+<li><b>끝단 찾기</b>: 공식값(±40°) 에서 시작해 [최대 ▶] 로 보낸 뒤, 필요하면 "최대 펄스" 를 20 µs 씩 올리며 [적용]. <b>'지잉' 소리가 계속 나면 기계적 한계에 닿은 것</b> — 바로 20~30 µs 줄입니다. 최소 쪽도 같은 방법.</li>
+<li><b>각도 표시 맞추기</b>: 끝단 펄스에 해당하는 실제 각도를 각도기로 재서 "최대 각도/최소 각도" 에 넣으면 화면 각도가 실제와 일치합니다. + 쪽과 − 쪽 기울기가 달라도 프로그램이 따로 계산합니다.</li>
+<li><b>저장</b>: [적용] 하면 자동 저장됩니다(<code>%APPDATA%\VI\ServoControl.json</code>). [공식값 ±40°] 로 언제든 되돌릴 수 있습니다.</li>
+</ol>
+<div class="box warn"><b class="t">확장값 ±90° 는 "시험용"</b>
+600~2400 µs 는 제조사 보증 범위 밖입니다. 끝단에서 기어가 걸리면 스톨 전류(최대 800 mA)가 흐르고 레진 기어가 상할 수 있습니다. 프로그램이 확인 창을 띄우는 이유입니다.</div>
+
+<h3>10-6. 운용 절차 (실제 Pi)</h3>
+<table>
+<tr><th class="c" style="width:6%">#</th><th style="width:34%">할 일</th><th>확인할 것</th></tr>
+<tr><td class="c">1</td><td>배선 확인 후 <b>서보 외부 5 V 전원 → Pi 전원</b> 순서로 켬</td><td>GND 가 Pi·외부 전원·서보 셋 다 묶였는지. 서보 + 선은 Pi 5 V 핀에 꽂지 않음</td></tr>
+<tr><td class="c">2</td><td>WPF 실행 → 탭 "WSL / Pi 관리" → [WSL 확인] → [Pi 상태 확인]</td><td>로그에 <code>pigpiod: active</code>. 아니면 [pi_setup.sh ↗]</td></tr>
+<tr><td class="c">3</td><td>연결 방식 선택 → [연결]</td><td>상단에 "Pi 리비전 … · pigpio v…" 와 초록 ●</td></tr>
+<tr><td class="c">4</td><td><b>[0°]</b> 먼저</td><td>혼이 중앙으로. 안 움직이면 10-9 문제 해결표</td></tr>
+<tr><td class="c">5</td><td>다이얼, ±1°, ±10°, 각도 줄·펄스 줄로 이동</td><td>펄스폭이 10 µs/° 로 따라 바뀌고, 왼쪽 카메라가 그 방향으로 돌아감. 실제 서보와 그림이 같이 움직이는지 확인</td></tr>
+<tr><td class="c">6</td><td>필요하면 10-5 보정, 위치 메모리 P1~P4 저장</td><td></td></tr>
+<tr><td class="c">7</td><td>스윕은 낮은 속도(30~60 °/s) 부터</td><td>끝단에서 소리가 나면 범위를 줄임</td></tr>
+<tr><td class="c">8</td><td>쉴 때는 <b>[출력 끄기] (Space)</b></td><td>서보가 손으로 돌아감 = 힘이 빠짐. 발열·전류 감소</td></tr>
+<tr><td class="c">9</td><td>끝낼 때 [연결 해제] 또는 창 닫기</td><td>둘 다 펄스 0 전송. 그 다음 서보 전원 끔</td></tr>
+</table>
+
+<h3>10-7. 안전 운용 수칙</h3>
+<ul>
+<li><b>전원</b>: 서보는 외부 5 V 2 A 이상. Pi 의 5 V 핀으로 돌리면 전압이 떨어져 Pi 가 재부팅되거나 SD 카드가 손상될 수 있습니다.</li>
+<li><b>GND 공통</b>: 묶지 않으면 신호가 인식되지 않거나 서보가 떨립니다.</li>
+<li><b>신호 3.3 V</b>: Pi GPIO 는 3.3 V 입니다. 대부분의 아날로그 서보가 인식하지만, 안 움직이면 레벨 변환기를 씁니다. 서보 쪽 5 V 를 GPIO 에 넣으면 안 됩니다.</li>
+<li><b>한쪽에서만 조종</b>: Qt(Pi 화면) 와 WPF 가 동시에 접속하면 마지막 명령이 이깁니다. 헷갈리니 한쪽만 씁니다.</li>
+<li><b>힘을 빼 두기</b>: 위치를 유지할 필요가 없으면 출력을 끕니다. 부하가 걸린 채 오래 유지하면 발열·전류가 큽니다.</li>
+<li><b>끝단 소리</b>: '지잉' 이 계속 나면 즉시 반대쪽으로 움직이거나 출력을 끄고 범위를 줄입니다.</li>
+</ul>
+
+<h3>10-8. 에뮬레이터 운용 — Pi 가 없을 때</h3>
+<table>
+<tr><th style="width:30%">방법</th><th>절차</th></tr>
+<tr><td><b>A. 앱 내장 에뮬레이터</b> (가장 쉬움)</td><td>연결 방식 <b>에뮬레이터</b> → [연결]. 상단에 "가짜 Pi 를 127.0.0.1 에 띄움", "Pi 리비전 c03111 · pigpio v79", 그리고 명령마다 "가짜 Pi 수신 #n: SERVO gpio=18 1700 µs". 그 뒤는 실제와 똑같이 조작.</td></tr>
+<tr><td><b>B. 콘솔 에뮬레이터</b> <code>pigpio-emu</code></td><td><code>dotnet run --project PigpioEmulatorCli</code> (127.0.0.1:8888) 를 띄우고, WPF 를 <b>직접 연결 · 127.0.0.1 · 8888</b> 로 접속. 콘솔에 받은 명령과 서보 위치 막대가 찍힘:
+<pre>09:33:48.016  ✓ SERVO gpio=18 1588 µs
+          GPIO18 [────────────────────┼─█──────────────────] 현재   +8.8°  1588 µs → 목표   +8.8°</pre></td></tr>
+<tr><td><b>C. WSL 의 Qt 앱으로 시험</b></td><td><code>dotnet run --project PigpioEmulatorCli -- 8888 0.0.0.0</code> 로 모든 주소에서 듣게 한 뒤, WSL 에서 Qt ServoControl 을 Windows 호스트 주소(WSL 에서 <code>ip route | grep default</code> 로 확인) 로 접속. Pi 없이 Qt 쪽도 검증 가능. (Windows 방화벽이 물으면 허용)</td></tr>
+<tr><td><b>D. WSL 을 가짜 Pi 로</b> (리눅스 쪽 가짜 pigpiod)</td><td>WSL 터미널에서 <code>./run-from-wsl.sh fakepi</code> (= <code>python3 tools/fake_pigpiod.py</code>) → WPF 는 <b>직접 연결 · 127.0.0.1 · 8888</b>. 명령이 Windows 에서 WSL 로 실제 네트워크를 건너간다. WSL 에 sshd 를 넣으면 "WSL 터널" 모드까지 같은 서버로 시험 가능 (13-2 절)</td></tr>
+</table>
+<p>에뮬레이터는 펄스 검사·리비전 응답·서보 속도(0.19 s/60°) 까지 흉내 내지만, 실제 부하·끝단·전원 문제는 재현하지 못합니다. "통신과 프로그램 논리" 를 검증하는 도구로 쓰고, 보정값은 실제 서보로 다시 맞추세요.</p>
+
+<h3>10-8-1. WSL 터미널만으로 운용하기 (요약)</h3>
+<p>자세한 원리와 확인 결과는 13-1·13-2 절. 실제 Pi 가 없어도 아래 순서로 전체 흐름을 연습할 수 있습니다.</p>
+<ol>
+<li>WSL 터미널 1: <code>cd ~/MyJob/ServoChapter/ServoControlWpf && ./run-from-wsl.sh fakepi</code> — WSL 이 가짜 Pi 가 되어 8888 에서 기다림</li>
+<li>WSL 터미널 2: <code>./run-from-wsl.sh</code> — Windows 화면에 WPF 창이 뜸</li>
+<li>WPF: 연결 방식 <b>직접 연결</b>, Pi 주소 <code>127.0.0.1</code>, 포트 <code>8888</code> → [연결] → [0°] → 다이얼 조작. 터미널 1 에 명령이 한 줄씩 찍힘</li>
+<li>실제 Pi 가 생기면 Pi 주소만 <code>192.168.10.2</code> 로 바꾸면 끝 (Pi 쪽 <code>pi_setup.sh</code> 선행)</li>
+</ol>
+
+<h3>10-9. 문제 해결표</h3>
+<table>
+<tr><th style="width:30%">증상</th><th style="width:34%">원인</th><th>조치</th></tr>
+<tr><td>[연결] 하면 "연결할 수 없습니다"</td><td>Pi 꺼짐 / 케이블 / pigpiod 꺼짐 / 허용 주소 아님</td><td>[Pi 상태 확인] → <code>pigpiod: active</code> 인지. 아니면 [pi_setup.sh ↗]. 또는 WSL 터널 모드로 전환</td></tr>
+<tr><td>"WSL 안의 ssh 가 바로 종료"</td><td>키 인증 안 됨, 별명 없음, 호스트 키 미확인</td><td>WSL 터미널에서 <code>ssh rpi</code> 가 되게 만든 뒤 재시도(10-4)</td></tr>
+<tr><td>"10초 안에 터널 포트가 열리지 않았습니다"</td><td>Pi 응답 없음, 이더넷 끊김</td><td><code>ping 192.168.10.2</code>, 케이블·고정 IP 확인</td></tr>
+<tr><td>연결은 됐는데 서보가 안 움직임</td><td>서보 전원 없음 / GND 안 묶임 / 신호선 핀 틀림 / 3.3 V 인식 실패</td><td>펄스폭 숫자가 바뀌면 프로그램은 정상. 배선(12번 핀, GND 6번), 외부 5 V, 레벨 변환 확인</td></tr>
+<tr><td>서보가 떨린다</td><td>전원 부족, GND 불량, 끝단 걸림</td><td>2 A 이상 전원, GND 공통, 범위 줄이기</td></tr>
+<tr><td>"펄스폭은 0 또는 500~2500 µs"</td><td>보정값이 pigpio 허용 밖</td><td>최소 ≥ 500, 최대 ≤ 2500 으로 수정</td></tr>
+<tr><td>"에뮬레이터를 띄울 수 없습니다"</td><td>포트 8888 을 다른 프로그램(pigpio-emu 등) 이 사용</td><td>Pi 포트를 바꾸거나, 직접 연결 127.0.0.1 로 그 프로그램에 접속</td></tr>
+<tr><td>닫았는데 서보가 힘을 주고 있음</td><td>비정상 종료로 0 을 못 보냄</td><td>다시 연결 후 [출력 끄기], 또는 Pi 에서 <code>pigs s 18 0</code></td></tr>
+<tr><td>WSL 탭 글자가 깨짐</td><td>UTF-16/UTF-8 혼동</td><td>앱은 <code>-l</code> 은 UTF-16, 나머지는 UTF-8 로 처리함. 스크립트 자체가 다른 인코딩이면 <code>iconv</code></td></tr>
+<tr><td>WSL 셸에서 <code>./ServoControlWpf.exe</code> 가 "Permission denied"</td><td>Windows 에서 복사한 파일에 실행 비트가 없음</td><td><code>chmod +x</code> 또는 <code>./run-from-wsl.sh</code> 사용</td></tr>
+<tr><td>WSL 터널: "ssh: Could not resolve hostname rpi"</td><td>WSL 의 <code>~/.ssh/config</code> 에 Host rpi 가 없음</td><td>10-4 절대로 별명·키 등록. Pi 가 없으면 13-2 의 WSL sshd 로 대신</td></tr>
+</table>
+
+<!-- ═══════════════════════════════ 11 ═══════════════════════════════ -->
+<h2 class="pb">11. 안전 장치 (소프트웨어)</h2>
+<table>
+<tr><th style="width:34%">상황</th><th>동작</th></tr>
+<tr><td>범위를 넘는 각도 요청</td><td>최소~최대 각도로 잘라서 출력 (<code>ClampAngle</code>)</td></tr>
+<tr><td>확장값 ±90° 적용</td><td>확인 창 (끝단 충돌·기어 손상 경고)</td></tr>
+<tr><td>통신 끊김·응답 없음</td><td>1.5 초 시간 초과 → 자동 연결 해제 → 0.5 초 재접속해 펄스 0 시도 → 오류 창</td></tr>
+<tr><td>pigpio 가 거부 (−2, −7, −41)</td><td>한글 메시지, 연결은 유지, 모델 상태 불변</td></tr>
+<tr><td>보정 적용 실패</td><td>새 사양으로 먼저 써 보고 성공했을 때만 반영. 입력칸은 실제 값으로 되돌림</td></tr>
+<tr><td>창 닫기 · 종료 · 처리되지 않은 예외</td><td>정상 종료 경로로 펄스 0 전송, 터널/에뮬레이터 프로세스 종료, 설정 저장</td></tr>
+<tr><td>잘못된 저장값</td><td>공식값으로 복구 (GPIO 번호는 유지). 손상된 JSON 은 기본값으로 시작</td></tr>
+<tr><td>WSL 작업이 멈춤</td><td>[취소] 로 프로세스 트리 종료</td></tr>
+</table>
+
+<!-- ═══════════════════════════════ 12 ═══════════════════════════════ -->
+<h2>12. 테스트와 검증 결과</h2>
+<h3>12-1. 자동 테스트 (xUnit 53개, 모두 통과)</h3>
+<table>
+<tr><th style="width:26%">파일</th><th class="c" style="width:8%">개수</th><th>검증 내용</th></tr>
+<tr><td><code>ServoSpecTests</code></td><td class="c">17</td><td>+20° → 1700 µs, −40° → 1100, 범위 밖 clamp(표 데이터 여러 건), 비대칭 보정, 역변환, 기본값이 공식 HS-311, <code>IsValid</code> 경계값 여러 건</td></tr>
+<tr><td><code>PigpioClientTests</code></td><td class="c">6</td><td>가짜 pigpiod 로 바이트 열 <code>08 00 00 00 12 00 00 00 dc 05 00 00 00 00 00 00</code> 확인, −7 → 한글 메시지·연결 유지, 무응답 → 시간 초과·LinkLost, 접속 거부 안내문, 드라이버 Open 이 HWVER/PIGPV 읽고 Dispose 가 0 전송</td></tr>
+<tr><td><code>ServoModelTests</code></td><td class="c">8</td><td>SetAngle 실패 시 상태 불변, 잘못된 사양 거부, 사양 적용 실패 시 롤백, 범위 좁히면 각도 잘라 재출력, GPIO 변경 시 release→open, 드라이버 교체 시 이전 드라이버 release·dispose</td></tr>
+<tr><td><code>EmulatorTests</code></td><td class="c">3</td><td>Model → Driver → TCP → 에뮬레이터 전체 왕복(1700, 1100, 0 수신), 에뮬레이터의 −7/−2 거부, 흉내 낸 서보가 0.19 s/60° 로 목표에 도달</td></tr>
+<tr><td><code>ServoDialTests</code></td><td class="c">9</td><td>다이얼의 마우스 방향 → 각도(위 = 0°, ±135° = 끝, 45° → 13°, 빈 구간은 가까운 끝), 범위 변경 반영, 1° 단위 맞춤·클램프</td></tr>
+<tr><td><code>MainViewModelTests</code></td><td class="c">5</td><td>각도를 넣으면 펄스가(20° → 1700), 펄스를 넣으면 각도가(1300 → −20°) 바뀌고 드라이버로 출력, 범위 밖 펄스 클램프, 비대칭 보정 왕복(1655 ↔ 20.67°), 출력 실패 시 되돌림 + 오류 창</td></tr>
+<tr><td><code>ServoCameraViewTests</code></td><td class="c">4</td><td>카메라 뷰의 구동 조건: 연결 해제 상태에서 Angle 을 바꿔도 회전 타이머가 돌지 않고 그려진 각도가 제자리 / 연결 + 출력 켜짐이면 목표를 향해 회전 시작 / 연결됐어도 출력이 꺼져 있으면 정지, 출력이 켜지는 순간 출발 / 회전 중 연결을 끊으면 그 자리에서 정지</td></tr>
+<tr><td><code>WslSshTunnelTests</code></td><td class="c">1</td><td>없는 ssh 별명으로 터널을 열면 멈추지 않고 1초 안에 <code>ServoException</code>(ssh 의 오류 문장 포함)으로 실패 — WSL 이 있는 PC 에서 실제 <code>wsl.exe -e ssh</code> 를 실행해 확인</td></tr>
+</table>
+
+<h3>12-2. 화면 자동 조작 검증 (UI Automation, 이 PC · WSL 없음)</h3>
+<table>
+<tr><th style="width:44%">조작</th><th>결과</th></tr>
+<tr><td>시뮬레이션에서 +10°, +1°, [현재 위치 저장]</td><td>"펄스폭 1610 µs", "+11.0°", P1 에 +11.0° 저장, 상태 바 "P1에 11.0° 저장"</td></tr>
+<tr><td>스윕 시작 → 정지 → [출력 끄기]</td><td>"출력 꺼짐 · 손으로 돌릴 수 있음", "펄스폭 — µs"</td></tr>
+<tr><td>탭 WSL → [WSL 확인]</td><td>로그: "이 PC에 WSL이 설치되어 있지 않거나 배포판이 없습니다. … 'wsl.exe --install'" (앱 정상 유지)</td></tr>
+<tr><td>직접 연결 192.168.10.2 (Pi 없음) → [연결]</td><td>1.5 초 뒤 오류 창 "연결할 수 없습니다 … pi_setup.sh …", 버튼 "연결" 로 복구</td></tr>
+<tr><td>에뮬레이터 → [연결] → +10° ×2 → 스윕 → 출력 끄기 → 연결 해제</td><td>"Pi 리비전 c03111 · pigpio v79", "가짜 Pi 수신 #4: SERVO gpio=18 1700 µs", 스윕 중 #72 … 1288 µs, 끄기 #138 "출력 끔", 해제 후 "연결 안 됨 (시뮬레이션)"</td></tr>
+<tr><td>콘솔 pigpio-emu(18889) + 직접 연결 127.0.0.1:18889 → −10° → [P1]</td><td>"pigpio @ 127.0.0.1:18889 · GPIO18", 펄스폭 1610 µs, 콘솔에 "✓ SERVO gpio=18 1588 µs" 와 위치 막대</td></tr>
+<tr><td>다이얼: −45° 방향 누름 → 0°/45°/90° 로 끌기 → 놓기 → 빈 구간(160°) 누름</td><td>−13°(1370 µs) → 1500/1630/1770 µs → 다이얼 27 → 가까운 끝 40°(1900 µs). [+10°] 버튼을 누르면 다이얼이 따라 돎</td></tr>
+<tr><td>각도 ↔ 펄스 (보정 800/1500/2100): 펄스 슬라이더 1650 / 다이얼 30 / 펄스 입력칸 1234 / 각도 입력칸 −5 / 펄스 2400</td><td>각도 10.0° / 펄스 1950 / 각도 −15.2° / 펄스 1413 / 최대 2100 으로 잘려 40.0°. 매번 가짜 Pi 가 같은 µs 를 수신</td></tr>
+<tr><td>카메라 뷰: −40° → +40° 명령 60 ms 뒤 캡처 / 왼쪽 화면 클릭</td><td>"+3.4° → 목표 +40.0° 로 회전 중" 표시 후 0.25 s 안에 +40° 도달 / 클릭 전후 각도 10 → 10 (입력을 받지 않음)</td></tr>
+<tr><td>카메라 뷰 연결 조건: 연결 전 다이얼 30° → 에뮬레이터 연결 → −20° → 연결 해제 → 다이얼 40° → 재연결 → 39°</td><td>연결 전·해제 후에는 "연결 안 됨" 안내만 보이고 카메라 제자리(0° → 연결 후 −20° 도달 → 해제 뒤 40° 로 돌려도 −20° 유지). 재연결 직후 회색 카메라 −20° "출력 꺼짐", 첫 명령 39° 에 다시 회전 (그림 6-1)</td></tr>
+<tr><td>[종료]</td><td>프로세스 종료, <code>ServoControl.json</code> 에 모드·주소·보정·P1 저장됨</td></tr>
+</table>
+<figure><img class="shot" src="screenshot_simulation.png" alt="연결 전 첫 화면"><figcaption>그림 7. 처음 실행한 화면 (연결 전, 출력 꺼짐). 왼쪽 카메라가 회색이고 시야가 없다 = 힘이 빠진 상태. 이 PC 에서 캡처.</figcaption></figure>
+
+<h3>12-3. 검증 중 찾아서 고친 문제</h3>
+<table>
+<tr><th style="width:34%">증상</th><th style="width:36%">원인</th><th>수정</th></tr>
+<tr><td>WSL 터널 모드에서 [연결] 을 누르면 ssh 가 바로 실패하는데도 오류 창이 뜨지 않고 "연결 중…" 상태로 남음 (WSL 을 설치한 뒤 처음 드러남)</td><td><code>WslSshTunnel.OpenAsync</code> 가 ssh 프로세스를 정리(Dispose)한 <b>뒤에</b> 종료 코드를 읽어 다른 종류의 예외가 나고, 그 예외는 ViewModel 이 잡지 않았음</td><td>종료 코드를 먼저 읽고 정리하도록 순서 변경. ViewModel 은 예상 못 한 예외도 잡아 "연결 중 예상하지 못한 오류" 창으로 보여 줌. 재발 방지 테스트 <code>WslSshTunnelTests</code> 추가(ssh 별명이 없으면 1초 안에 안내문과 함께 실패해야 함)</td></tr>
+<tr><td>WSL 리눅스 파일시스템에 복사한 .exe 가 "Permission denied"</td><td>Windows 에서 복사하면 실행 비트가 없음</td><td><code>run-from-wsl.sh</code> 가 <code>chmod +x</code> 후 실행</td></tr>
+</table>
+
+<h3>12-4. 실제 PC(WSL + Pi) 에서 할 확인 목록</h3>
+<ol>
+<li>직접 연결 → [연결] → "Pi 리비전 … · pigpio v…" → [0°] 서보 중립 → 스윕 → [출력 끄기] 로 힘 빠짐</li>
+<li>WSL 터널 → [연결] → 동일 동작. Pi 에서 <code>ss -tn | grep 8888</code> 에 127.0.0.1 접속이 보임</li>
+<li>WSL 탭 → [Pi 상태 확인] 출력, [pi_info.sh] 결과(pi_info.txt) 표시, [pi_setup.sh ↗] 새 터미널 창</li>
+<li>창 닫기 후 서보가 손으로 돌아가는지 (펄스 0 전송 확인)</li>
+</ol>
+
+<!-- ═══════════════════════════════ 13 ═══════════════════════════════ -->
+<h2 class="pb">13. 만들기·실행하기</h2>
+<pre># 필요: .NET SDK 8 이상 (SDK 10 으로 빌드 확인), Windows 10/11
+cd ServoChapter\ServoControlWpf
+dotnet build ServoControlWpf.sln -c Release      # 경고 0, 오류 0
+dotnet test  ServoControlWpf.sln -c Release      # 34 통과
+dotnet run   --project ServoControlWpf           # 앱 실행
+
+# 가짜 pigpiod 콘솔
+dotnet run --project PigpioEmulatorCli                   # 127.0.0.1:8888
+dotnet run --project PigpioEmulatorCli -- 8888 0.0.0.0   # 모든 주소 (WSL 의 Qt 앱용)</pre>
+<table>
+<tr><th style="width:26%">항목</th><th>값</th></tr>
+<tr><td>실행 파일</td><td><code>ServoControlWpf\bin\Release\net8.0-windows\ServoControlWpf.exe</code></td></tr>
+<tr><td>설정 파일</td><td><code>%APPDATA%\VI\ServoControl.json</code> — 주소·포트·모드·배포판·ssh 별명·터널 포트·스크립트 폴더·보정값·P1~P4·스윕 속도</td></tr>
+<tr><td>기본값</td><td>192.168.10.2:8888, 직접 연결, rpi, 18888, 보정 1100/1500/1900 µs ±40° GPIO18</td></tr>
+<tr><td>스크립트 폴더</td><td>처음 실행 시 실행 파일 위쪽에서 <code>ServoControl\pi_setup.sh</code> 를 찾아 자동 설정. WSL 내부 경로(<code>/home/…</code>) 도 됨</td></tr>
+<tr><td>WSL 준비 (실제 PC)</td><td><code>wsl --install -d Ubuntu</code> → WSL 에서 <code>ssh-keygen</code>, <code>ssh-copy-id user@192.168.10.2</code>, <code>~/.ssh/config</code> 에 <code>Host rpi</code></td></tr>
+<tr><td>이 문서 만들기</td><td><code>ServoControlWpf_설계과정.html</code> 을 Edge 로 PDF 인쇄: <code>msedge --headless --print-to-pdf=… file:///…html</code></td></tr>
+</table>
+
+<h3>13-1. WSL 셸에서 실행하기 — "통신만으로" 띄우고 연결하기</h3>
+<p>프로그램 폴더를 WSL 의 리눅스 파일시스템(<code>\\wsl.localhost\Ubuntu\home\jhjung\MyJob\ServoChapter\ServoControlWpf</code>)에 두고,
+<b>WSL 터미널에서 명령만으로</b> 실행하고 연결할 수 있는지 이 PC 에서 확인했습니다 (실제 Pi 는 연결되어 있지 않음).</p>
+
+<div class="box why"><b class="t">원리 — WPF 는 리눅스에서 돌지 않지만, WSL 은 Windows 프로그램을 "대신 띄워" 준다</b>
+WSL 의 <b>interop</b> 기능 덕분에 리눅스 셸에서 <code>.exe</code> 를 실행하면 Windows 가 그 프로그램을 띄웁니다. 창은 Windows 화면에 뜨고,
+네트워크·설정 파일(<code>%APPDATA%</code>)도 Windows 쪽을 씁니다. 즉 "WSL 에서 실행" 은 <b>Windows 프로그램을 WSL 터미널에서 원격 조종하듯 띄우는 것</b>이고,
+그 뒤의 연결(직접·터널·에뮬레이터)은 Windows 에서 띄웠을 때와 완전히 같습니다. 리눅스용 .NET 을 설치해도 WPF 는 실행되지 않습니다.</div>
+
+<table>
+<tr><th style="width:30%">WSL 셸에서 띄우는 방법</th><th class="c" style="width:10%">결과</th><th>비고</th></tr>
+<tr><td>A. <code>./ServoControlWpf.exe</code> 직접 실행 (리눅스 FS 의 .exe)</td><td class="c">✔</td><td>Windows 에서 복사해 넣은 파일은 실행 비트가 없어 "Permission denied" → <code>chmod +x</code> 한 번 필요. Windows 는 이 파일을 <code>\\wsl.localhost\…</code> 경로로 읽어 실행</td></tr>
+<tr><td>B. <code>dotnet.exe "$(wslpath -w …/ServoControlWpf.dll)"</code></td><td class="c">✔</td><td>실행 비트 불필요. 경로는 <code>wslpath -w</code> 로 Windows 형식(UNC)으로 바꿔 줘야 함 (리눅스 경로를 주면 "예상 원인" 오류)</td></tr>
+<tr><td>C. <code>powershell.exe Start-Process</code></td><td class="c">△</td><td>WSL 셸이 돌아오지 않고 멈추는 경우가 있어 권장하지 않음</td></tr>
+<tr><td>D. <code>cmd.exe /c start "" "\\wsl.localhost\…"</code></td><td class="c">✗</td><td>cmd 는 UNC 경로를 지원하지 않음</td></tr>
+<tr><td>E. 리눅스 <code>dotnet run --project ServoControlWpf</code></td><td class="c">✗</td><td>WPF 는 Windows 전용 (net8.0-windows). 리눅스 .NET 은 <code>NETSDK1100</code>("Windows 대상 프로젝트는 이 OS 에서 빌드할 수 없다") 오류를 냄.
+<code>Directory.Build.targets</code> 가 이 상황을 미리 감지해 "./run-from-wsl.sh build 를 쓰세요" 라는 한글 안내로 바꿔 줌</td></tr>
+<tr><td>F. 리눅스 <code>dotnet run --project PigpioEmulatorCli -- 8888 0.0.0.0</code></td><td class="c">✔</td><td>가짜 pigpiod(<code>pigpio-emu</code>)는 WPF 를 쓰지 않는 보통 콘솔 프로그램이라 리눅스 .NET 10 에서도 돌아감(RollForward). D 의 python 판 <code>fakepi</code> 와 같은 역할</td></tr>
+</table>
+
+<div class="box why"><b class="t">리눅스 dotnet 설치 중 겪은 문제와 결론</b>
+WSL 에 <code>snap install dotnet</code> 으로 넣은 .NET 10 은 <code>libunwind8</code> 라이브러리가 없어 <code>dotnet --version</code> 부터 실패했고,
+Ubuntu 26.04 의 apt 저장소에는 <code>dotnet-sdk-8.0</code> 이 없어 <code>dotnet-sdk-10.0</code> 을 설치해야 했습니다. 설치가 끝난 뒤에도 WPF 는 위 E 처럼 빌드되지 않습니다.
+<b>결론: 리눅스 dotnet 은 이 프로그램을 쓰는 데 필요하지 않습니다.</b> WPF 실행은 항상 Windows 의 <code>dotnet.exe</code>/<code>.exe</code> 가 맡고, <code>run-from-wsl.sh</code> 가 그 일을 대신합니다.
+리눅스 dotnet 이 이미 있다면 F 처럼 가짜 pigpiod 를 리눅스 프로세스로 띄우는 데에만 쓸 수 있습니다.</div>
+
+<p>A 방법을 스크립트로 묶은 <code>run-from-wsl.sh</code> 를 프로젝트 폴더에 두었습니다.</p>
+<pre># WSL 터미널에서
+cd ~/MyJob/ServoChapter/ServoControlWpf
+chmod +x run-from-wsl.sh
+./run-from-wsl.sh            # Release(없으면 Debug) 실행 파일을 띄움. 터미널은 바로 돌아옴
+./run-from-wsl.sh build      # Windows 의 dotnet.exe 로 먼저 빌드한 뒤 띄움
+./run-from-wsl.sh emu 8888   # Windows 쪽 가짜 pigpiod 콘솔을 이 터미널에서 실행
+./run-from-wsl.sh fakepi     # WSL 자체를 가짜 Pi 로: 리눅스 프로세스 tools/fake_pigpiod.py (0.0.0.0:8888)
+# 리눅스 dotnet 이 설치돼 있다면 .NET 판 가짜 Pi 도 가능:
+dotnet run --project PigpioEmulatorCli -- 8888 0.0.0.0</pre>
+
+<table>
+<tr><th style="width:44%">WSL 에서 띄운 앱으로 확인한 것</th><th>결과</th></tr>
+<tr><td>Windows 가 보는 실행 경로</td><td><code>\\wsl.localhost\Ubuntu\home\jhjung\MyJob\ServoChapter\ServoControlWpf\…\ServoControlWpf.exe</code></td></tr>
+<tr><td>탭 WSL → [WSL 확인]</td><td>"WSL 사용 가능 · 배포판 1개", 로그 "배포판: Ubuntu"</td></tr>
+<tr><td>연결 방식 WSL 터널 → [연결] (ssh 별명 <code>rpi</code> 가 없는 상태)</td><td>1초 안에 오류 창: "WSL 안의 ssh 가 바로 종료되었습니다 (종료 코드 255). ssh: Could not resolve hostname rpi …" + 점검 안내</td></tr>
+<tr><td>연결 방식 에뮬레이터 → [연결] → 다이얼 20</td><td>"가짜 Pi 수신 #3: SERVO gpio=18 1700 µs" — WSL 에서 띄운 앱도 TCP 명령 경로가 그대로 동작</td></tr>
+<tr><td>스크립트 폴더를 WSL 쪽 <code>\\wsl.localhost\…\ServoControl</code> 로 두고 [Pi 상태 확인]</td><td><code>wsl --cd</code> 가 UNC 경로도 받아들임. 로그: "ssh: Could not resolve hostname rpi" (Pi 없음 — 정상 오류)</td></tr>
+<tr><td>[종료]</td><td>정상 종료, WSL 셸에 남는 프로세스 없음</td></tr>
+<tr><td><code>./run-from-wsl.sh build</code> (WSL 셸에서 Windows 의 dotnet.exe 로 UNC 경로 빌드)</td><td>"빌드했습니다. 경고 0개, 오류 0개" (약 5.5 초) 후 Release 실행 파일이 뜸</td></tr>
+<tr><td><code>./run-from-wsl.sh fakepi</code> + Windows WPF 직접 연결 127.0.0.1:8888</td><td>WSL 의 리눅스 가짜 pigpiod 가 HWVER·PIGPV·SERVO 를 수신 (13-2 로그)</td></tr>
+<tr><td>리눅스 dotnet 10 으로 <code>pigpio-emu 8888 0.0.0.0</code> 실행 + Windows 에서 127.0.0.1:8888 접속</td><td>리눅스 쪽 로그 "✓ PIGPV → 79", "✓ SERVO gpio=18 1700 µs", 막대가 +20.0° 로 이동 — .NET 판 가짜 Pi 도 WSL 안에서 동작</td></tr>
+<tr><td>리눅스 dotnet 으로 <code>dotnet run --project ServoControlWpf</code></td><td>NETSDK1100 대신 한글 안내 5줄("WPF 는 Windows 에서만 … ./run-from-wsl.sh build 를 사용하세요") 후 중단. <code>PigpioEmulatorCli</code> 빌드는 영향 없음(0 오류)</td></tr>
+</table>
+
+<h3>13-2. Pi 없이 "WSL 을 가짜 Pi" 로 만들기 (두 단계)</h3>
+<p>에뮬레이터 모드는 앱 <b>안</b>에서 가짜 Pi 를 띄우지만, 네트워크를 건너는 모습까지 보고 싶으면 WSL 에 가짜 pigpiod 를 띄웁니다.</p>
+<ol>
+<li><b>직접 연결로 시험</b> (sudo 불필요, <b>이 PC 에서 확인됨</b>): WSL 에서 <code>./run-from-wsl.sh fakepi</code> → 리눅스 프로세스가 0.0.0.0:8888 에서 듣는다. WSL2 는 WSL 안의 포트를 Windows 의 <code>127.0.0.1</code> 로도 열어 주므로(localhost 포워딩),
+WPF 에서 <b>직접 연결 · Pi 주소 127.0.0.1 · 포트 8888</b> → [연결]. 이때 명령은 Windows → (가상 네트워크) → WSL 리눅스 프로세스로 실제로 건너간다. Qt ServoControl 을 WSL 안에서 실행해 127.0.0.1:8888 로 붙여도 된다.
+<pre># WSL 쪽 가짜 pigpiod 가 찍은 로그 (WPF 를 직접 연결 127.0.0.1:8888 로 붙인 뒤 다이얼 −20° → +30° → 출력 끄기)
+● 접속 127.0.0.1:60440
+11:14:35  ✓ HWVER → 0xc03111
+11:14:35  ✓ PIGPV → 79
+11:14:40  ✓ SERVO gpio=18 1300 µs → 목표 -20.0°
+11:14:43  ✓ SERVO gpio=18 1800 µs → 목표 +30.0°
+11:14:45  ✓ SERVO gpio=18 출력 끔
+○ 해제 127.0.0.1:60440</pre>
+WPF 쪽 연결 바에는 "pigpio @ 127.0.0.1:8888 · GPIO18 · Pi 리비전 c03111 · pigpio v79" 가 떴다. 즉 <b>Pi 대신 WSL 이 응답해도 프로그램은 구별하지 못한다</b>.</li>
+<li><b>WSL 터널로 시험</b> (sudo 필요, 한 번만): WSL 에 SSH 서버를 넣고 자기 자신을 <code>rpi</code> 라는 별명으로 등록하면, 앱의 "WSL 터널" 모드가 WSL 의 sshd 를 거쳐 1번의 가짜 pigpiod 에 닿는다.
+<pre>sudo apt install -y openssh-server && sudo systemctl enable --now ssh
+ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519      # 키가 없을 때
+cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+printf 'Host rpi\n    HostName 127.0.0.1\n    User %s\n' "$USER" >> ~/.ssh/config
+ssh -o StrictHostKeyChecking=accept-new rpi true && echo "ssh rpi OK"</pre>
+그 다음 WPF 에서 <b>WSL 터널 · ssh 별명 rpi · Pi 포트 8888</b> → [연결]. 이 PC 에서는 sudo 비밀번호가 필요해 2번은 실행하지 못했고, 사용자가 위 명령을 직접 실행한 뒤 확인해야 합니다.</li>
+</ol>
+
+<!-- ═══════════════════════════════ 14 ═══════════════════════════════ -->
+<h2>14. 한계와 다음 단계</h2>
+<ul>
+<li><b>실제 Pi 검증은 아직</b>: 실제 장치가 물리적으로 연결되어 있지 않아 직접·터널 모드는 에뮬레이터, 가짜 pigpiod, 오류 경로로만 확인했습니다. 이 PC 에 WSL(Ubuntu)은 설치되어 WSL 셸 실행·WSL 탭·터널의 실패 경로까지는 확인했지만(13-1), 터널의 성공 경로는 SSH 서버(Pi 또는 13-2 의 WSL sshd)가 있어야 합니다. 12-4 목록으로 실제 PC 에서 확인이 필요합니다.</li>
+<li><b>WSL 터널의 비밀번호 입력 불가</b>: 설계상 키 인증 전제. 비밀번호 방식이 꼭 필요하면 터널도 "새 터미널 창" 으로 여는 선택지를 추가할 수 있습니다.</li>
+<li><b>서보 명령은 동기 호출</b>: Qt 와 같이 1.5 초 타임아웃 동안 화면이 잠깐 멈출 수 있습니다(연결 단계만 비동기). 사용감이 문제되면 명령 큐 + 백그라운드 스레드로 바꿀 수 있습니다.</li>
+<li><b>다음 단계 후보</b>: 여러 서보(채널) 동시 제어, 동작 시퀀스 녹화·재생, 에뮬레이터에 부하·끝단 흉내, mDNS 로 Pi 자동 찾기.</li>
+</ul>
+
+<h3>14-1. 이 프로그램을 Pi 로 옮길 수 있나 — 조사 결과</h3>
+<p><b>결론: 그대로는 안 되고, 화면 층만 바꾸면 됩니다.</b> WPF 는 Windows 전용 프레임워크라 Raspberry Pi OS(리눅스)에서는 실행되지 않습니다.
+하지만 이 프로그램은 5장처럼 층이 나뉘어 있어서, <b>서보·통신·설정을 아는 Model/Services 층은 손대지 않고</b> 화면(View)과 ViewModel 의 타이머 두 줄만 바꾸면 Pi 에서 돌릴 수 있습니다. 이 PC 에서 확인한 사실은 다음과 같습니다.</p>
+<table>
+<tr><th style="width:44%">확인한 것</th><th>결과</th></tr>
+<tr><td>Model 9개 · Services 2개 · ViewModel 밑바탕 4개 파일을 WPF 없이 리눅스 .NET 10 으로 컴파일 (<code>tools/portcheck</code>, WSL 에서 <code>dotnet build tools/portcheck</code>)</td><td><b>경고 0 · 오류 0.</b> 이 층들은 <code>System.Windows</code> 를 전혀 쓰지 않는다</td></tr>
+<tr><td>이 PC 에서 Pi 용 실행 파일 만들기 (<code>dotnet publish PigpioEmulatorCli -r linux-arm64 --self-contained</code>)</td><td>단일 파일 <code>pigpio-emu</code>(70 MB, ELF 64-bit AArch64) 생성. Pi 4 의 64-bit OS 에서 .NET 설치 없이 실행 가능한 형식</td></tr>
+<tr><td>WPF 에 묶인 파일</td><td><code>View\</code> 5개(MainWindow, ServoDial, ServoCameraView, DialogService, App)와 <code>MainViewModel</code> 의 <code>DispatcherTimer</code> 2개(스윕·상태 줄). <code>RelayCommand</code> 의 <code>ICommand</code> 는 리눅스에서도 있는 기본 형식이라 문제없음</td></tr>
+<tr><td>Pi 에서 의미가 없어지는 부분</td><td>WSL 터널 모드와 "WSL / Pi 관리" 탭(Pi 안에서는 WSL 이 없음). Pi 에서는 <b>직접 연결 · 주소 127.0.0.1 · 포트 8888</b> 하나면 충분 — pigpiod 가 같은 기기 안에 있음</td></tr>
+</table>
+
+<div class="box why"><b class="t">세 가지 길 비교</b>
+<table>
+<tr><th style="width:22%">방법</th><th style="width:40%">내용</th><th>판단</th></tr>
+<tr><td><b>A. Avalonia 로 화면만 이식</b> (권장)</td><td>WPF 와 거의 같은 XAML·바인딩·<code>DrawingContext</code> 를 가진 크로스플랫폼 UI 프레임워크. Model/Services 는 그대로 두고 <code>View\</code> 5개 파일과 타이머 2줄을 Avalonia 판으로 다시 씀. <code>dotnet publish -r linux-arm64</code> 로 Pi 용 단일 실행 파일을 만들어 <code>deploy.sh</code> 처럼 ssh 로 복사·실행</td><td>작업량: 다이얼·카메라 뷰 그리기 코드 이식이 대부분(각 200~270줄). 2~3일 규모. 다이얼 UI 자동화 피어는 Avalonia 식으로 다시 작성</td></tr>
+<tr><td><b>B. 기존 Qt 판 사용</b></td><td>Pi 에서 돌 목적으로 이미 만들어진 <code>ServoControl</code>(Qt/C++)이 <code>deploy.sh</code> 로 Pi 에서 빌드·실행됨</td><td>지금 당장 Pi 화면에서 조종하려면 이것이 가장 빠름. 단, 카메라 뷰·펄스 입력 같은 WPF 판의 새 기능은 없음</td></tr>
+<tr><td><b>C. Pi 에 Windows 설치</b></td><td>Pi 4 에 Windows on ARM 을 올리는 비공식 방법(WoR). WPF 가 그대로 돌긴 함</td><td>공식 지원 없음, 느림, GPIO/pigpiod 가 리눅스용이라 서보 제어 자체가 막힘. <b>권하지 않음</b></td></tr>
+</table></div>
+
+<p><b>A 방식의 작업 순서</b> (Pi 4, Raspberry Pi OS 64-bit 기준)</p>
+<ol>
+<li>프로젝트 <code>ServoControlAvalonia</code> 를 만들고 <code>Model\</code>·<code>Services\</code>·<code>ViewModel\</code>(ObservableObject, RelayCommand, IDialogService, PresetSlot, MainViewModel) 파일을 링크로 포함한다(<code>tools/portcheck/PortCheck.csproj</code> 의 <code>&lt;Compile Include="..\ServoControlWpf\Model\*.cs"/&gt;</code> 방식). 소스 복사본이 아니라 <b>같은 파일</b>을 두 앱이 쓴다.</li>
+<li><code>MainViewModel</code> 의 <code>DispatcherTimer</code> 를 Avalonia 의 <code>DispatcherTimer</code>(<code>Avalonia.Threading</code>)로 바꾼다 — 이름과 쓰임이 같아 using 한 줄 차이. WSL 관련(<code>Wsl</code> 속성, 터널 모드)은 <code>#if</code> 나 별도 ViewModel 로 떼어 Pi 판에서는 숨긴다.</li>
+<li><code>ServoDial</code>·<code>ServoCameraView</code> 를 Avalonia <code>Control</code> 로 이식한다. <code>OnRender(DrawingContext)</code> → <code>Render(DrawingContext)</code>, <code>DependencyProperty</code> → <code>StyledProperty</code>, <code>FormattedText</code> 생성자 인자만 다르고 그리기 호출(<code>DrawGeometry</code>, <code>DrawEllipse</code>, <code>PushTransform</code>)은 거의 같다.</li>
+<li><code>MainWindow.axaml</code> 은 WPF XAML 을 거의 그대로 옮긴다(<code>Visibility</code> → <code>IsVisible</code>, <code>GroupBox</code> → <code>HeaderedContentControl</code> 정도).</li>
+<li>PC 에서 <code>dotnet publish ServoControlAvalonia -c Release -r linux-arm64 --self-contained -p:PublishSingleFile=true</code> → <code>scp</code> 로 Pi 에 복사 → Pi 에서 <code>chmod +x</code> 후 실행. 접속은 <b>직접 연결 127.0.0.1:8888</b>. Pi 쪽 <code>pi_setup.sh</code> 는 이미 pigpiod 를 켜 두므로 추가 설정 없음.</li>
+<li>검증은 Pi 없이도 가능: WSL 에서 <code>-r linux-x64</code> 로 publish 해 WSLg 창으로 띄우고(Avalonia 는 WSLg 에서 동작) <code>./run-from-wsl.sh fakepi</code> 의 가짜 pigpiod 에 127.0.0.1:8888 로 붙여 본다.</li>
+</ol>
+<div class="box tip"><b class="t">왜 Avalonia 인가</b>
+.NET MAUI 는 리눅스를 지원하지 않고, Uno Platform 은 가능하지만 WPF 와의 거리가 더 멉니다. Avalonia 는 "리눅스에서 도는 WPF" 에 가장 가까워, 이 프로젝트처럼 <code>OnRender</code> 로 직접 그린 컨트롤과 MVVM 바인딩을 가장 적게 고치고 옮길 수 있습니다. Pi 4 에서 Avalonia 앱은 X11 데스크톱(기본 Raspberry Pi OS) 위에서 그대로 뜨며, 화면 없이 직접 프레임버퍼로 띄우는 방법(DRM)도 있습니다.</div>
+
+<p class="small" style="margin-top:24px">참고 — Raspberry Pi 4 Model B Datasheet Rel. 1.1 · HS-311 사양서 · pigpio Socket Interface (abyz.me.uk/rpi/pigpio/sif.html) · WSL 네트워킹 문서(Microsoft Learn) · 본 프로젝트의 ServoControl 동작 원리 PDF. 확인일 2026. 10. 26.</p>
+
+</body>
+</html>

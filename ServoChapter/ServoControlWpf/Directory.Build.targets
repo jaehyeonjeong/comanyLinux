@@ -1,0 +1,14 @@
+<Project>
+
+  <!--
+    WPF(UseWPF=true) 프로젝트는 Windows 전용입니다.
+    WSL 등 리눅스의 dotnet 으로 빌드하면 NETSDK1100 이라는 알기 어려운 오류가 나므로,
+    그 전에 한글 안내를 내고 멈춥니다. (PigpioEmulator / PigpioEmulatorCli 는 리눅스 dotnet 으로도 됩니다.)
+  -->
+  <Target Name="ServoControlWpf_WindowsOnlyGuard"
+          BeforeTargets="CollectPackageReferences;ProcessFrameworkReferences;_CheckForUnsupportedTargetFramework;Build"
+          Condition="'$(UseWPF)' == 'true' And !$([MSBuild]::IsOSPlatform('Windows'))">
+    <Error Text="[$(MSBuildProjectName)] WPF 는 Windows 에서만 빌드·실행됩니다. 리눅스 dotnet 으로는 안 됩니다.%0A    WSL 셸에서는 다음을 사용하세요:%0A      ./run-from-wsl.sh build      (Windows 의 dotnet.exe 로 빌드 후 실행)%0A      ./run-from-wsl.sh            (빌드돼 있으면 바로 실행)%0A    리눅스 dotnet 으로 돌릴 수 있는 것: dotnet run --project PigpioEmulatorCli -- 8888 0.0.0.0  (가짜 pigpiod)" />
+  </Target>
+
+</Project>

@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>ServoControlWpf 소스 코드 설명 — 클래스별 역할</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+  html { font-family: "Malgun Gothic", "맑은 고딕", "Segoe UI", sans-serif; font-size: 10.5pt; color: #1d1d1f; line-height: 1.55; }
+  body { margin: 0; }
+  h1 { font-size: 22pt; margin: 0 0 4px 0; color: #0b3d63; }
+  .sub { color: #555; font-size: 11pt; margin-bottom: 2px; }
+  .meta { color: #777; font-size: 9.5pt; margin-bottom: 14px; }
+  h2 { font-size: 15pt; color: #0b3d63; border-bottom: 2px solid #0b3d63; padding-bottom: 3px; margin: 22px 0 10px 0; page-break-after: avoid; }
+  h3 { font-size: 12pt; color: #1a4f7a; margin: 16px 0 6px 0; page-break-after: avoid; }
+  h4 { font-size: 10.8pt; color: #1a4f7a; margin: 12px 0 4px 0; page-break-after: avoid; }
+  p { margin: 5px 0 8px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 6px 0 10px 0; font-size: 9.6pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #c9ced6; padding: 4px 7px; vertical-align: top; text-align: left; }
+  th { background: #e8eef5; font-weight: bold; }
+  td.c, th.c { text-align: center; }
+  code { font-family: Consolas, "D2Coding", monospace; font-size: 9.3pt; background: #f1f3f6; padding: 0 3px; border-radius: 3px; }
+  pre { font-family: Consolas, "D2Coding", monospace; font-size: 9pt; background: #f4f6f9; border: 1px solid #d9dee6; border-left: 4px solid #0b3d63; padding: 8px 10px; white-space: pre-wrap; margin: 6px 0 10px 0; page-break-inside: avoid; }
+  .box { border: 1px solid #c9ced6; border-radius: 6px; padding: 8px 12px; margin: 8px 0 12px 0; background: #fafbfd; page-break-inside: avoid; }
+  .tip { background: #eef7ee; border-color: #9fcf9f; }
+  .warn { background: #fff5e8; border-color: #f0b86e; }
+  .why { background: #eef3fb; border-color: #9fb9e0; }
+  .box b.t { display: block; margin-bottom: 3px; color: #0b3d63; }
+  figure { margin: 10px 0 14px 0; text-align: center; page-break-inside: avoid; }
+  figcaption { font-size: 9.2pt; color: #555; margin-top: 4px; }
+  svg { max-width: 100%; height: auto; }
+  svg text { font-family: "Malgun Gothic", "맑은 고딕", sans-serif; }
+  .pb { page-break-before: always; }
+  ul, ol { margin: 4px 0 8px 0; padding-left: 22px; }
+  li { margin: 2px 0; }
+  .toc { columns: 2; column-gap: 24px; font-size: 9.8pt; }
+  .toc div { margin: 1px 0; }
+  .small { font-size: 9pt; color: #666; }
+  .kw { color: #0b3d63; font-weight: bold; }
+  .cls { border: 1px solid #b7c6d8; border-radius: 6px; padding: 8px 12px; margin: 10px 0 14px 0; page-break-inside: avoid; background: #fff; }
+  .cls .h { font-size: 11.5pt; font-weight: bold; color: #0b3d63; }
+  .cls .f { font-size: 9pt; color: #777; margin-left: 8px; font-weight: normal; }
+  .cls .one { margin: 3px 0 6px 0; padding: 4px 8px; background: #eef3fb; border-left: 4px solid #1a73e8; }
+  .cls table { margin: 4px 0 6px 0; }
+  .role { font-weight: bold; color: #1a4f7a; }
+</style>
+</head>
+<body>
+
+<h1>ServoControlWpf 소스 코드 설명</h1>
+<div class="sub">클래스별 역할 · 서로 어떻게 협력하는가 · 어디를 고치면 되는가 — 소스를 처음 여는 사람을 위한 안내</div>
+<div class="meta">작성 정재현 (Claude Code 와 함께 작성) · 2026. 10. 26. · Rev. 1.0 · 함께 보는 문서: <i>ServoControlWpf 설계 과정과 운용 원리</i>(왜 이렇게 만들었나), 이 문서(코드가 어떻게 생겼나)</div>
+
+<div class="box">
+  <b class="t">이 문서를 읽는 법</b>
+  소스 파일 하나하나를 "<b>무슨 일을 맡은 부품인가</b>" 관점으로 설명합니다. 각 클래스마다 ① 한 줄 역할 ② 쉽게 말하면(비유) ③ 주요 멤버 ④ 누구와 협력하나 ⑤ 주의점 순서입니다.
+  바쁘면 <b>2장 클래스 지도</b>와 <b>9장 시나리오</b>만 봐도 전체가 잡힙니다. 코드를 고치고 싶으면 <b>10장 "어디를 고치면 되나"</b> 표를 보세요.
+</div>
+
+<h3>차례</h3>
+<div class="toc">
+  <div>1. 읽기 전에 — 네 개의 층</div>
+  <div>2. 한눈에 보는 클래스 지도</div>
+  <div>3. Model 층 — 서보와 통신을 아는 부품</div>
+  <div>4. Services 층 — 바깥 프로그램을 부르는 부품</div>
+  <div>5. ViewModel 층 — 화면과 모델 사이의 통역</div>
+  <div>6. View 층 — 눈에 보이는 것</div>
+  <div>7. 에뮬레이터와 도구 — Pi 없이 돌리기</div>
+  <div>8. 테스트 프로젝트 — 무엇을 지키는가</div>
+  <div>9. 시나리오로 따라가기 — 버튼 하나가 지나가는 길</div>
+  <div>10. 어디를 고치면 되나</div>
+  <div>11. 용어 사전</div>
+</div>
+
+<!-- ═══════════════════════════════ 1 ═══════════════════════════════ -->
+<h2>1. 읽기 전에 — 네 개의 층</h2>
+<p>이 프로그램은 <b>MVVM</b>(Model · View · ViewModel) 구조에 <b>Services</b> 를 더한 네 개의 층으로 나뉩니다.
+층을 나눈 이유는 간단합니다. <b>"서보를 아는 코드"</b> 와 <b>"화면을 아는 코드"</b> 를 섞지 않으면, 화면 없이도 서보 코드를 테스트할 수 있고, 통신 방식이 바뀌어도 화면을 고칠 필요가 없기 때문입니다.</p>
+
+<table>
+<tr><th style="width:14%">층</th><th style="width:22%">폴더</th><th>맡은 일</th><th style="width:26%">비유</th></tr>
+<tr><td><b>Model</b></td><td><code>ServoControlWpf\Model\</code></td><td>서보 사양·상태, pigpiod 와의 TCP 통신, WSL 터널, 설정 파일. <b>화면을 전혀 모른다.</b></td><td>엔진과 배선</td></tr>
+<tr><td><b>Services</b></td><td><code>ServoControlWpf\Services\</code></td><td><code>wsl.exe</code> 같은 바깥 프로그램을 실행하고 출력을 받아 오는 도우미</td><td>외부 업체에 전화 거는 비서</td></tr>
+<tr><td><b>ViewModel</b></td><td><code>ServoControlWpf\ViewModel\</code></td><td>화면의 요청을 모델에 전달하고, 모델의 변화를 화면용 속성으로 바꿔 준다. <b>Qt 판의 Controller 에 해당.</b></td><td>운전석 계기판과 페달 사이의 통역</td></tr>
+<tr><td><b>View</b></td><td><code>ServoControlWpf\View\</code>, <code>App.xaml</code></td><td>창·다이얼·카메라 그림. 로직은 거의 없고 ViewModel 의 속성에 <b>바인딩</b>만 한다</td><td>계기판과 핸들</td></tr>
+</table>
+
+<figure>
+<svg viewBox="0 0 760 330" width="760" height="330" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#1a4f7a"/></marker></defs>
+  <!-- View -->
+  <rect x="20" y="20" width="200" height="290" rx="8" fill="#fff7e6" stroke="#f0b86e"/>
+  <text x="120" y="42" font-size="13" font-weight="bold" text-anchor="middle" fill="#7a4f01">View (눈에 보이는 것)</text>
+  <rect x="35" y="55" width="170" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="120" y="75" font-size="11" text-anchor="middle">MainWindow.xaml</text>
+  <rect x="35" y="95" width="170" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="120" y="115" font-size="11" text-anchor="middle">ServoDial (다이얼)</text>
+  <rect x="35" y="135" width="170" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="120" y="155" font-size="11" text-anchor="middle">ServoCameraView (카메라)</text>
+  <rect x="35" y="175" width="170" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="120" y="195" font-size="11" text-anchor="middle">DialogService</text>
+  <rect x="35" y="215" width="170" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="120" y="235" font-size="11" text-anchor="middle">App (조립·종료)</text>
+  <!-- ViewModel -->
+  <rect x="260" y="20" width="200" height="200" rx="8" fill="#eef3fb" stroke="#9fb9e0"/>
+  <text x="360" y="42" font-size="13" font-weight="bold" text-anchor="middle" fill="#0b3d63">ViewModel (통역)</text>
+  <rect x="275" y="55" width="170" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="360" y="75" font-size="11" text-anchor="middle">MainViewModel</text>
+  <rect x="275" y="95" width="170" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="360" y="115" font-size="11" text-anchor="middle">WslViewModel</text>
+  <rect x="275" y="135" width="170" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="360" y="155" font-size="11" text-anchor="middle">ObservableObject · RelayCommand</text>
+  <rect x="275" y="175" width="170" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="360" y="195" font-size="11" text-anchor="middle">PresetSlot · IDialogService</text>
+  <!-- Services -->
+  <rect x="260" y="235" width="200" height="75" rx="8" fill="#f3f3f3" stroke="#aaa"/>
+  <text x="360" y="257" font-size="13" font-weight="bold" text-anchor="middle" fill="#444">Services (바깥 프로그램)</text>
+  <rect x="275" y="268" width="170" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="360" y="288" font-size="11" text-anchor="middle">WslService · ProcessRunner</text>
+  <!-- Model -->
+  <rect x="500" y="20" width="240" height="290" rx="8" fill="#eef7ee" stroke="#9fcf9f"/>
+  <text x="620" y="42" font-size="13" font-weight="bold" text-anchor="middle" fill="#1a5f2a">Model (서보와 통신)</text>
+  <rect x="515" y="55" width="210" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="620" y="75" font-size="11" text-anchor="middle">ServoModel (상태 관리자)</text>
+  <rect x="515" y="95" width="210" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="620" y="115" font-size="11" text-anchor="middle">ServoSpec (각도 ↔ 펄스 계산)</text>
+  <rect x="515" y="135" width="210" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="620" y="155" font-size="11" text-anchor="middle">IServoDriver ← Remote / Simulated</text>
+  <rect x="515" y="175" width="210" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="620" y="195" font-size="11" text-anchor="middle">PigpioClient (16바이트 TCP)</text>
+  <rect x="515" y="215" width="210" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="620" y="235" font-size="11" text-anchor="middle">WslSshTunnel (ssh -L)</text>
+  <rect x="515" y="255" width="210" height="30" rx="4" fill="#fff" stroke="#c9ced6"/><text x="620" y="275" font-size="11" text-anchor="middle">AppSettings (JSON 저장)</text>
+  <!-- arrows -->
+  <line x1="220" y1="70" x2="275" y2="70" stroke="#1a4f7a" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="247" y="62" font-size="9" text-anchor="middle" fill="#1a4f7a">바인딩</text>
+  <line x1="445" y1="70" x2="515" y2="70" stroke="#1a4f7a" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="480" y="62" font-size="9" text-anchor="middle" fill="#1a4f7a">메서드 호출</text>
+  <line x1="515" y1="80" x2="445" y2="80" stroke="#1a73e8" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+  <text x="480" y="93" font-size="9" text-anchor="middle" fill="#1a73e8">Changed 이벤트</text>
+  <line x1="360" y1="125" x2="360" y2="268" stroke="#1a4f7a" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="360" y1="110" x2="360" y2="110" />
+  <text x="372" y="245" font-size="9" fill="#1a4f7a">wsl.exe 실행</text>
+</svg>
+<figcaption>그림 1. 네 개의 층과 화살표. View 는 ViewModel 만, ViewModel 은 Model 과 Services 만 안다. Model 은 아무도 모른다(이벤트로만 알림).</figcaption>
+</figure>
+
+<div class="box why"><b class="t">왜 "아래 층은 위 층을 모르게" 하나</b>
+<code>ServoModel</code> 은 화면이 WPF 인지, 콘솔인지, 테스트인지 전혀 모릅니다. 그래서 테스트 프로젝트는 화면 없이 <code>ServoModel</code> 에 가짜 드라이버를 꽂아 "실패하면 이전 값을 유지하는가" 같은 규칙을 검사할 수 있습니다(8장).
+반대로 <code>MainWindow.xaml</code> 은 TCP 가 뭔지 모릅니다. 연결 방식이 세 가지(직접·터널·에뮬레이터)여도 화면 코드는 한 줄도 다르지 않습니다.</div>
+
+<!-- ═══════════════════════════════ 2 ═══════════════════════════════ -->
+<h2 class="pb">2. 한눈에 보는 클래스 지도</h2>
+<p>프로젝트는 4개(앱 · 테스트 · 에뮬레이터 라이브러리 · 에뮬레이터 콘솔)이고, 앱 소스는 약 2,500줄입니다. 각 파일이 맡은 일을 한 줄로 적었습니다.</p>
+
+<table>
+<tr><th style="width:28%">파일</th><th style="width:7%" class="c">줄</th><th>한 줄 역할</th><th style="width:20%">Qt 판 대응</th></tr>
+<tr><td colspan="4" style="background:#eef7ee"><b>Model — 서보와 통신</b></td></tr>
+<tr><td><code>Model\ServoSpec.cs</code></td><td class="c">66</td><td>서보 사양(펄스 3개·각도 2개·GPIO)과 <b>각도 ↔ 펄스폭 변환</b></td><td><code>servospec.h</code></td></tr>
+<tr><td><code>Model\IServoDriver.cs</code></td><td class="c">17</td><td>"펄스를 내보내는 장치" 의 공통 규격(인터페이스)</td><td><code>servodriver.h</code></td></tr>
+<tr><td><code>Model\ServoException.cs</code></td><td class="c">15</td><td>드라이버 실패를 알리는 예외. <code>LinkLost</code> 로 "통신이 끊긴 것인지" 표시</td><td><code>bool + QString*</code></td></tr>
+<tr><td><code>Model\SimulatedDriver.cs</code></td><td class="c">14</td><td>아무것도 안 보내는 가짜 드라이버 (연결 전·테스트용)</td><td><code>simulateddriver.h</code></td></tr>
+<tr><td><code>Model\PigpioClient.cs</code></td><td class="c">118</td><td>pigpiod 의 <b>16바이트 TCP 규약</b>을 말하는 가장 낮은 층</td><td><code>RemotePigpioDriver::command()</code></td></tr>
+<tr><td><code>Model\RemotePigpioDriver.cs</code></td><td class="c">64</td><td>PigpioClient 를 써서 실제 서보를 움직이는 드라이버. 직접·터널·에뮬레이터 모두 이 클래스 하나</td><td><code>remotepigpiodriver.*</code></td></tr>
+<tr><td><code>Model\WslSshTunnel.cs</code></td><td class="c">158</td><td><code>wsl.exe -e ssh -L</code> 를 띄워 Pi 의 8888 포트를 127.0.0.1:18888 로 끌어오는 터널</td><td>(신규)</td></tr>
+<tr><td><code>Model\ServoModel.cs</code></td><td class="c">99</td><td><b>현재 각도·출력 여부·사양을 기억하는 상태 관리자.</b> 바뀌면 <code>Changed</code> 이벤트</td><td><code>servomodel.*</code></td></tr>
+<tr><td><code>Model\AppSettings.cs</code></td><td class="c">98</td><td>설정(주소·모드·보정값·위치 메모리)을 JSON 파일로 저장·복원</td><td><code>QSettings</code></td></tr>
+<tr><td colspan="4" style="background:#f3f3f3"><b>Services — 바깥 프로그램</b></td></tr>
+<tr><td><code>Services\ProcessRunner.cs</code></td><td class="c">67</td><td>프로그램을 창 없이 실행하고 출력을 한 줄씩 받아 오는 도우미</td><td><code>QProcess</code></td></tr>
+<tr><td><code>Services\WslService.cs</code></td><td class="c">126</td><td><code>wsl.exe</code> 전용 창구: 배포판 확인, 스크립트 실행, ssh 명령, 터미널 창 열기</td><td>(신규)</td></tr>
+<tr><td colspan="4" style="background:#eef3fb"><b>ViewModel — 통역</b></td></tr>
+<tr><td><code>ViewModel\ObservableObject.cs</code></td><td class="c">19</td><td>"값이 바뀌었다" 고 화면에 알리는 기능(<code>INotifyPropertyChanged</code>)의 밑바탕</td><td>Qt signal</td></tr>
+<tr><td><code>ViewModel\RelayCommand.cs</code></td><td class="c">21</td><td>버튼·단축키를 ViewModel 메서드에 묶는 <code>ICommand</code></td><td><code>connect(signal, slot)</code></td></tr>
+<tr><td><code>ViewModel\IDialogService.cs</code></td><td class="c">8</td><td>ViewModel 이 MessageBox 를 직접 부르지 않게 하는 작은 창구</td><td>(신규)</td></tr>
+<tr><td><code>ViewModel\PresetSlot.cs</code></td><td class="c">27</td><td>위치 메모리 한 칸(P1~P4)</td><td><code>QSettings</code> 일부</td></tr>
+<tr><td><code>ViewModel\MainViewModel.cs</code></td><td class="c">490</td><td><b>프로그램의 두뇌.</b> 연결·각도·펄스·스윕·메모리·보정·설정 저장을 모두 조율</td><td><code>servocontroller.*</code></td></tr>
+<tr><td><code>ViewModel\WslViewModel.cs</code></td><td class="c">236</td><td>"WSL / Pi 관리" 탭: 스크립트·ssh 실행과 로그</td><td>(신규)</td></tr>
+<tr><td colspan="4" style="background:#fff7e6"><b>View — 눈에 보이는 것</b></td></tr>
+<tr><td><code>App.xaml(.cs)</code></td><td class="c">60</td><td>시작할 때 부품을 조립하고, 끝날 때 서보 출력을 끈다</td><td><code>main.cpp</code></td></tr>
+<tr><td><code>View\MainWindow.xaml(.cs)</code></td><td class="c">309+68</td><td>창 배치와 바인딩. 코드 비하인드는 전체화면·Enter·휠 같은 순수 화면 동작만</td><td><code>mainwindow.*</code></td></tr>
+<tr><td><code>View\ServoDial.cs</code></td><td class="c">236</td><td>직접 그린 원형 다이얼(노브). 드래그·휠·키보드·UI 자동화 지원</td><td><code>QDial</code></td></tr>
+<tr><td><code>View\ServoCameraView.cs</code></td><td class="c">271</td><td>서보에 올린 카메라를 위에서 본 그림. 연결됐을 때만 서보 속도로 회전</td><td><code>servogauge.*</code>(역할 변경)</td></tr>
+<tr><td><code>View\DialogService.cs</code></td><td class="c">21</td><td>MessageBox · 폴더 선택 창 (IDialogService 구현)</td><td><code>QMessageBox</code></td></tr>
+<tr><td colspan="4" style="background:#fdf0f0"><b>에뮬레이터 · 도구 · 테스트</b></td></tr>
+<tr><td><code>PigpioEmulator\PigpioEmulatorServer.cs</code></td><td class="c">182</td><td>가짜 pigpiod 라이브러리. 같은 16바이트 규약 + 서보 움직임 흉내</td><td>(신규)</td></tr>
+<tr><td><code>PigpioEmulatorCli\Program.cs</code></td><td class="c">62</td><td>가짜 pigpiod 콘솔 프로그램 <code>pigpio-emu</code></td><td>(신규)</td></tr>
+<tr><td><code>tools\fake_pigpiod.py</code></td><td class="c">94</td><td>리눅스(WSL)에서 돌리는 가짜 pigpiod (파이썬 표준 라이브러리만)</td><td>(신규)</td></tr>
+<tr><td><code>run-from-wsl.sh</code> · <code>Directory.Build.targets</code></td><td class="c">45+12</td><td>WSL 셸에서 Windows 앱 띄우기 · 리눅스 dotnet 으로 WPF 빌드 시 한글 안내</td><td>(신규)</td></tr>
+<tr><td><code>ServoControlWpf.Tests\*.cs</code> (8개)</td><td class="c">~640</td><td>xUnit 테스트 53개</td><td>(신규)</td></tr>
+</table>
+
+<!-- ═══════════════════════════════ 3 ═══════════════════════════════ -->
+<h2 class="pb">3. Model 층 — 서보와 통신을 아는 부품</h2>
+
+<div class="cls">
+<div class="h">ServoSpec <span class="f">Model\ServoSpec.cs · record struct</span></div>
+<div class="one"><span class="role">역할:</span> 서보 한 개의 "사양표" 와 <b>각도 ↔ 펄스폭 환산</b>.</div>
+<p><b>쉽게 말하면</b> 온도계의 눈금표입니다. "1500 µs 가 0°, 1900 µs 가 +40°" 라는 눈금을 들고 있다가, 각도를 주면 펄스폭을, 펄스폭을 주면 각도를 계산해 줍니다. 값이 바뀌지 않는 <code>record struct</code> 라서 복사해도 안전하고, 보정값을 바꿀 때는 새 <code>ServoSpec</code> 을 만들어 통째로 갈아 끼웁니다.</p>
+<table>
+<tr><th style="width:34%">멤버</th><th>하는 일</th></tr>
+<tr><td><code>MinPulse / NeutralPulse / MaxPulse</code></td><td>최소·중립·최대 펄스폭(µs). 기본 1100 / 1500 / 1900</td></tr>
+<tr><td><code>MinAngle / MaxAngle / Gpio</code></td><td>허용 각도(기본 ±40°)와 BCM 핀 번호(기본 18)</td></tr>
+<tr><td><code>Hs311Official()</code> · <code>Hs311Extended()</code></td><td>제조사 공식값(±40°) · 비공식 확장값(600~2400 µs, ±90°)</td></tr>
+<tr><td><code>AngleToPulse(angle)</code></td><td>중립을 기준으로 <b>+쪽과 −쪽을 따로</b> 비례 계산. 양쪽 기울기가 달라도(예 1100/1500/2100) 보정이 됨. 범위 밖 각도는 먼저 잘라 냄</td></tr>
+<tr><td><code>PulseToAngle(pulse)</code></td><td>반대 방향 변환. 펄스 슬라이더·입력칸이 각도를 바꿀 때 사용</td></tr>
+<tr><td><code>IsValid()</code></td><td>pigpio 허용 범위(500~2500), 최소&lt;중립&lt;최대, ±90° 이내, GPIO 2~27 검사. 보정값 적용 전에 반드시 통과해야 함</td></tr>
+</table>
+<p><b>협력자:</b> <code>ServoModel</code>(현재 사양 보관), <code>MainViewModel</code>(펄스 ↔ 각도 변환), <code>AppSettings</code>(저장·복원).
+<b>주의:</b> 10 µs/° 라는 숫자가 코드에 직접 박혀 있지 않습니다. 모두 사양표로부터 계산되므로 다른 서보를 쓰려면 사양값만 바꾸면 됩니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">IServoDriver <span class="f">Model\IServoDriver.cs · interface</span> &nbsp;·&nbsp; ServoException <span class="f">Model\ServoException.cs</span></div>
+<div class="one"><span class="role">역할:</span> "펄스를 내보내는 장치" 라면 누구나 지켜야 하는 규격 + 실패를 알리는 예외.</div>
+<p><b>쉽게 말하면</b> 콘센트 규격입니다. <code>ServoModel</code> 은 콘센트(<code>IServoDriver</code>)에만 꽂고, 뒤에 실제 Pi 가 있든(<code>RemotePigpioDriver</code>) 아무것도 없든(<code>SimulatedDriver</code>) 신경 쓰지 않습니다. 이것이 <b>Strategy 패턴</b>이고, [연결]/[연결 해제] 는 사실 "드라이버 갈아 끼우기" 입니다.</p>
+<table>
+<tr><th style="width:34%">멤버</th><th>하는 일</th></tr>
+<tr><td><code>Name</code> · <code>Info</code></td><td>상태 표시용 이름("에뮬레이터 127.0.0.1:8888 · GPIO18")과 장치 정보("Pi 리비전 c03111 · pigpio v79")</td></tr>
+<tr><td><code>IsRemote</code> · <code>IsLinkAlive</code></td><td>원격 장치인지 · 통신 경로가 살아 있는지. ViewModel 의 "연결됨" 표시와 자동 해제 판단에 쓰임</td></tr>
+<tr><td><code>Open(gpio)</code></td><td>핀 준비. 원격이면 이때 TCP 접속</td></tr>
+<tr><td><code>WritePulse(µs)</code> · <code>Release()</code></td><td>펄스 출력 · 펄스 0(힘 빼기)</td></tr>
+<tr><td><code>ServoException.LinkLost</code></td><td><b>true</b> = 통신이 끊긴 오류(연결 정리 필요) / <b>false</b> = pigpio 가 명령만 거부(연결 유지). ViewModel 의 <code>HandleFailure</code> 가 이 값으로 갈림</td></tr>
+</table>
+<p><b>주의:</b> Qt 판은 <code>bool</code> 반환 + 오류 문자열 포인터였지만, C# 판은 <b>예외</b>로 바꿨습니다. 덕분에 "실패하면 상태를 바꾸지 않는다" 는 규칙을 <code>try/catch</code> 한 줄로 지킬 수 있습니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">SimulatedDriver <span class="f">Model\SimulatedDriver.cs</span></div>
+<div class="one"><span class="role">역할:</span> 아무 데도 보내지 않는 빈 드라이버. 프로그램이 처음 켜졌을 때와 [연결 해제] 뒤에 꽂혀 있다.</div>
+<p><b>쉽게 말하면</b> 플러그를 뽑아 둔 상태를 나타내는 "빈 콘센트 마개" 입니다. 14줄뿐이지만 덕분에 <code>ServoModel</code> 은 "드라이버가 null 인가" 를 어디서도 검사하지 않아도 됩니다(Null Object 패턴). 화면은 그대로 동작하므로 Pi 없이도 다이얼·슬라이더를 연습할 수 있습니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">PigpioClient <span class="f">Model\PigpioClient.cs</span></div>
+<div class="one"><span class="role">역할:</span> pigpiod 와 주고받는 <b>16바이트 명령</b>을 만들고 읽는, 가장 낮은 통신 층.</div>
+<p><b>쉽게 말하면</b> 외국어 통역사입니다. "GPIO18 을 1700 µs 로" 라는 요청을 pigpiod 가 알아듣는 16바이트(<code>cmd=8, p1=18, p2=1700, p3=0</code>, 각각 4바이트 little-endian)로 바꿔 보내고, 돌아온 16바이트의 마지막 4바이트(<code>res</code>)를 읽어 성공(0 이상)인지 오류(음수)인지 알려 줍니다.</p>
+<table>
+<tr><th style="width:34%">멤버</th><th>하는 일</th></tr>
+<tr><td><code>CmdServo=8 · CmdHwVer=17 · CmdPigpv=26</code></td><td>쓰는 명령 번호 세 개 (서보 펄스 · 하드웨어 리비전 · pigpio 버전)</td></tr>
+<tr><td><code>Connect(timeoutMs)</code></td><td>TCP 접속. 1.5초 안에 안 되면 <code>ServoException(LinkLost)</code>. <code>NoDelay=true</code> 로 명령마다 바로 전송</td></tr>
+<tr><td><code>Command(cmd, p1, p2)</code></td><td>요청 16바이트 쓰기 → 응답 16바이트가 다 올 때까지 읽기 → 응답의 cmd 가 요청과 같은지 확인 → <code>res</code> 반환. 시간 초과·끊김은 <code>LinkLost=true</code>, 음수 코드는 <code>LinkLost=false</code></td></tr>
+<tr><td><code>ErrorText(code)</code></td><td>−2 → "사용할 수 없는 GPIO", −7 → "펄스폭은 0 또는 500~2500", −41 → "권한 없음" 처럼 한글로</td></tr>
+<tr><td><code>Abort()</code> · <code>IsConnected</code></td><td>오류 뒤 소켓 정리 · 접속 여부</td></tr>
+</table>
+<p><b>협력자:</b> <code>RemotePigpioDriver</code> 만 이 클래스를 씁니다. 따로 떼어 놓은 이유는 <b>테스트</b> 때문입니다. <code>PigpioClientTests</code> 가 가짜 pigpiod(<code>TcpListener</code>)를 띄워 "정확히 이 16바이트가 나가는가" 를 검사합니다.
+<b>주의:</b> PC 에 pigpio 라이브러리를 설치할 필요가 없습니다. <code>TcpClient</code> 와 <code>BinaryPrimitives</code> 만 씁니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">RemotePigpioDriver <span class="f">Model\RemotePigpioDriver.cs · IServoDriver 구현</span></div>
+<div class="one"><span class="role">역할:</span> 실제(또는 가짜) Pi 의 서보를 움직이는 드라이버. <b>직접 연결·WSL 터널·에뮬레이터 세 모드가 모두 이 클래스 하나</b>로 처리된다.</div>
+<p><b>쉽게 말하면</b> 리모컨입니다. 어느 주소(<code>host:port</code>)로 보낼지만 다를 뿐 누르는 버튼은 같습니다. 직접 연결은 <code>192.168.10.2:8888</code>, 터널은 <code>127.0.0.1:18888</code>, 에뮬레이터는 <code>127.0.0.1:8888</code>.</p>
+<table>
+<tr><th style="width:34%">멤버</th><th>하는 일</th></tr>
+<tr><td><code>Open(gpio)</code></td><td>접속 후 HWVER·PIGPV 두 명령으로 상대가 진짜 pigpiod 인지 확인하고 <code>Info</code>("Pi 리비전 … · pigpio v…")를 채움. 핀이 바뀌면 이전 핀을 먼저 끔</td></tr>
+<tr><td><code>WritePulse(µs)</code></td><td><code>SERVO(gpio, µs)</code> 한 줄</td></tr>
+<tr><td><code>Release()</code></td><td>펄스 0. <b>통신이 끊긴 뒤라도 0.5초 재접속해서 끔</b> — pigpiod 는 접속이 끊겨도 마지막 펄스를 계속 내보내기 때문</td></tr>
+<tr><td><code>Dispose()</code></td><td>Release → 소켓 닫기 → 함께 받은 <code>_tunnel</code>(터널 또는 에뮬레이터 서버) 닫기</td></tr>
+</table>
+<p><b>주의:</b> 생성자의 <code>IDisposable? tunnel</code> 자리에 터널 모드는 <code>WslSshTunnel</code>, 에뮬레이터 모드는 <code>PigpioEmulatorServer</code> 가 들어옵니다. 드라이버가 사라질 때 그것도 같이 정리되므로 "연결 해제 = 터널·가짜 서버도 종료" 가 자동으로 지켜집니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">WslSshTunnel <span class="f">Model\WslSshTunnel.cs</span></div>
+<div class="one"><span class="role">역할:</span> "WSL 터널" 모드의 핵심. <code>wsl.exe -e ssh -N -L 127.0.0.1:18888:127.0.0.1:8888 rpi</code> 를 띄우고 포트가 열릴 때까지 기다린다.</div>
+<p><b>쉽게 말하면</b> 지하 통로를 파는 공사반입니다. 통로가 뚫리면(127.0.0.1:18888 이 열리면) 그 뒤로는 <code>RemotePigpioDriver</code> 가 그 통로로 평소처럼 명령을 보냅니다. WSL2 가 WSL 안의 127.0.0.1 포트를 Windows 쪽 127.0.0.1 로도 열어 주기 때문에(localhost 포워딩) 이 방법이 됩니다.</p>
+<table>
+<tr><th style="width:34%">멤버</th><th>하는 일</th></tr>
+<tr><td><code>OpenAsync(distro, alias, localPort, …)</code></td><td>① 포트가 이미 열려 있으면 기존 터널 재사용 → ② <code>WslService.ProbeAsync</code> 로 WSL·배포판 확인 → ③ ssh 프로세스 시작(BatchMode, ExitOnForwardFailure, ConnectTimeout 5) → ④ 최대 10초 동안 200 ms 마다 포트 확인. ssh 가 먼저 죽으면 stderr 를 붙여 <code>ServoException</code></td></tr>
+<tr><td><code>Dispose()</code></td><td>우리가 띄운 wsl.exe 를 프로세스 트리째 종료(<code>Kill(entireProcessTree)</code>). 재사용한 터널이면 건드리지 않음</td></tr>
+<tr><td><code>Describe()</code></td><td>"WSL 터널 → rpi (Ubuntu)" 같은 표시 문자열</td></tr>
+</table>
+<p><b>주의:</b> 종료 코드는 <code>Dispose()</code> <b>전에</b> 읽어야 합니다(뒤에 읽으면 예외). 이 순서 때문에 한 번 "연결 중…" 에서 멈추는 버그가 있었고, <code>WslSshTunnelTests</code> 가 재발을 막습니다. ssh 는 비밀번호를 물을 수 없으므로(BatchMode) <b>키 인증</b>이 전제입니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">ServoModel <span class="f">Model\ServoModel.cs</span></div>
+<div class="one"><span class="role">역할:</span> <b>"지금 서보가 어떤 상태인가"</b> 를 기억하는 단 하나의 장소. 각도·출력 여부·사양·드라이버를 들고 있고, 바뀔 때마다 <code>Changed</code> 이벤트를 낸다.</div>
+<p><b>쉽게 말하면</b> 관제탑의 현황판입니다. 모든 요청(각도 바꾸기, 출력 끄기, 보정값 바꾸기, 드라이버 교체)은 여기를 거치고, 현황판이 바뀌면 구독자(<code>MainViewModel</code>)에게 알립니다. <b>기억하는 것은 "각도" 하나</b>이고 펄스폭은 <code>Spec.AngleToPulse(Angle)</code> 로 그때그때 계산합니다. 그래서 각도 줄·다이얼·펄스 줄·카메라가 어긋날 수 없습니다.</p>
+<table>
+<tr><th style="width:34%">멤버</th><th>하는 일</th></tr>
+<tr><td><code>Angle · Pulse · IsOutputOn · Spec</code></td><td>현재 상태. <code>Pulse</code> 는 계산 속성</td></tr>
+<tr><td><code>IsConnected · IsLinkAlive · DriverName · DriverInfo</code></td><td>드라이버에게 물어서 그대로 전달</td></tr>
+<tr><td><code>SetAngle(deg)</code></td><td>범위로 자른 뒤 드라이버에 펄스 출력 → <b>성공했을 때만</b> Angle 저장, 출력 켜짐 표시. 실패하면 예외만 던지고 상태는 그대로</td></tr>
+<tr><td><code>Release()</code></td><td>드라이버 Release → 출력 꺼짐 표시</td></tr>
+<tr><td><code>SetSpec(spec)</code></td><td>유효성 검사 → GPIO 가 바뀌면 이전 핀 끄고 새 핀 열기(실패 시 이전 핀 복구) → 출력 중이면 새 사양으로 먼저 써 보고 성공해야 반영. <b>실패 시 이전 사양 유지</b></td></tr>
+<tr><td><code>SetDriver(driver)</code></td><td>이전 드라이버 Release·Dispose(접속·터널 종료) 후 교체. [연결]/[연결 해제] 가 이것</td></tr>
+<tr><td><code>Dispose()</code></td><td>드라이버 Dispose(펄스 0 전송 포함). 창을 닫을 때 호출</td></tr>
+</table>
+<p><b>주의:</b> 이 클래스는 WPF 를 전혀 참조하지 않습니다(<code>using System.Windows</code> 없음). 그래서 <code>ServoModelTests</code> 가 가짜 드라이버만으로 "실패하면 되돌리는가" 를 검사할 수 있습니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">AppSettings <span class="f">Model\AppSettings.cs</span> &nbsp;·&nbsp; ConnectionMode <span class="f">enum</span></div>
+<div class="one"><span class="role">역할:</span> 설정을 <code>%APPDATA%\VI\ServoControl.json</code> 에 저장·복원. <code>ConnectionMode</code> 는 직접(Direct)·터널(WslTunnel)·에뮬레이터(Emulator) 세 값.</div>
+<p><b>쉽게 말하면</b> 프로그램의 수첩입니다. 주소·포트·모드·ssh 별명·터널 포트·스크립트 폴더·보정값 6개·위치 메모리 4칸·스윕 속도를 적어 두고, 다음에 켤 때 그대로 꺼냅니다.</p>
+<table>
+<tr><th style="width:34%">멤버</th><th>하는 일</th></tr>
+<tr><td><code>Load()</code> · <code>Save()</code></td><td>JSON 읽기·쓰기(<code>System.Text.Json</code>, 들여쓰기, enum 은 문자열). 파일이 손상되면 기본값으로 시작하고, 저장 실패는 무시(치명적이지 않음)</td></tr>
+<tr><td><code>LoadSpec()</code> · <code>StoreSpec(spec)</code></td><td>저장된 보정값 → <code>ServoSpec</code>. 값이 이상하면 HS-311 공식값으로(GPIO 번호는 유지)</td></tr>
+<tr><td><code>FilePath</code></td><td>저장 위치. Qt 판의 <code>~/.config/VI/ServoControl.conf</code> 에 해당</td></tr>
+</table>
+<p><b>주의:</b> 이 PC 에 예전 보정값(800/1500/2100 µs)이 저장돼 있으면 1234 µs 가 −15.2° 로 보이는 식으로 계산이 달라집니다. 이상하면 이 파일을 지우고 다시 켜면 공식값으로 돌아옵니다.</p>
+</div>
+
+<!-- ═══════════════════════════════ 4 ═══════════════════════════════ -->
+<h2 class="pb">4. Services 층 — 바깥 프로그램을 부르는 부품</h2>
+
+<div class="cls">
+<div class="h">ProcessRunner <span class="f">Services\ProcessRunner.cs · static</span></div>
+<div class="one"><span class="role">역할:</span> 아무 프로그램이나 <b>창 없이</b> 실행하고, 출력을 <b>한 줄씩 실시간으로</b> 받아 오며, 취소하면 프로세스 트리째 죽이는 도우미.</div>
+<p><b>쉽게 말하면</b> 심부름꾼입니다. "이 프로그램 돌리고 뭐라고 하는지 한 줄씩 알려 줘" 라고 시키면 <code>onLine(줄, 오류출력인지)</code> 로 보고합니다.</p>
+<table>
+<tr><th style="width:34%">멤버</th><th>하는 일</th></tr>
+<tr><td><code>RunAsync(file, args, encoding, onLine, ct)</code></td><td><code>ProcessStartInfo</code> 로 실행(표준 입력은 바로 닫아 입력 대기로 멈추지 않게) → stdout/stderr 를 줄 단위로 이벤트 수신 → 끝나면 <code>Result(ExitCode, StdOut, StdErr)</code></td></tr>
+</table>
+<p><b>주의:</b> 인코딩을 매개변수로 받는 이유는 <code>wsl -l</code> 같은 관리 명령은 <b>UTF-16LE</b>, 리눅스 명령 출력은 <b>UTF-8</b> 이기 때문입니다. 틀리면 글자가 깨집니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">WslService <span class="f">Services\WslService.cs · static</span></div>
+<div class="one"><span class="role">역할:</span> WPF 가 WSL(리눅스)에 접근하는 <b>유일한 창구</b>. 모든 <code>wsl.exe</code> 호출은 여기서 만들어진다.</div>
+<table>
+<tr><th style="width:34%">멤버</th><th>하는 일</th></tr>
+<tr><td><code>ProbeAsync()</code></td><td><code>wsl -l -q</code> 로 WSL 설치 여부와 배포판 목록 확인(UTF-16). 없으면 "wsl --install 로 설치하세요" 안내</td></tr>
+<tr><td><code>RunScriptAsync(distro, dir, script, args, …)</code></td><td><code>wsl [-d 배포판] --cd 폴더 -e bash ./스크립트</code>. <code>--cd</code> 가 Windows 경로(D:\…)를 /mnt/d/… 로 자동 변환하고 UNC(\\wsl.localhost\…)도 받아들임</td></tr>
+<tr><td><code>RunSshAsync(distro, alias, cmd, …)</code></td><td><code>wsl -e ssh -o BatchMode=yes rpi "명령"</code>. Pi 상태 확인·자유 명령에 사용</td></tr>
+<tr><td><code>RunShellAsync(distro, dir, cmd, …)</code></td><td>임의 리눅스 명령(예 <code>cat pi_info.txt</code>)</td></tr>
+<tr><td><code>OpenScriptInTerminal(…)</code></td><td><code>pi_setup.sh</code> 처럼 <b>sudo 비밀번호를 물을 수 있는</b> 스크립트를 <b>보이는 콘솔 창</b>에서 실행. GUI 가 콘솔 프로그램을 창 숨김 없이 띄우면 Windows 가 새 콘솔을 만들어 줌. 끝나면 "아무 키나 누르면 닫힘"</td></tr>
+</table>
+<p><b>협력자:</b> <code>WslViewModel</code>(탭의 버튼들), <code>WslSshTunnel</code>(Probe 로 사전 확인). <b>주의:</b> 모든 메서드가 <code>static</code> 입니다. 상태가 없어서 어디서든 바로 부를 수 있지만, 테스트에서 가짜로 바꿔 끼우기는 어렵습니다(그래서 WSL 관련 테스트는 실제 wsl.exe 를 호출합니다).</p>
+</div>
+
+<!-- ═══════════════════════════════ 5 ═══════════════════════════════ -->
+<h2 class="pb">5. ViewModel 층 — 화면과 모델 사이의 통역</h2>
+
+<div class="cls">
+<div class="h">ObservableObject <span class="f">ViewModel\ObservableObject.cs · abstract</span> &nbsp;·&nbsp; RelayCommand <span class="f">ViewModel\RelayCommand.cs</span></div>
+<div class="one"><span class="role">역할:</span> MVVM 의 두 가지 기본 도구. 외부 패키지(MVVM Toolkit 등) 없이 직접 구현했다.</div>
+<ul>
+<li><b>ObservableObject</b> — 속성이 바뀌면 <code>PropertyChanged</code> 이벤트로 화면에 알립니다. <code>Set(ref field, value)</code> 는 "값이 실제로 바뀌었을 때만 저장하고 알림" 을 한 줄로 해 줍니다. Qt 의 signal 과 같은 역할.</li>
+<li><b>RelayCommand</b> — 버튼의 <code>Command="{Binding XxxCommand}"</code> 가 ViewModel 의 메서드를 부르게 하는 <code>ICommand</code>. <code>canExecute</code> 로 버튼 활성/비활성을 결정하고, <code>RaiseCanExecuteChanged()</code> 로 다시 계산시킵니다. Qt 의 <code>connect(signal, slot)</code> 에 해당.</li>
+</ul>
+</div>
+
+<div class="cls">
+<div class="h">IDialogService <span class="f">ViewModel\IDialogService.cs</span> &nbsp;·&nbsp; PresetSlot <span class="f">ViewModel\PresetSlot.cs</span></div>
+<ul>
+<li><b>IDialogService</b> — <code>ShowError</code>, <code>Confirm</code>, <code>PickFolder</code> 세 가지. ViewModel 이 <code>MessageBox</code> 를 직접 부르면 테스트에서 창이 떠 버리므로, 인터페이스로 빼고 테스트에서는 가짜(<code>FakeDialogs</code>)를 꽂습니다.</li>
+<li><b>PresetSlot</b> — 위치 메모리 한 칸. <code>Angle</code>(null 이면 빈 칸)과 버튼에 보일 <code>Label</code>("P1\n+11.0°" 또는 "P1\n(비어 있음)").</li>
+</ul>
+</div>
+
+<div class="cls">
+<div class="h">MainViewModel <span class="f">ViewModel\MainViewModel.cs · 490줄</span></div>
+<div class="one"><span class="role">역할:</span> <b>프로그램의 두뇌.</b> 화면의 모든 요청을 받아 모델을 조작하고, 모델의 변화를 화면용 속성으로 바꿔 준다. Qt 판의 <code>ServoController</code> 와 View 의 상태를 합친 것.</div>
+<p><b>쉽게 말하면</b> 운전석의 통역사입니다. 핸들(다이얼)을 돌리면 엔진(ServoModel)에 "이 각도로" 라고 전하고, 엔진이 "지금 20° 야" 라고 하면 계기판(바인딩된 속성들)을 고쳐 씁니다.</p>
+<h4>속성 묶음</h4>
+<table>
+<tr><th style="width:30%">속성</th><th>뜻</th></tr>
+<tr><td><code>Host · Port · ModeIndex · TunnelLocalPort</code></td><td>연결 설정. <code>ModeIndex</code> 0/1/2 = 직접/터널/에뮬레이터(ComboBox 와 바인딩), <code>IsDirectMode/IsTunnelMode/IsEmulatorMode</code> 로 입력칸을 보였다 숨김</td></tr>
+<tr><td><code>IsConnected · IsBusy · CanEditConnection · ConnectButtonText</code></td><td>연결 상태. 연결 중에는 버튼이 "연결 중…" 이 되고 설정칸이 잠김</td></tr>
+<tr><td><code>Angle</code></td><td>다이얼·각도 슬라이더·각도 입력칸과 <b>양방향</b> 바인딩. 화면에서 set 하면 <code>RequestAngle</code> → 모델; 모델에서 온 갱신(<code>_syncing=true</code>)이면 저장만</td></tr>
+<tr><td><code>PulseInput · MinPulse · MaxPulse</code></td><td>펄스 슬라이더·입력칸과 양방향. set 하면 범위로 자른 뒤 <code>Spec.PulseToAngle</code> 로 각도를 구해 이동 → 각도 줄도 따라 바뀜</td></tr>
+<tr><td><code>Pulse · IsOutputOn · OutputText · AngleBigText</code></td><td>모델에서 읽기만 하는 표시용</td></tr>
+<tr><td><code>IsSweeping · SweepSpeed · Presets · Cal*</code></td><td>스윕, 위치 메모리 4칸, 보정 입력칸 6개</td></tr>
+<tr><td><code>EmulatorText · StatusText</code></td><td>가짜 Pi 가 받은 마지막 명령("가짜 Pi 수신 #3: SERVO gpio=18 1700 µs") · 4초 뒤 사라지는 상태 줄</td></tr>
+<tr><td><code>Wsl</code></td><td>WSL 탭용 <code>WslViewModel</code></td></tr>
+</table>
+<h4>커맨드(버튼·단축키)</h4>
+<table>
+<tr><th style="width:30%">커맨드</th><th>하는 일</th></tr>
+<tr><td><code>ConnectToggleCommand</code></td><td>연결/해제 토글. 모드에 따라 ① 터널: <code>WslSshTunnel.OpenAsync</code> 후 <code>RemotePigpioDriver(127.0.0.1, 18888, tunnel)</code> ② 에뮬레이터: <code>StartEmulatorDriver()</code> ③ 직접: <code>RemotePigpioDriver(Host, Port)</code>. <code>driver.Open</code> 은 <code>Task.Run</code> 으로 돌려 1.5초 타임아웃 동안 화면이 멈추지 않게. 실패하면 드라이버를 버리고 오류 창</td></tr>
+<tr><td><code>SetAngle · Nudge(±1/±10) · Center · GoMin · GoMax</code></td><td>모두 <code>RequestAngle(각도)</code> 로 모임</td></tr>
+<tr><td><code>ReleaseCommand</code> (Space)</td><td>스윕 정지 → <code>model.Release()</code></td></tr>
+<tr><td><code>ToggleSweepCommand</code></td><td>20 ms 타이머로 <code>angle += 방향 × 속도 × 0.02</code>, 끝에서 방향 반전. 손으로 조작하면 자동 정지</td></tr>
+<tr><td><code>PresetRecall/Store(i)</code></td><td>메모리 이동/저장(저장 즉시 <code>AppSettings.Save</code>)</td></tr>
+<tr><td><code>ApplySpec · ApplyOfficial · ApplyExtended</code></td><td>보정값 적용. 확장값은 먼저 <code>Confirm</code> 경고. 실패하면 입력칸을 실제 적용값으로 되돌림</td></tr>
+</table>
+<h4>핵심 내부 메서드</h4>
+<table>
+<tr><th style="width:30%">메서드</th><th>하는 일</th></tr>
+<tr><td><code>RequestAngle(deg)</code></td><td>스윕 정지 → <code>model.SetAngle</code> → 실패면 <code>HandleFailure</code></td></tr>
+<tr><td><code>HandleFailure(ex)</code></td><td>연결돼 있고 <code>LinkLost</code>(또는 링크 죽음)면 <b>먼저 연결 해제</b>(SimulatedDriver 로 교체) 후 "연결을 해제했습니다. 다시 [연결]을…" 안내. pigpio 가 거부만 한 오류면 연결 유지하고 메시지만</td></tr>
+<tr><td><code>SyncFromModel()</code></td><td>모델 → 화면. <code>_syncing=true</code> 로 감싸서 <code>Angle</code> setter 가 다시 명령을 보내는 <b>무한 루프를 차단</b>(Qt 의 <code>QSignalBlocker</code> 역할)</td></tr>
+<tr><td><code>StartEmulatorDriver()</code></td><td>앱 안에 <code>PigpioEmulatorServer("127.0.0.1", Port)</code> 를 띄우고 실제와 똑같은 <code>RemotePigpioDriver</code> 로 접속. 서버의 <code>CommandReceived</code> 를 UI 스레드로 넘겨 <code>EmulatorText</code> 갱신</td></tr>
+<tr><td><code>Shutdown()</code></td><td>창 닫을 때: 스윕 정지 → 설정 저장 → WSL 작업 취소 → <code>model.Dispose()</code>(펄스 0, 터널 종료)</td></tr>
+</table>
+<p><b>주의:</b> 서보 명령은 Qt 판처럼 <b>동기</b>(1.5초 타임아웃)로 단순하게 두었습니다. 비동기는 연결 과정(터널 대기)에만 씁니다. <code>catch (Exception)</code> 으로 예상 못 한 오류까지 잡아 "연결 중 예상하지 못한 오류" 창으로 보여 주므로 앱이 조용히 멈추지 않습니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">WslViewModel <span class="f">ViewModel\WslViewModel.cs</span></div>
+<div class="one"><span class="role">역할:</span> "WSL / Pi 관리" 탭. 배포판·ssh 별명·스크립트 폴더 설정, 버튼 7개, 로그 창.</div>
+<table>
+<tr><th style="width:30%">커맨드</th><th>하는 일</th></tr>
+<tr><td><code>ProbeCommand</code> [WSL 확인]</td><td><code>WslService.ProbeAsync</code> → "WSL 사용 가능 · 배포판 1개", 목록을 콤보박스에</td></tr>
+<tr><td><code>CheckPiCommand</code> [Pi 상태 확인]</td><td>ssh 로 hostname·IP·pigpiod 상태·온도·가동 시간·8888 접속 수를 한 번에</td></tr>
+<tr><td><code>RunPiInfoCommand</code> · <code>RunDeployCommand</code></td><td>기존 Qt 프로젝트의 <code>pi_info.sh</code>(끝나면 <code>pi_info.txt</code> 내용 표시) · <code>deploy.sh</code> 를 인라인 실행</td></tr>
+<tr><td><code>OpenSetupTerminalCommand</code> [pi_setup.sh ↗]</td><td>sudo 가 필요하므로 <b>새 터미널 창</b>에서</td></tr>
+<tr><td><code>RunSshCommand</code> · <code>CancelCommand</code> · <code>ClearLogCommand</code> · <code>BrowseScriptDirCommand</code></td><td>자유 ssh 명령 · 실행 취소 · 로그 지우기 · 폴더 선택</td></tr>
+</table>
+<p><b>핵심 메서드 <code>RunGuardedAsync</code>:</b> 모든 실행을 감싸서 "실행 중" 표시(버튼 잠금), 취소 토큰, 종료 코드·실패·취소 로그를 한곳에서 처리합니다. 출력 줄은 백그라운드 스레드에서 오므로 <code>SynchronizationContext.Post</code> 로 UI 스레드에 넘겨 <code>Log</code> 에 붙입니다(2000줄 넘으면 앞을 버림).
+<b>주의:</b> 스크립트 폴더가 <code>/</code> 나 <code>~</code> 로 시작하면 WSL 내부 경로로 보고 존재 여부를 Windows 에서 확인하지 않습니다.</p>
+</div>
+
+<!-- ═══════════════════════════════ 6 ═══════════════════════════════ -->
+<h2 class="pb">6. View 층 — 눈에 보이는 것</h2>
+
+<div class="cls">
+<div class="h">App <span class="f">App.xaml / App.xaml.cs</span></div>
+<div class="one"><span class="role">역할:</span> 시작할 때 부품을 <b>조립</b>하고(Composition Root), 끝날 때 <b>서보 출력을 끈다</b>. Qt 판의 <code>main.cpp</code>.</div>
+<pre>var settings = AppSettings.Load();              // 수첩 꺼내기
+var driver = new SimulatedDriver();             // 처음엔 빈 드라이버
+var model = new ServoModel(driver);  model.Start(settings.LoadSpec());
+var window = new MainWindow();
+_vm = new MainViewModel(model, settings, new DialogService(window));
+window.DataContext = _vm;                       // 바인딩의 출발점
+window.Closed += (_, _) => ShutdownOnce();      // 창 닫힘 → 펄스 0, 터널 종료, 설정 저장</pre>
+<p><code>App.xaml</code> 에는 공통 스타일(제목 글꼴, 빨간 "출력 끄기" 버튼, 초록 "연결됨" 버튼 등)이 있습니다. <code>DispatcherUnhandledException</code> 을 잡아 예상 못 한 오류가 나도 메시지를 보여 준 뒤 출력을 끄고 종료합니다. <b>주의:</b> <code>ShutdownOnce</code> 는 <code>Closed</code> 와 <code>OnExit</code> 두 곳에서 불릴 수 있어 <code>_vm = null</code> 로 한 번만 실행되게 막습니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">MainWindow <span class="f">View\MainWindow.xaml (309줄) + MainWindow.xaml.cs (68줄)</span></div>
+<div class="one"><span class="role">역할:</span> 창의 배치와 바인딩. 코드 비하인드에는 "순수 화면 동작" 만 둔다.</div>
+<p><b>XAML 배치:</b> 상단 바(제목 · 연결 방식 콤보 · 모드별 입력칸 · [연결] · 상태 점 · 장치 정보 · [전체화면] [종료]) / 왼쪽 <code>ServoCameraView</code> / 가운데 "다이얼 조종"(<code>ServoDial</code>, 각도 줄, 펄스 줄, ±버튼, 최소/최대, 출력 끄기) / 오른쪽 탭(서보: 메모리·스윕·보정, WSL / Pi 관리) / 하단 상태 줄.
+모든 값은 <code>{Binding …}</code> 으로 <code>MainViewModel</code> 에 묶여 있고, 버튼은 <code>Command</code>, 키보드는 <code>InputBindings</code>(←/→ 1°, Space 출력 끄기, F11 전체화면)입니다.</p>
+<table>
+<tr><th style="width:30%">코드 비하인드</th><th>하는 일</th></tr>
+<tr><td><code>ToggleFullScreen()</code></td><td>F11. 창 테두리 없는 최대화 ↔ 복귀(Maximized 상태에서 바로 None 으로 바꾸면 작업 표시줄이 남는 문제를 Normal 을 거쳐 회피)</td></tr>
+<tr><td><code>OnInputBoxKeyDown</code></td><td>각도·펄스 입력칸에서 Enter → 바인딩 소스 갱신(= 이동) → 포커스를 다이얼로</td></tr>
+<tr><td><code>OnSliderWheel</code> · <code>OnPulseSliderWheel</code></td><td>슬라이더 위 휠 한 칸 = 1° / 10 µs</td></tr>
+<tr><td><code>OnSshBoxKeyDown</code> · <code>OnLogChanged</code></td><td>ssh 입력칸 Enter 실행 · 로그 자동 스크롤</td></tr>
+</table>
+</div>
+
+<div class="cls">
+<div class="h">ServoDial <span class="f">View\ServoDial.cs · FrameworkElement</span></div>
+<div class="one"><span class="role">역할:</span> WPF 에 없는 원형 다이얼을 <b>직접 그린</b> 컨트롤. Qt 의 <code>QDial</code> 에 해당.</div>
+<p><b>쉽게 말하면</b> 볼륨 노브입니다. <code>Minimum~Maximum</code> 값을 화면 각도 −135°~+135°(270° 스윕, 위가 0)에 펼쳐 놓고, 마우스 방향을 <code>atan2</code> 로 각도로 바꿔 값을 정합니다.</p>
+<table>
+<tr><th style="width:30%">멤버</th><th>하는 일</th></tr>
+<tr><td><code>Value</code>(양방향 기본) · <code>Minimum · Maximum · Step · IsOutputOn · Pulse</code></td><td>의존 속성(DependencyProperty). <code>Value</code> 가 <code>MainViewModel.Angle</code> 과 묶임. <code>Pulse</code> 는 노브 안 힌트에 표시</td></tr>
+<tr><td><code>OnRender</code></td><td>회색 궤적 → 0°부터 현재 값까지 파란 호 → 1°/10° 눈금과 숫자 → 그라데이션 노브 → 포인터 → 가운데 큰 값 + "1700 µs · 출력 켜짐"</td></tr>
+<tr><td><code>ValueFromPoint(pos)</code> · <code>Snap(v)</code></td><td>마우스 위치 → 값(아래쪽 빈 구간은 가까운 끝으로) · <code>Step</code>(1°) 단위 맞춤과 범위 자름. <code>internal</code> 이라 테스트가 직접 호출</td></tr>
+<tr><td><code>OnMouse*</code> · <code>OnMouseWheel</code> · <code>OnKeyDown</code></td><td>누르거나 끌면(<code>IsMouseCaptured</code> 동안) 값 변경, 휠 1칸 = 1°, ←/→ 1°, PgUp/PgDn 10°, Home/End 끝</td></tr>
+<tr><td><code>DialPeer</code>(AutomationPeer)</td><td>UI 자동화·접근성용. 이름 "각도 다이얼", <code>RangeValue</code> 패턴으로 값을 읽고 쓸 수 있어 자동 테스트와 화면 읽기 프로그램이 다룰 수 있음</td></tr>
+</table>
+</div>
+
+<div class="cls">
+<div class="h">ServoCameraView <span class="f">View\ServoCameraView.cs · FrameworkElement</span></div>
+<div class="one"><span class="role">역할:</span> 서보에 올려진 카메라를 위에서 본 <b>표시 전용</b> 그림. 명령한 각도를 향해 HS-311 속도로 "실제로 돌아가는 모습" 을 보여 준다.</div>
+<p><b>쉽게 말하면</b> CCTV 관제실의 미니어처입니다. 다이얼은 "가라고 한 곳", 이 그림은 "지금 가고 있는 곳" 입니다.</p>
+<table>
+<tr><th style="width:30%">멤버</th><th>하는 일</th></tr>
+<tr><td><code>Angle · IsOutputOn · IsConnected · Pulse · MinAngle · MaxAngle · FieldOfView · SpeedDegPerSec</code></td><td>의존 속성. <code>Angle</code> 은 목표(ViewModel 의 Angle, OneWay), 속도 기본 60°/0.19 s ≈ 316 °/s, 시야 62°</td></tr>
+<tr><td><code>_shown</code> · <code>ShownAngle</code> · <code>IsMoving</code> · <code>IsAnimating</code></td><td>화면에 그려진 각도 · 목표와 다른지 · 타이머가 도는지</td></tr>
+<tr><td><code>IsDriven</code> = <code>IsConnected &amp;&amp; IsOutputOn</code></td><td><b>구동 조건.</b> 거짓이면 어떤 값을 바꿔도 제자리. 연결이 없으면 서보로 명령이 가지 않으므로 화면도 움직이지 않는 것이 맞음</td></tr>
+<tr><td><code>UpdateAnimation()</code> · <code>OnTick()</code></td><td>구동 조건을 만족하고 목표와 다르면 16 ms 타이머 시작 → 매 틱 <code>속도 × dt</code> 만큼 접근 → 도착하면 정지</td></tr>
+<tr><td><code>OnRender</code></td><td>바닥 반원과 허용 범위 호 → 서보 본체(HS-311)와 케이블 → 시야 쐐기(구동 중일 때만) → 회전 변환 안에서 혼·카메라·렌즈 → 글자(현재 각도, "→ 목표 … 로 회전 중", 끝단 경고). <b>연결 해제면</b> 반투명 막을 덮고 "연결 안 됨 — [연결]하면 카메라 움직임이 표시됩니다" 만</td></tr>
+</table>
+<p><b>주의:</b> <code>IsHitTestVisible=false</code> 로 마우스를 전혀 받지 않습니다. 애니메이션은 화면 안에서만 일어나고 모델의 각도는 즉시 바뀝니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">DialogService <span class="f">View\DialogService.cs · IDialogService 구현</span></div>
+<p><code>MessageBox.Show</code>(경고 아이콘, 제목 "서보 제어") · 예/아니오 확인 · <code>OpenFolderDialog</code>. 창 소유자를 넘겨 주 창 위에 뜨게 합니다. 21줄짜리 클래스지만 이것 덕분에 ViewModel 이 WPF 대화상자를 모르고, 테스트는 가짜로 바꿔 끼웁니다.</p>
+</div>
+
+<!-- ═══════════════════════════════ 7 ═══════════════════════════════ -->
+<h2 class="pb">7. 에뮬레이터와 도구 — Pi 없이 돌리기</h2>
+
+<div class="cls">
+<div class="h">PigpioEmulatorServer <span class="f">PigpioEmulator\PigpioEmulatorServer.cs · 별도 라이브러리 프로젝트</span></div>
+<div class="one"><span class="role">역할:</span> <b>가짜 pigpiod.</b> 실제와 같은 16바이트 규약으로 응답하므로 WPF(와 Qt 판)는 진짜 Pi 인지 가짜인지 구별하지 못한다.</div>
+<p><b>쉽게 말하면</b> 운전 연습용 시뮬레이터입니다. TCP·바이트 열·오류 처리 경로를 실제와 똑같이 밟되, 끝에 서보 대신 숫자만 바뀝니다.</p>
+<table>
+<tr><th style="width:30%">멤버</th><th>하는 일</th></tr>
+<tr><td><code>Start()</code> · <code>Dispose()</code></td><td><code>TcpListener</code> 로 듣기 시작(포트가 이미 쓰이면 <code>SocketException</code>) · 정지</td></tr>
+<tr><td><code>Handle(cmd, p1, p2)</code></td><td>SERVO: gpio&gt;31 → −2, 펄스가 0 도 500~2500 도 아니면 −7, 아니면 저장하고 0. HWVER → 0xc03111(Pi 4B), PIGPV → 79. 그 밖은 0</td></tr>
+<tr><td><code>GetSimulatedAngle(gpio)</code> · <code>AdvanceAngle</code></td><td>목표 펄스를 향해 0.19 s/60° 속도로 움직이는 "현재 각도" 흉내(1500 µs = 0°, 10 µs/°). 출력 0 이면 그 자리에 멈춤</td></tr>
+<tr><td><code>CommandReceived · PulseChanged · ClientCountChanged</code></td><td>이벤트(스레드 풀에서 발생). WPF 는 <code>CommandReceived</code> 로 "가짜 Pi 수신 #n: …" 을 표시</td></tr>
+</table>
+<p><b>협력자:</b> <code>MainViewModel.StartEmulatorDriver</code>(앱 안), <code>PigpioEmulatorCli</code>(콘솔), <code>EmulatorTests</code>. <b>주의:</b> WPF 를 참조하지 않는 순수 .NET 라이브러리라 <b>리눅스 dotnet 으로도 빌드·실행</b>됩니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">PigpioEmulatorCli — Program.cs <span class="f">콘솔 프로그램 pigpio-emu</span></div>
+<p><code>pigpio-emu [포트] [바인드주소]</code>. <code>PigpioEmulatorServer</code> 를 띄우고 받은 명령을 한 줄씩 찍으며, 100 ms 마다 흉내 낸 서보 위치를 막대(<code>[────┼──█───] 현재 +15.4° → 목표 +20.0°</code>)로 그립니다(펄스나 각도가 바뀔 때만). <code>0.0.0.0</code> 으로 띄우면 WSL 안의 Qt 판이 Windows 호스트 IP 로 접속할 수 있습니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">tools/fake_pigpiod.py <span class="f">파이썬, 표준 라이브러리만</span></div>
+<p><code>PigpioEmulatorServer</code> 를 94줄 파이썬으로 옮긴 것. WSL 을 "가짜 Pi" 로 만들 때 씁니다(<code>./run-from-wsl.sh fakepi</code>). <code>struct.unpack("&lt;IIII")</code> 로 16바이트를 풀고 <code>struct.pack("&lt;IIIi")</code> 로 응답합니다. 접속마다 스레드 하나. WSL2 localhost 포워딩 덕분에 Windows 의 WPF 가 <code>127.0.0.1:8888</code> 로 접속하면 이 리눅스 프로세스에 닿습니다.</p>
+</div>
+
+<div class="cls">
+<div class="h">run-from-wsl.sh &nbsp;·&nbsp; Directory.Build.targets</div>
+<ul>
+<li><b>run-from-wsl.sh</b> — WSL 셸에서 Windows 의 WPF 를 띄우는 실행기. 인수 없음: Release(없으면 Debug) exe 를 <code>setsid nohup</code> 으로 띄움(실행 비트 자동 부여). <code>build</code>: <code>dotnet.exe build "$(wslpath -w …sln)"</code> 후 실행. <code>emu</code>: Windows 쪽 pigpio-emu. <code>fakepi</code>: 리눅스 쪽 <code>fake_pigpiod.py</code>. 원리는 WSL 의 interop(리눅스 셸에서 .exe 를 실행하면 Windows 가 띄움).</li>
+<li><b>Directory.Build.targets</b> — 솔루션 폴더의 모든 프로젝트에 자동 적용되는 MSBuild 조각. <code>UseWPF=true</code> 인 프로젝트를 Windows 가 아닌 OS 에서 빌드하면 알기 어려운 <code>NETSDK1100</code> 대신 "WPF 는 Windows 에서만 … ./run-from-wsl.sh build 를 쓰세요" 라는 한글 안내로 멈춥니다. 에뮬레이터 프로젝트는 영향 없음.</li>
+</ul>
+</div>
+
+<!-- ═══════════════════════════════ 8 ═══════════════════════════════ -->
+<h2 class="pb">8. 테스트 프로젝트 — 무엇을 지키는가</h2>
+<p><code>ServoControlWpf.Tests</code>(xUnit, 53개). 테스트는 "이 규칙이 깨지면 알려 달라" 는 약속입니다. 각 파일이 지키는 규칙을 적었습니다.</p>
+<table>
+<tr><th style="width:24%">파일</th><th style="width:6%" class="c">수</th><th>지키는 규칙</th><th style="width:22%">어떻게</th></tr>
+<tr><td><code>ServoSpecTests</code></td><td class="c">17</td><td>+20° → 1700 µs, −40° → 1100, 범위 밖은 잘림(표 데이터 여러 건), 비대칭 보정, <code>PulseToAngle</code> 역변환, 기본값이 공식 HS-311, <code>IsValid</code> 가 잘못된 값을 거부(경계값 여러 건)</td><td>순수 계산</td></tr>
+<tr><td><code>PigpioClientTests</code></td><td class="c">6</td><td>요청 바이트가 정확히 <code>08 00 00 00 12 00 00 00 dc 05 00 00 00 00 00 00</code>, 음수 res → 한글 메시지(연결 유지), 응답 없음 → 시간 초과 <code>LinkLost</code>, 접속 거부 → <code>LinkLost</code> + 안내문, <code>RemotePigpioDriver.Open</code> 이 HWVER·PIGPV 를 읽고 <code>Release</code> 가 펄스 0 을 보냄, 오류 코드 → 문구</td><td>인프로세스 가짜 pigpiod(<code>TcpListener</code>)</td></tr>
+<tr><td><code>ServoModelTests</code></td><td class="c">8</td><td><code>SetAngle</code> 성공 시 펄스 출력 + <code>Changed</code>, 실패 시 상태 불변, 잘못된 <code>SetSpec</code> 거부, 출력 실패 시 이전 사양 유지, 성공 시 각도 클램프·재출력, GPIO 변경 시 이전 핀 Release 후 새 핀 Open, <code>SetDriver</code> 가 이전 드라이버를 Release·Dispose, <code>Release</code> 가 출력 꺼짐 표시</td><td>호출을 기록하는 가짜 드라이버(<code>RecordingDriver</code>)</td></tr>
+<tr><td><code>EmulatorTests</code></td><td class="c">3</td><td><code>ServoModel → RemotePigpioDriver → 에뮬레이터</code> 전체 경로(Info "Pi 리비전 c03111 · pigpio v79", 펄스 저장), 잘못된 펄스는 실제 pigpio 처럼 거부, 흉내 낸 각도가 시간에 따라 목표로 이동</td><td>실제 TCP(127.0.0.1 임의 포트)</td></tr>
+<tr><td><code>ServoDialTests</code></td><td class="c">9</td><td>마우스 방향 → 값(위 = 0°, ±135° = 끝, 45° → 13°, 빈 구간은 가까운 끝 — 표 데이터 7건), 범위 변경 반영, 1° 단위 맞춤·클램프</td><td>STA 스레드에서 컨트롤 생성</td></tr>
+<tr><td><code>ServoCameraViewTests</code></td><td class="c">4</td><td>연결 해제면 Angle 을 바꿔도 안 움직임 / 연결+출력 켜짐이면 회전 시작 / 출력 꺼짐이면 정지, 켜지는 순간 출발 / 회전 중 해제하면 제자리 정지</td><td>STA 스레드</td></tr>
+<tr><td><code>MainViewModelTests</code></td><td class="c">5</td><td>각도 → 펄스 계산·출력, 펄스 1650 → 각도 15.0° 출력(양방향), 범위 밖 펄스는 min/max 로 잘림, 비대칭 보정에서 왕복, 드라이버 실패 시 이전 값으로 되돌리고 오류 창</td><td>가짜 대화상자(<code>FakeDialogs</code>) + 가짜 드라이버</td></tr>
+<tr><td><code>WslSshTunnelTests</code></td><td class="c">1</td><td>없는 ssh 별명으로 터널을 열면 멈추지 않고 1초 안에 <code>ServoException</code>(ssh 오류 문장 포함)</td><td>실제 <code>wsl.exe -e ssh</code>(WSL 있는 PC)</td></tr>
+</table>
+<div class="box tip"><b class="t">테스트가 가능한 이유 = 층을 나눈 이유</b>
+가짜 드라이버를 꽂을 수 있는 건 <code>IServoDriver</code> 인터페이스 덕분이고, 창 없이 ViewModel 을 돌릴 수 있는 건 <code>IDialogService</code> 덕분이며, 바이트 열을 검사할 수 있는 건 <code>PigpioClient</code> 를 따로 뗐기 때문입니다.</div>
+
+<!-- ═══════════════════════════════ 9 ═══════════════════════════════ -->
+<h2 class="pb">9. 시나리오로 따라가기 — 버튼 하나가 지나가는 길</h2>
+
+<h3>9-1. [연결] 을 눌렀을 때 (에뮬레이터 모드)</h3>
+<ol>
+<li><b>MainWindow</b>: 버튼의 <code>Command</code> → <code>MainViewModel.ConnectToggleCommand</code></li>
+<li><b>MainViewModel.OnConnectToggleAsync</b>: <code>IsBusy=true</code>(버튼 "연결 중…", 설정칸 잠김) → 모드가 Emulator 이므로 <code>StartEmulatorDriver()</code></li>
+<li><b>PigpioEmulatorServer</b>: <code>127.0.0.1:8888</code> 에서 듣기 시작 → <b>RemotePigpioDriver</b>("127.0.0.1", 8888, server) 생성</li>
+<li><code>Task.Run(() =&gt; driver.Open(18))</code>: <b>PigpioClient.Connect</b> → <b>Command(HWVER)</b> → 서버가 0xc03111 응답 → <b>Command(PIGPV)</b> → 79 → <code>Info = "Pi 리비전 c03111 · pigpio v79"</code></li>
+<li><b>ServoModel.SetDriver(driver)</b>: 이전 <code>SimulatedDriver</code> Release·Dispose → 교체 → <code>Changed</code> 이벤트</li>
+<li><b>MainViewModel.SyncFromModel</b>: <code>IsConnected=true</code> 등 알림 → 버튼 "연결 해제"(초록), 상단에 장치 정보, 왼쪽 카메라 뷰의 <code>IsConnected</code> 가 true 로(막이 걷힘)</li>
+</ol>
+
+<h3>9-2. 다이얼을 +20° 로 돌렸을 때</h3>
+<ol>
+<li><b>ServoDial.OnMouseMove</b>: 마우스 방향 → <code>ValueFromPoint</code> → <code>Value=20</code> → 양방향 바인딩이 <b>MainViewModel.Angle</b> 에 20 을 set</li>
+<li><b>Angle setter</b>: <code>_syncing</code> 이 false 이므로 <code>RequestAngle(20)</code> → 스윕 정지 → <b>ServoModel.SetAngle(20)</b></li>
+<li><b>ServoModel</b>: <code>Spec.ClampAngle(20)=20</code> → <code>Spec.AngleToPulse(20)=1700</code> → <b>RemotePigpioDriver.WritePulse(1700)</b> → <b>PigpioClient.Command(8, 18, 1700)</b> → 16바이트 전송 → res 0</li>
+<li>성공했으므로 <code>Angle=20, IsOutputOn=true</code> → <code>Changed</code></li>
+<li><b>SyncFromModel</b>(<code>_syncing=true</code>): <code>Angle</code>, <code>Pulse=1700</code>, <code>PulseInput</code>, <code>IsOutputOn</code> 등 알림 → 각도 줄 20.0, 펄스 줄 1700, 다이얼 힌트 "1700 µs · 출력 켜짐", <b>ServoCameraView</b> 는 목표 20° 를 향해 316 °/s 로 회전 시작, 상단 "가짜 Pi 수신 #3: SERVO gpio=18 1700 µs"</li>
+</ol>
+<p>펄스 입력칸에 1650 을 넣으면 2번이 <code>PulseInput</code> setter 로 바뀔 뿐입니다: 범위로 자름 → <code>Spec.PulseToAngle(1650)=15</code> → <code>RequestAngle(15)</code> → 이후 동일.</p>
+
+<h3>9-3. 통신이 끊겼을 때</h3>
+<ol>
+<li><b>PigpioClient.Command</b>: 1.5초 안에 응답이 없거나 상대가 끊음 → <code>Abort()</code> → <code>ServoException(linkLost: true)</code></li>
+<li>예외는 <b>ServoModel.SetAngle</b> 을 그대로 통과(상태 불변) → <b>MainViewModel.RequestAngle</b> 의 catch → <code>HandleFailure</code></li>
+<li><code>LinkLost</code> 이므로 <code>OnDisconnect()</code>: <b>ServoModel.SetDriver(new SimulatedDriver())</b> → 이전 드라이버 <code>Release</code>(0.5초 재접속해 펄스 0 시도)·<code>Dispose</code>(터널·에뮬레이터 종료)</li>
+<li>오류 창: "Pi 응답 없음 (시간 초과) … 연결을 해제했습니다. 다시 [연결]을 눌러 주세요." 화면은 "연결 안 됨" 으로, 카메라 뷰는 그 자리에서 멈추고 막이 덮임</li>
+</ol>
+<p>pigpio 가 명령만 거부한 경우(예 −7 PI_BAD_PULSEWIDTH)는 <code>LinkLost=false</code> 라 연결을 유지하고 메시지만 보여 줍니다.</p>
+
+<h3>9-4. 창을 닫았을 때</h3>
+<ol>
+<li><b>App</b>: <code>window.Closed</code> → <code>ShutdownOnce()</code> → <b>MainViewModel.Shutdown()</b></li>
+<li>스윕 정지 → <b>AppSettings.Save()</b>(주소·모드·스크립트 폴더 등) → <b>WslViewModel.Cancel()</b>(실행 중인 wsl.exe 종료)</li>
+<li><b>ServoModel.Dispose()</b> → <b>RemotePigpioDriver.Dispose()</b>: <code>Release()</code>(SERVO gpio 0 = 힘 빼기) → 소켓 닫기 → 터널/에뮬레이터 Dispose</li>
+</ol>
+<div class="box warn"><b class="t">pigpiod 는 접속이 끊겨도 마지막 펄스를 계속 낸다</b>
+그래서 "끊기" 만 하면 서보는 계속 힘을 줍니다. 이 프로그램이 종료·해제·오류 때마다 굳이 펄스 0 을 보내려고 애쓰는(심지어 0.5초 재접속까지 하는) 이유입니다.</div>
+
+<!-- ═══════════════════════════════ 10 ═══════════════════════════════ -->
+<h2 class="pb">10. 어디를 고치면 되나</h2>
+<table>
+<tr><th style="width:36%">하고 싶은 일</th><th>고칠 곳</th></tr>
+<tr><td>다른 서보(예 MG996R)를 쓰고 싶다</td><td>화면의 보정값만 바꾸면 됨. 기본값을 바꾸려면 <code>ServoSpec</code> 생성자와 <code>Hs311Official()</code></td></tr>
+<tr><td>pigpiod 의 다른 명령(예 GPIO 읽기)을 추가</td><td><code>PigpioClient</code> 에 상수 추가(명령 번호는 pigpio 문서의 cmd 표) → <code>RemotePigpioDriver</code> 에 메서드 → 필요하면 <code>IServoDriver</code> 규격 확장 → 에뮬레이터 <code>Handle()</code> 에도 흉내 추가</td></tr>
+<tr><td>Pi 주소·포트 기본값 변경</td><td><code>AppSettings</code> 의 초기값(<code>Host = "192.168.10.2"</code> 등). 이미 저장된 JSON 이 우선함</td></tr>
+<tr><td>새 버튼(예 "−45°로")</td><td><code>MainViewModel</code> 에 <code>RelayCommand</code> 하나 + <code>MainWindow.xaml</code> 에 버튼 하나. 서보 명령은 <code>RequestAngle</code> 을 재사용</td></tr>
+<tr><td>스윕 주기·속도 범위</td><td><code>MainViewModel.SweepIntervalMs</code>(20 ms) · 생성자의 <code>Math.Clamp(…, 5, 200)</code> · XAML 슬라이더 범위</td></tr>
+<tr><td>통신 타임아웃</td><td><code>PigpioClient.DefaultTimeoutMs</code>(1500) · 터널 대기는 <code>WslSshTunnel.OpenAsync</code> 의 <code>timeoutMs</code>(10000)</td></tr>
+<tr><td>카메라 뷰의 속도·시야각</td><td>XAML 에서 <code>SpeedDegPerSec</code>, <code>FieldOfView</code> 속성을 주거나 <code>ServoCameraView</code> 의 기본값</td></tr>
+<tr><td>카메라 뷰를 연결 안 돼도 움직이게(원래 동작으로)</td><td><code>ServoCameraView.IsDriven</code> 에서 <code>IsConnected &amp;&amp;</code> 를 빼고, <code>OnRender</code> 의 "연결 안 됨" 블록 제거</td></tr>
+<tr><td>WSL 탭에 새 스크립트 버튼</td><td><code>WslViewModel</code> 에 <code>RelayCommand(async () =&gt; await RunScriptAsync("x.sh"))</code> + XAML 버튼</td></tr>
+<tr><td>오류 메시지 문구</td><td>통신: <code>PigpioClient.ErrorText</code> 와 각 <code>throw new ServoException(…)</code> · 연결: <code>MainViewModel.OnConnectToggleAsync</code> · 터널: <code>WslSshTunnel</code></td></tr>
+<tr><td>설정 파일 위치</td><td><code>AppSettings.FilePath</code></td></tr>
+<tr><td>색·글꼴</td><td><code>App.xaml</code> 의 스타일, <code>ServoDial</code>/<code>ServoCameraView</code> 맨 위의 <code>Brush</code> 상수</td></tr>
+<tr><td>리눅스 가짜 Pi 의 동작</td><td><code>tools/fake_pigpiod.py</code> 의 <code>handle()</code>; .NET 판은 <code>PigpioEmulatorServer.Handle()</code> — 둘을 같이 고쳐야 함</td></tr>
+</table>
+
+<div class="box tip"><b class="t">고친 뒤 확인하는 순서</b>
+<code>dotnet build ServoControlWpf.sln -c Release</code>(경고 0 유지) → <code>dotnet test</code>(53개) → 에뮬레이터 모드로 [연결] → 다이얼·펄스 입력 → [출력 끄기] → [연결 해제] → 창 닫기. 상단의 "가짜 Pi 수신" 글자가 바뀌면 TCP 로 실제 명령이 나간 것입니다.</div>
+
+<!-- ═══════════════════════════════ 11 ═══════════════════════════════ -->
+<h2>11. 용어 사전</h2>
+<table>
+<tr><th style="width:24%">용어</th><th>뜻 (이 프로젝트에서)</th></tr>
+<tr><td>MVVM</td><td>Model(데이터·규칙) · View(화면) · ViewModel(둘 사이의 통역). View 는 ViewModel 의 속성에 <b>바인딩</b>만 하고 코드를 거의 갖지 않는다</td></tr>
+<tr><td>바인딩(Binding)</td><td>XAML 의 <code>{Binding Angle}</code>. ViewModel 의 <code>Angle</code> 이 바뀌면 화면이 저절로 바뀌고(OneWay), 화면에서 바꾸면 ViewModel 도 바뀐다(TwoWay)</td></tr>
+<tr><td>INotifyPropertyChanged</td><td>"내 속성이 바뀌었어" 라고 알리는 규격. <code>ObservableObject</code> 가 구현</td></tr>
+<tr><td>ICommand / RelayCommand</td><td>버튼이 누를 수 있는 "동작" 객체. 실행 가능 여부(<code>CanExecute</code>)도 가짐</td></tr>
+<tr><td>DependencyProperty(의존 속성)</td><td>WPF 컨트롤의 바인딩·애니메이션이 되는 특별한 속성. <code>ServoDial.Value</code>, <code>ServoCameraView.Angle</code> 등</td></tr>
+<tr><td>인터페이스(interface)</td><td>"이 메서드들을 갖춰라" 는 약속. <code>IServoDriver</code>, <code>IDialogService</code>. 덕분에 진짜와 가짜를 바꿔 끼울 수 있다</td></tr>
+<tr><td>Strategy / Null Object 패턴</td><td>같은 규격의 부품을 바꿔 끼우는 것 / "없음" 을 나타내는 빈 부품(<code>SimulatedDriver</code>)</td></tr>
+<tr><td>예외(Exception)</td><td>실패를 호출자에게 던지는 방법. <code>ServoException.LinkLost</code> 로 끊김 여부를 함께 전달</td></tr>
+<tr><td>DispatcherTimer</td><td>UI 스레드에서 주기적으로 코드를 실행하는 타이머(스윕 20 ms, 카메라 16 ms, 상태 줄 4 s)</td></tr>
+<tr><td>async / await · Task.Run</td><td>오래 걸리는 일(접속, 터널 대기, wsl.exe 실행)을 기다리는 동안 화면이 멈추지 않게 하는 문법</td></tr>
+<tr><td>SynchronizationContext.Post</td><td>다른 스레드에서 생긴 결과(로그 줄, 에뮬레이터 수신)를 UI 스레드로 넘겨 화면을 안전하게 갱신</td></tr>
+<tr><td>TCP / TcpClient / TcpListener</td><td>네트워크로 바이트를 주고받는 통로 / 접속하는 쪽 / 기다리는 쪽(가짜 pigpiod)</td></tr>
+<tr><td>pigpiod</td><td>Pi 에서 GPIO 를 대신 다루는 데몬. 포트 8888 로 16바이트 명령을 받는다</td></tr>
+<tr><td>little-endian</td><td>숫자를 낮은 바이트부터 쓰는 순서. 1700 = <code>a4 06 00 00</code></td></tr>
+<tr><td>WSL2 localhost 포워딩</td><td>WSL 안에서 127.0.0.1 에 연 포트를 Windows 의 127.0.0.1 로도 접속할 수 있게 하는 기능. 터널·가짜 Pi 모두 이것에 의존</td></tr>
+<tr><td>interop</td><td>WSL 셸에서 <code>.exe</code> 를 실행하면 Windows 가 그 프로그램을 띄우는 기능. <code>run-from-wsl.sh</code> 의 원리</td></tr>
+<tr><td>AutomationPeer / UI 자동화</td><td>화면 읽기 프로그램·자동 테스트가 컨트롤을 다룰 수 있게 하는 접근성 창구. <code>ServoDial.DialPeer</code></td></tr>
+<tr><td>STA 스레드</td><td>WPF 요소를 만들 수 있는 특별한 스레드. 컨트롤 테스트가 이것을 따로 만든다</td></tr>
+</table>
+
+<p class="small">관련 문서: <i>ServoControlWpf_설계과정.pdf</i>(왜 이렇게 만들었나, 운용 원리, 검증 결과) · <i>README.md</i>(빌드·실행 명령) · 소스 각 파일 맨 위의 주석(역할 요약).</p>
+
+</body>
+</html>

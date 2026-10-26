@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    "Pi 로 옮길 수 있나" 확인용 프로젝트.
+    WPF 를 쓰지 않는 Model / Services 층과 ViewModel 의 밑바탕을 리눅스 .NET 으로 그대로 컴파일해 본다.
+    (WSL 또는 Pi 에서:  dotnet build tools/portcheck -c Release)
+    통과하면 화면(View)만 Avalonia 등으로 바꾸면 Pi 에서 돌릴 수 있다는 뜻.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RollForward>LatestMajor</RollForward>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RootNamespace>ServoControlWpf</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\ServoControlWpf\Model\*.cs" />
+    <Compile Include="..\..\ServoControlWpf\Services\*.cs" />
+    <Compile Include="..\..\ServoControlWpf\ViewModel\ObservableObject.cs" />
+    <Compile Include="..\..\ServoControlWpf\ViewModel\RelayCommand.cs" />
+    <Compile Include="..\..\ServoControlWpf\ViewModel\IDialogService.cs" />
+    <Compile Include="..\..\ServoControlWpf\ViewModel\PresetSlot.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\PigpioEmulator\PigpioEmulator.csproj" />
+  </ItemGroup>
+
+</Project>
