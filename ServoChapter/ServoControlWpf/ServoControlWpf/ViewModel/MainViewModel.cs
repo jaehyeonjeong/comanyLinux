@@ -112,8 +112,30 @@ public sealed class MainViewModel : ObservableObject
     private string _emulatorText = "";
     private readonly SynchronizationContext _ui = SynchronizationContext.Current ?? new SynchronizationContext();
 
-    /// <summary>가짜 Pi 가 실제로 받은 마지막 SERVO 명령 (TCP 로 바이트가 오갔다는 증거)</summary>
+    /// <summary>
+    /// 앱 안의 가짜 pigpiod. 드라이버가 아니라 ViewModel 이 수명을 가져서 [연결 해제] 뒤에도 살아 있고,
+    /// 실제 pigpiod 처럼 마지막 펄스·위치를 기억한다. 다시 [연결]하면 GPW 로 그 상태를 읽어 화면을 맞춘다.
+    /// </summary>
+    private PigpioEmulator.PigpioEmulatorServer? _emuServer;
+
+    /// <summary>가짜 Pi 가 실제로 받은 마지막 명령, 또는 해제 뒤 기억하고 있는 상태 (TCP 로 바이트가 오갔다는 증거)</summary>
     public string EmulatorText { get => _emulatorText; private set => Set(ref _emulatorText, value); }
+
+    /// <summary>
+    /// [연결 해제]·프로그램 종료 때 서보 출력을 유지할지. 켜져 있으면 펄스 0 을 보내지 않아 서보가 위치를 지키고,
+    /// 다시 연결하면(다음 실행이라도) 장치의 현재 펄스(GPW)를 읽어 다이얼·슬라이더·카메라가 그 위치로 맞춰진다.
+    /// </summary>
+    public bool KeepOutputOnDisconnect
+    {
+        get => _settings.KeepOutputOnDisconnect;
+        set
+        {
+            if (_settings.KeepOutputOnDisconnect == value) return;
+            _settings.KeepOutputOnDisconnect = value;
+            _settings.Save();
+            OnPropertyChanged();
+        }
+    }
 
     public bool IsBusy
     {
@@ -270,14 +292,22 @@ public sealed class MainViewModel : ObservableObject
                 throw;
             }
 
-            _model.SetDriver(driver);
+            _model.SetDriver(driver);     // 교체 직후 장치의 현재 펄스(GPW)를 읽어 각도·출력 표시를 실제 서보에 맞춤
             SaveConnectionSettings();
-            ShowStatus(_mode switch
+            var where = _mode switch
             {
-                ConnectionMode.WslTunnel => "WSL 터널로 Pi에 연결했습니다. [0°]를 눌러 중앙부터 확인하세요.",
-                ConnectionMode.Emulator => "가짜 Pi(에뮬레이터)에 연결했습니다. 실제 TCP 명령이 오가며, 오른쪽 위에 받은 명령이 표시됩니다.",
-                _ => "Pi에 연결했습니다. [0°]를 눌러 중앙부터 확인하세요.",
-            });
+                ConnectionMode.WslTunnel => "WSL 터널로 Pi에",
+                ConnectionMode.Emulator => "가짜 Pi(에뮬레이터)에",
+                _ => "Pi에",
+            };
+            if (_model.DevicePulseAtConnect is > 0)
+                ShowStatus($"{where} 연결했습니다. 서보가 이미 {_model.Angle:+0.0;-0.0}° ({_model.Pulse} µs)로 구동 중이어서 화면을 그 위치에 맞췄습니다.");
+            else if (_model.DevicePulseAtConnect == 0 && _model.LastDrivenAngle is { } last)
+                ShowStatus($"{where} 연결했습니다. 서보 출력은 꺼져 있고 마지막 위치 {last:+0.0;-0.0}° 로 화면을 맞췄습니다.");
+            else
+                ShowStatus(_mode == ConnectionMode.Emulator
+                    ? "가짜 Pi(에뮬레이터)에 연결했습니다. 실제 TCP 명령이 오가며, 오른쪽 위에 받은 명령이 표시됩니다."
+                    : $"{where} 연결했습니다. [0°]를 눌러 중앙부터 확인하세요.");
         }
         catch (ServoException ex)
         {
@@ -302,42 +332,73 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 에뮬레이터 모드: 앱 안에 가짜 pigpiod 를 띄우고, 실제와 똑같은 RemotePigpioDriver 로 127.0.0.1 에 접속한다.
-    /// (가짜 서버의 수명은 드라이버가 가지므로 연결 해제 시 함께 닫힌다)
+    /// 에뮬레이터 모드: 앱 안에 가짜 pigpiod 를 띄우고(처음 한 번), 실제와 똑같은 RemotePigpioDriver 로 127.0.0.1 에 접속한다.
+    /// 가짜 서버는 [연결 해제] 뒤에도 그대로 두어 실제 pigpiod 처럼 마지막 펄스·위치를 기억하게 한다 (창을 닫을 때 종료).
     /// </summary>
     private IServoDriver StartEmulatorDriver()
     {
-        var server = new PigpioEmulator.PigpioEmulatorServer("127.0.0.1", Port);
-        try
+        if (_emuServer is not null && _emuServer.EndPoint.Port != Port)
         {
-            server.Start();
+            _emuServer.Dispose();         // 포트를 바꿨으면 새로 띄움 (기억한 위치는 사라짐)
+            _emuServer = null;
         }
-        catch (System.Net.Sockets.SocketException ex)
+        if (_emuServer is null)
         {
-            server.Dispose();
-            throw new ServoException(
-                $"에뮬레이터를 127.0.0.1:{Port} 에 띄울 수 없습니다.\n({ex.Message})\n\n" +
-                "다른 프로그램(또는 pigpio-emu 콘솔)이 그 포트를 쓰고 있으면 Pi 포트를 바꾸거나, " +
-                "'직접 연결' 모드로 Pi 주소 127.0.0.1 에 접속하세요.", linkLost: true, inner: ex);
+            // 상태 파일 덕분에 프로그램을 껐다 켜도 "같은 가짜 서보" 가 마지막 펄스·각도를 가진 채 다시 뜬다
+            var server = new PigpioEmulator.PigpioEmulatorServer("127.0.0.1", Port, PigpioEmulator.PigpioEmulatorServer.DefaultStateFile);
+            try
+            {
+                server.Start();
+            }
+            catch (System.Net.Sockets.SocketException ex)
+            {
+                server.Dispose();
+                throw new ServoException(
+                    $"에뮬레이터를 127.0.0.1:{Port} 에 띄울 수 없습니다.\n({ex.Message})\n\n" +
+                    "다른 프로그램(또는 pigpio-emu 콘솔)이 그 포트를 쓰고 있으면 Pi 포트를 바꾸거나, " +
+                    "'직접 연결' 모드로 Pi 주소 127.0.0.1 에 접속하세요.", linkLost: true, inner: ex);
+            }
+            server.CommandReceived += ev => _ui.Post(_ =>
+            {
+                if (_model.IsConnected)
+                    EmulatorText = $"가짜 Pi 수신 #{server.CommandCount}: {ev.Description}";
+            }, null);
+            _emuServer = server;
+            EmulatorText = $"가짜 Pi 대기 중: {server.EndPoint}";
         }
 
-        server.CommandReceived += ev => _ui.Post(_ =>
-        {
-            EmulatorText = $"가짜 Pi 수신 #{server.CommandCount}: {ev.Description}";
-        }, null);
-        EmulatorText = $"가짜 Pi 대기 중: {server.EndPoint}";
+        // tunnel 자리에 서버를 넘기지 않는다 → 드라이버가 사라져도(연결 해제) 서버는 계속 살아 기억을 유지
+        return new RemotePigpioDriver("127.0.0.1", Port, null, $"에뮬레이터 127.0.0.1:{Port}");
+    }
 
-        return new RemotePigpioDriver("127.0.0.1", Port, server, $"에뮬레이터 127.0.0.1:{Port}");
+    /// <summary>해제 뒤 가짜 Pi 가 기억하고 있는 상태 (실제 pigpiod 가 접속과 무관하게 펄스를 유지하는 것과 같음)</summary>
+    private string EmulatorMemoryText()
+    {
+        if (_emuServer is null) return "";
+        var gpio = _model.Spec.Gpio;
+        var pulse = _emuServer.GetPulse(gpio);
+        var angle = _emuServer.GetSimulatedAngle(gpio);
+        return pulse > 0
+            ? $"가짜 Pi 기억 중: GPIO{gpio} {pulse} µs ({angle:+0.0;-0.0}°) 유지 — 다시 [연결]하면 이 위치로 화면을 맞춥니다"
+            : $"가짜 Pi 기억 중: GPIO{gpio} 출력 꺼짐, 서보는 {angle:+0.0;-0.0}° 에 멈춰 있음";
     }
 
     private void OnDisconnect()
     {
         StopSweep();
+        // 출력 유지 옵션: 서보가 실제로 구동 중일 때만 의미가 있다 (이미 꺼져 있으면 그냥 끊음)
+        var keep = KeepOutputOnDisconnect && _model.IsConnected && _model.IsOutputOn;
+        var keptAngle = _model.Angle;
+        var keptPulse = _model.Pulse;
         var sim = new SimulatedDriver();
         sim.Open(_model.Spec.Gpio);
-        _model.SetDriver(sim);   // 이전 원격 드라이버는 출력을 끄고 접속 종료 (터널·에뮬레이터도 닫힘)
-        EmulatorText = "";
-        ShowStatus("연결을 끊었습니다. 서보 출력도 꺼졌습니다.");
+        _model.SetDriver(sim, releaseOld: !keep);   // keep 이면 펄스 0 을 보내지 않고 접속만 끊음 (터널은 닫힘, 에뮬레이터 서버는 유지)
+        _settings.LastDrivenAngle = _model.LastDrivenAngle;   // 다음 실행 때 이 각도에서 시작
+        _settings.Save();
+        EmulatorText = _mode == ConnectionMode.Emulator ? EmulatorMemoryText() : "";
+        ShowStatus(keep
+            ? $"연결을 끊었습니다. 서보는 마지막 위치 {keptAngle:+0.0;-0.0}° ({keptPulse} µs)를 유지합니다. 다시 연결하면 그 위치로 화면을 맞춥니다."
+            : "연결을 끊었습니다. 서보 출력도 꺼졌습니다.");
     }
 
     private void RequestAngle(double angle)
@@ -520,10 +581,15 @@ public sealed class MainViewModel : ObservableObject
         _statusTimer.Start();
     }
 
-    /// <summary>창을 닫을 때: 스윕 정지, 설정 저장, 출력 끄기(펄스 0), 터널 종료</summary>
+    /// <summary>
+    /// 창을 닫을 때: 스윕 정지, 설정 저장(마지막 각도 포함), 터널 종료.
+    /// 출력은 "출력 유지" 옵션이 꺼져 있을 때만 끈다(펄스 0). 켜져 있으면 서보가 자리를 지키고, 다음 실행에서 GPW 로 읽어 화면을 맞춘다.
+    /// </summary>
     public void Shutdown()
     {
         StopSweep();
+        var keep = KeepOutputOnDisconnect && _model.IsConnected && _model.IsOutputOn;
+        _settings.LastDrivenAngle = _model.LastDrivenAngle;
         _settings.Host = Host.Trim();
         _settings.Port = Port;
         _settings.Mode = _mode;
@@ -533,7 +599,9 @@ public sealed class MainViewModel : ObservableObject
         _settings.ScriptDir = Wsl.ScriptDir;
         _settings.Save();
         Wsl.Cancel();
-        _model.Dispose();
+        _model.Dispose(releaseOutput: !keep);   // 가짜 서버가 아직 살아 있어야 펄스 0 명령을 받을 수 있으므로 서버보다 먼저
+        _emuServer?.Dispose();                  // 상태 파일에 마지막 펄스·각도 저장
+        _emuServer = null;
     }
 
     private static bool TryDouble(object? p, out double v)

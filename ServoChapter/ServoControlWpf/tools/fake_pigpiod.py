@@ -7,7 +7,8 @@ Raspberry Pi 가 없을 때 WSL(또는 아무 리눅스)을 "가짜 Pi" 로 만�
     요청 16바이트 = cmd, p1, p2, p3   (uint32 little-endian)
     응답 16바이트 = cmd, p1, p2, res  (res: int32, 0 이상 성공 / 음수 오류)
 
-흉내 내는 명령: SERVO(8) 펄스폭 검사(0 또는 500~2500, gpio 0~31), HWVER(17)=0xc03111, PIGPV(26)=79
+흉내 내는 명령: SERVO(8) 펄스폭 검사(0 또는 500~2500, gpio 0~31), HWVER(17)=0xc03111, PIGPV(26)=79,
+                GPW(84) 지금 펄스폭 읽기 (접속이 끊겨도 기억 → 다시 접속한 프로그램이 이전 위치를 알 수 있음)
 
 사용법:
     python3 fake_pigpiod.py                     # 0.0.0.0:8888  (Windows 에서 127.0.0.1:8888 로 접속 가능 — WSL2 localhost 포워딩)
@@ -15,12 +16,18 @@ Raspberry Pi 가 없을 때 WSL(또는 아무 리눅스)을 "가짜 Pi" 로 만�
 WSL 에 sshd 를 설치했다면 WPF 의 "WSL 터널" 모드(ssh 별명 → 127.0.0.1)로도 이 서버에 닿는다.
 """
 import argparse
+import json
+import os
 import socket
 import struct
 import threading
 import time
 
-CMD_SERVO, CMD_HWVER, CMD_PIGPV = 8, 17, 26
+# 상태 파일: 펄스·각도를 저장해 껐다 켜도 "같은 서보" 가 같은 자리에 있게 한다 (--state 로 바꿀 수 있음)
+DEFAULT_STATE = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")), "VI", "fake_pigpiod.json")
+state_file = None
+
+CMD_SERVO, CMD_HWVER, CMD_PIGPV, CMD_GPW = 8, 17, 26, 84
 HW_VER, PIGPIO_VER = 0xC03111, 79          # Pi 4B 리비전, pigpio 버전
 SPEED_DEG_PER_S = 60 / 0.19                 # HS-311 @4.8 V
 
@@ -46,6 +53,38 @@ def advance(gpio):
     return angles[gpio]
 
 
+def load_state():
+    """상태 파일 → pulses/angles. 펄스가 켜져 있던 핀은 그동안 목표에 도달했다고 본다."""
+    if not state_file or not os.path.exists(state_file):
+        return
+    try:
+        with open(state_file, encoding="utf-8") as f:
+            saved = json.load(f)
+        with lock:
+            for key, s in saved.items():
+                gpio, pulse, angle = int(key), int(s.get("Pulse", 0)), float(s.get("Angle", 0.0))
+                if not 0 <= gpio <= 31 or (pulse != 0 and not 500 <= pulse <= 2500):
+                    continue
+                pulses[gpio] = pulse
+                angles[gpio] = (pulse - 1500) / 10.0 if pulse else max(-90.0, min(90.0, angle))
+                stamps[gpio] = time.monotonic()
+    except (OSError, ValueError):
+        pass
+
+
+def save_state():
+    if not state_file:
+        return
+    with lock:
+        snap = {str(g): {"Pulse": p, "Angle": advance(g)} for g, p in pulses.items()}
+    try:
+        os.makedirs(os.path.dirname(state_file), exist_ok=True)
+        with open(state_file, "w", encoding="utf-8") as f:
+            json.dump(snap, f, indent=2)
+    except OSError:
+        pass
+
+
 def handle(cmd, p1, p2):
     if cmd == CMD_SERVO:
         if p1 > 31:
@@ -54,8 +93,19 @@ def handle(cmd, p1, p2):
             return -7, f"SERVO gpio={p1} pulse={p2} → PI_BAD_PULSEWIDTH"
         with lock:
             advance(p1)
+            changed = pulses.get(p1) != p2
             pulses[p1] = p2
+        if changed:
+            save_state()
         return 0, (f"SERVO gpio={p1} 출력 끔" if p2 == 0 else f"SERVO gpio={p1} {p2} µs → 목표 {(p2 - 1500) / 10:+.1f}°")
+    if cmd == CMD_GPW:                      # 지금 펄스폭 (0 = 꺼짐), 서보로 쓴 적 없으면 -93 (PI_NOT_SERVO_GPIO)
+        if p1 > 31:
+            return -2, f"GPW gpio={p1} → PI_BAD_USER_GPIO"
+        with lock:
+            if p1 not in pulses:
+                return -93, f"GPW gpio={p1} → PI_NOT_SERVO_GPIO"
+            pw = pulses[p1]
+        return pw, f"GPW gpio={p1} → {pw} µs" if pw else f"GPW gpio={p1} → 0 (출력 꺼짐)"
     if cmd == CMD_HWVER:
         return HW_VER, f"HWVER → 0x{HW_VER:x}"
     if cmd == CMD_PIGPV:
@@ -88,13 +138,20 @@ def main():
     ap = argparse.ArgumentParser(description="가짜 pigpiod")
     ap.add_argument("--port", type=int, default=8888)
     ap.add_argument("--bind", default="0.0.0.0")
+    ap.add_argument("--state", default=DEFAULT_STATE, help="상태 파일 (빈 문자열이면 저장 안 함)")
     a = ap.parse_args()
+    global state_file
+    state_file = a.state or None
+    load_state()
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind((a.bind, a.port))
     srv.listen(5)
     print(f"가짜 pigpiod 실행 중: {a.bind}:{a.port}   (Ctrl+C 로 종료)", flush=True)
-    print("흉내 내는 명령: SERVO(8) HWVER(17)=0xc03111 PIGPV(26)=79 · 펄스 범위 0, 500~2500 µs", flush=True)
+    print("흉내 내는 명령: SERVO(8) HWVER(17)=0xc03111 PIGPV(26)=79 GPW(84) · 펄스 범위 0, 500~2500 µs", flush=True)
+    print(f"상태 파일: {state_file or '(없음)'}", flush=True)
+    for g, p in sorted(pulses.items()):
+        print(f"  복원: GPIO{g} {'출력 꺼짐' if p == 0 else f'{p} µs'}, 각도 {angles.get(g, 0.0):+.1f}°", flush=True)
     try:
         while True:
             conn, addr = srv.accept()
@@ -103,6 +160,7 @@ def main():
     except KeyboardInterrupt:
         print("\n종료")
     finally:
+        save_state()
         srv.close()
 
 

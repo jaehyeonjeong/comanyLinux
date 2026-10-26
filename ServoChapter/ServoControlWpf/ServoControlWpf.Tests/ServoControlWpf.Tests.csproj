@@ -20,4 +20,9 @@
     <ProjectReference Include="..\ServoControlWpf\ServoControlWpf.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 화면 XAML 의 바인딩이 빠지지 않았는지 검사하기 위해 원본을 출력 폴더로 복사 -->
+    <None Include="..\ServoControlWpf\View\MainWindow.xaml" Link="MainWindow.xaml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

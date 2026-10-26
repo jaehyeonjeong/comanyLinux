@@ -18,6 +18,7 @@ public sealed class PigpioClient : IDisposable
     public const uint CmdServo = 8;    // 서보 펄스폭 (0 = 끔, 500~2500 µs)
     public const uint CmdHwVer = 17;   // 하드웨어 리비전
     public const uint CmdPigpv = 26;   // pigpio 버전
+    public const uint CmdGetServoPulsewidth = 84;   // GPW: 그 GPIO 에 지금 내보내는 서보 펄스폭 (0 = 꺼짐, −93 = 서보로 쓴 적 없음)
 
     public const int DefaultTimeoutMs = 1500;
 
@@ -130,6 +131,7 @@ public sealed class PigpioClient : IDisposable
         -2 => "사용할 수 없는 GPIO 번호입니다 (PI_BAD_USER_GPIO).",
         -7 => "펄스폭은 0 또는 500~2500 µs 이어야 합니다 (PI_BAD_PULSEWIDTH).",
         -41 => "이 GPIO를 제어할 권한이 없습니다 (PI_NOT_PERMITTED).",
+        -93 => "이 GPIO에는 아직 서보 펄스를 설정한 적이 없습니다 (PI_NOT_SERVO_GPIO).",
         _ => $"pigpio 오류 코드 {code}",
     };
 

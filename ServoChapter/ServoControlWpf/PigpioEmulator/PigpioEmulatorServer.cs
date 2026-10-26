@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.Json;
 
 namespace PigpioEmulator;
 
@@ -16,15 +17,21 @@ namespace PigpioEmulator;
 /// 흉내 내는 명령
 ///   SERVO(8)  gpio, 펄스폭 → 0 또는 500~2500 이면 저장하고 0, 아니면 −7(PI_BAD_PULSEWIDTH); gpio > 31 이면 −2(PI_BAD_USER_GPIO)
 ///   HWVER(17) → 0xc03111 (Pi 4 Model B 리비전), PIGPV(26) → 79 (pigpio 버전)
+///   GPW(84)   gpio → 지금 펄스폭 (0 = 꺼짐), 서보로 쓴 적 없으면 −93(PI_NOT_SERVO_GPIO)
+///   서버는 접속이 끊겨도 펄스·각도를 기억하므로(실제 pigpiod 와 같음), 다시 접속한 프로그램이 GPW 로 이전 상태를 알 수 있다.
 ///   그 밖의 명령 → 0
 ///
 /// 서보의 물리 움직임도 흉내 낸다: 목표 펄스를 향해 0.19 s/60° (HS-311 @4.8 V) 속도로 움직이는 "현재 각도".
+///
+/// 상태 파일(StateFile): 지정하면 펄스·흉내 낸 각도를 JSON 으로 저장하고 다음에 띄울 때 되살린다.
+///   → 프로그램을 껐다 켜도 "같은 서보" 가 같은 자리에 있는 것처럼 동작 (실제 서보는 전원이 끊겨도 물리적으로 그 자리에 머묾).
 /// </summary>
 public sealed class PigpioEmulatorServer : IDisposable
 {
     public const uint CmdServo = 8;
     public const uint CmdHwVer = 17;
     public const uint CmdPigpv = 26;
+    public const uint CmdGetServoPulsewidth = 84;   // GPW
 
     public const int HardwareRevision = 0xc03111;   // Pi 4B
     public const int PigpioVersion = 79;
@@ -39,14 +46,79 @@ public sealed class PigpioEmulatorServer : IDisposable
     private long _commandCount;
     private Task? _acceptLoop;
 
-    public PigpioEmulatorServer(IPAddress bind, int port)
+    public PigpioEmulatorServer(IPAddress bind, int port, string? stateFile = null)
     {
         _listener = new TcpListener(bind, port);
+        StateFile = stateFile;
     }
 
-    public PigpioEmulatorServer(string bindAddress = "127.0.0.1", int port = 8888)
-        : this(IPAddress.Parse(bindAddress), port)
+    public PigpioEmulatorServer(string bindAddress = "127.0.0.1", int port = 8888, string? stateFile = null)
+        : this(IPAddress.Parse(bindAddress), port, stateFile)
     {
+    }
+
+    /// <summary>상태를 저장·복원할 JSON 파일. null 이면 메모리에만 둔다 (테스트용).</summary>
+    public string? StateFile { get; }
+
+    /// <summary>기본 상태 파일 위치: Windows %APPDATA%\VI\PigpioEmulator.json, 리눅스 ~/.config/VI/PigpioEmulator.json</summary>
+    public static string DefaultStateFile => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VI", "PigpioEmulator.json");
+
+    private sealed class SavedGpio
+    {
+        public int Pulse { get; set; }
+        public double Angle { get; set; }
+    }
+
+    /// <summary>상태 파일을 읽어 펄스·각도를 되살린다. 펄스가 켜져 있던 핀은 그동안 목표에 도달했다고 본다.</summary>
+    private void LoadState()
+    {
+        if (StateFile is null || !File.Exists(StateFile)) return;
+        try
+        {
+            var saved = JsonSerializer.Deserialize<Dictionary<string, SavedGpio>>(File.ReadAllText(StateFile));
+            if (saved is null) return;
+            lock (_lock)
+            {
+                foreach (var (key, s) in saved)
+                {
+                    if (!int.TryParse(key, out var gpio) || gpio < 0 || gpio > 31) continue;
+                    if (s.Pulse != 0 && (s.Pulse < 500 || s.Pulse > 2500)) continue;
+                    _pulses[gpio] = s.Pulse;
+                    _angles[gpio] = s.Pulse != 0 ? (s.Pulse - 1500) / 10.0 : Math.Clamp(s.Angle, -90, 90);
+                    _angleStamp[gpio] = DateTime.UtcNow;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            // 손상된 상태 파일은 무시하고 빈 상태로 시작
+        }
+    }
+
+    /// <summary>현재 펄스·각도를 상태 파일에 쓴다 (SERVO 명령마다, 그리고 종료 때).</summary>
+    private void SaveState()
+    {
+        if (StateFile is null) return;
+        Dictionary<string, SavedGpio> snap;
+        lock (_lock)
+        {
+            snap = new Dictionary<string, SavedGpio>();
+            foreach (var (gpio, pulse) in _pulses)
+            {
+                AdvanceAngle(gpio);
+                snap[gpio.ToString()] = new SavedGpio { Pulse = pulse, Angle = _angles.TryGetValue(gpio, out var a) ? a : 0 };
+            }
+        }
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(StateFile)!);
+            File.WriteAllText(StateFile, JsonSerializer.Serialize(snap, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // 저장 실패는 치명적이지 않음
+        }
     }
 
     public sealed record CommandEvent(uint Cmd, uint P1, uint P2, int Result, string Description);
@@ -68,6 +140,7 @@ public sealed class PigpioEmulatorServer : IDisposable
     /// <summary>듣기 시작. 포트가 이미 쓰이고 있으면 SocketException.</summary>
     public void Start()
     {
+        LoadState();
         _listener.Start();
         _acceptLoop = Task.Run(AcceptLoopAsync);
     }
@@ -185,8 +258,24 @@ public sealed class PigpioEmulatorServer : IDisposable
                     changed = !_pulses.TryGetValue(gpio, out var old) || old != pulse;
                     _pulses[gpio] = pulse;
                 }
-                if (changed) PulseChanged?.Invoke(gpio, pulse);
+                if (changed)
+                {
+                    SaveState();
+                    PulseChanged?.Invoke(gpio, pulse);
+                }
                 return (0, pulse == 0 ? $"SERVO gpio={gpio} 출력 끔" : $"SERVO gpio={gpio} {pulse} µs");
+            }
+            case CmdGetServoPulsewidth:
+            {
+                // 실제 pigpiod 처럼: 서보 펄스를 설정한 적 없는 핀이면 −93(PI_NOT_SERVO_GPIO), 아니면 지금 펄스폭(0 = 꺼짐)
+                if (p1 > 31)
+                    return (-2, $"GPW gpio={p1} → PI_BAD_USER_GPIO");
+                lock (_lock)
+                {
+                    if (!_pulses.TryGetValue((int)p1, out var pw))
+                        return (-93, $"GPW gpio={p1} → PI_NOT_SERVO_GPIO (서보로 쓴 적 없음)");
+                    return (pw, pw == 0 ? $"GPW gpio={p1} → 0 (출력 꺼짐)" : $"GPW gpio={p1} → {pw} µs (기억하고 있던 펄스)");
+                }
             }
             case CmdHwVer:
                 return (HardwareRevision, $"HWVER → 0x{HardwareRevision:x}");
@@ -197,10 +286,15 @@ public sealed class PigpioEmulatorServer : IDisposable
         }
     }
 
+    private bool _disposed;
+
     public void Dispose()
     {
+        if (_disposed) return;   // 두 번 불려도 안전 (using + 명시적 Dispose)
+        _disposed = true;
         _cts.Cancel();
         try { _listener.Stop(); } catch (SocketException) { }
         _cts.Dispose();
+        SaveState();   // 흉내 낸 각도까지 저장 → 다음 실행에서 같은 자리에서 시작
     }
 }

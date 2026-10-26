@@ -26,6 +26,7 @@ public sealed class RemotePigpioDriver : IServoDriver
     public string Info { get; private set; } = string.Empty;
     public bool IsRemote => true;
     public bool IsLinkAlive => _client.IsConnected;
+    public bool ReleaseOnDispose { get; set; } = true;
 
     public void Open(int gpio)
     {
@@ -65,9 +66,28 @@ public sealed class RemotePigpioDriver : IServoDriver
         }
     }
 
+    /// <summary>
+    /// pigpiod 가 이 핀에 지금 내보내는 펄스폭(GPW 명령). 서보로 쓴 적 없는 핀(−93) 등 거부 응답이면 null.
+    /// 통신 오류도 null 로 돌려 호출자가 연결 절차를 계속할 수 있게 한다.
+    /// </summary>
+    public int? ReadPulse()
+    {
+        if (_gpio < 0 || !_client.IsConnected)
+            return null;
+        try
+        {
+            return _client.Command(PigpioClient.CmdGetServoPulsewidth, (uint)_gpio, 0);
+        }
+        catch (ServoException)
+        {
+            return null;
+        }
+    }
+
     public void Dispose()
     {
-        Release();          // 프로그램이 끝나면 서보 출력을 끔
+        if (ReleaseOnDispose)
+            Release();      // 프로그램이 끝나면 서보 출력을 끔 (출력 유지 옵션이면 건너뜀 → pigpiod 가 마지막 펄스를 계속 냄)
         _client.Dispose();
         _tunnel?.Dispose(); // WSL 터널이 있으면 ssh 프로세스 종료
     }

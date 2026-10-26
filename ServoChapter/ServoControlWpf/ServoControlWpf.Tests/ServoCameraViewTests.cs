@@ -59,6 +59,21 @@ public class ServoCameraViewTests
     }
 
     [Fact]
+    public void Connecting_WhileDriven_SnapsToCurrentAngleWithoutAnimation()
+    {
+        OnSta(() =>
+        {
+            // 해제 상태에서 카메라는 0° 에 멈춰 있고, 연결 직후 모델이 장치 보고(GPW)로 −20° 를 알려 준 상황
+            var v = new ServoCameraView { IsConnected = false, IsOutputOn = true };
+            v.Angle = -20;
+            Assert.Equal(0.0, v.ShownAngle);
+            v.IsConnected = true;                // 서보는 이미 거기 있으므로 회전 없이 바로 맞춤
+            Assert.Equal(-20.0, v.ShownAngle);
+            Assert.False(v.IsAnimating);
+        });
+    }
+
+    [Fact]
     public void Disconnecting_StopsAnimationInPlace()
     {
         OnSta(() =>

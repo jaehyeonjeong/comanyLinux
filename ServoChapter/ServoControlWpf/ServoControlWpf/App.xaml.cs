@@ -34,7 +34,7 @@ public partial class App : Application
         var driver = new SimulatedDriver();
         driver.Open(spec.Gpio);
         var model = new ServoModel(driver);
-        model.Start(spec);
+        model.Start(spec, settings.LastDrivenAngle);   // 이전 실행에서 서보를 보낸 각도에서 화면이 시작 (연결하면 장치 보고로 확정)
 
         // ── View + ViewModel ──
         var window = new MainWindow();

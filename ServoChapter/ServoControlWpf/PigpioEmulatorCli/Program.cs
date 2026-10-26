@@ -19,7 +19,8 @@ if (!IPAddress.TryParse(bind, out var bindIp))
     return 2;
 }
 
-using var server = new PigpioEmulatorServer(bindIp, port);
+// 상태 파일: WPF 앱의 에뮬레이터와 같은 파일을 써서 "같은 가짜 서보" 가 된다 (껐다 켜도 마지막 펄스·각도 유지)
+using var server = new PigpioEmulatorServer(bindIp, port, PigpioEmulatorServer.DefaultStateFile);
 var lastPulse = new Dictionary<int, int>();
 
 server.CommandReceived += ev =>
@@ -40,7 +41,10 @@ catch (SocketException ex)
 }
 
 Console.WriteLine($"가짜 pigpiod 실행 중: {server.EndPoint}   (Ctrl+C 로 종료)");
-Console.WriteLine("흉내 내는 명령: SERVO(8) HWVER(17)=0xc03111 PIGPV(26)=79 · 펄스 범위 0, 500~2500 µs");
+Console.WriteLine("흉내 내는 명령: SERVO(8) HWVER(17)=0xc03111 PIGPV(26)=79 GPW(84) · 펄스 범위 0, 500~2500 µs");
+Console.WriteLine($"상태 파일: {server.StateFile}  (껐다 켜도 마지막 펄스·각도 유지)");
+foreach (var (savedGpio, savedPulse) in server.SnapshotPulses())
+    Console.WriteLine($"  복원: GPIO{savedGpio} {(savedPulse == 0 ? "출력 꺼짐" : savedPulse + " µs")}, 각도 {server.GetSimulatedAngle(savedGpio):+0.0;-0.0}°");
 Console.WriteLine();
 
 using var cts = new CancellationTokenSource();

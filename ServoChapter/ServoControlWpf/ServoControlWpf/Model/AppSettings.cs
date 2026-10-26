@@ -41,6 +41,18 @@ public sealed class AppSettings
 
     public int SweepSpeed { get; set; } = 60;   // °/s
 
+    /// <summary>
+    /// [연결 해제] 때 서보 출력을 유지할지. true 면 펄스 0 을 보내지 않아 pigpiod 가 마지막 펄스를 계속 내고,
+    /// 다시 연결하면 그 펄스(GPW)를 읽어 화면을 맞춘다. 창을 닫을 때는 이 값과 무관하게 항상 출력을 끈다.
+    /// </summary>
+    public bool KeepOutputOnDisconnect { get; set; } = true;
+
+    /// <summary>
+    /// 실제 장치로 마지막으로 보낸 각도. 다음 실행 때 화면이 이 각도에서 시작하고,
+    /// 연결 후 장치가 "출력 꺼짐(0)" 이라고 보고하면 서보가 물리적으로 머물러 있는 이 자리로 화면을 둔다.
+    /// </summary>
+    public double? LastDrivenAngle { get; set; }
+
     [JsonIgnore]
     public static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VI", "ServoControl.json");

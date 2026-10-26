@@ -9,9 +9,11 @@ public sealed class SimulatedDriver : IServoDriver
     public string Info => string.Empty;
     public bool IsRemote => false;
     public bool IsLinkAlive => true;
+    public bool ReleaseOnDispose { get; set; } = true;
 
     public void Open(int gpio) => _gpio = gpio;
     public void WritePulse(int microseconds) { /* 화면만 움직임 */ }
     public void Release() { }
+    public int? ReadPulse() => null;     // 실제 장치가 없으니 알 수 없음
     public void Dispose() { }
 }

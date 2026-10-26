@@ -48,6 +48,7 @@ public sealed class ServoCameraView : FrameworkElement
         MinHeight = 240;
         _timer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(16) };
         _timer.Tick += OnTick;
+        Loaded += (_, _) => { _shown = Angle; InvalidateVisual(); };   // 시작 각도(이전 실행에서 저장한 값)에서 바로 시작
         Unloaded += (_, _) => _timer.Stop();
     }
 
@@ -66,7 +67,7 @@ public sealed class ServoCameraView : FrameworkElement
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender, OnDriveStateChanged));
     public static readonly DependencyProperty IsConnectedProperty = DependencyProperty.Register(
         nameof(IsConnected), typeof(bool), typeof(ServoCameraView),
-        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender, OnDriveStateChanged));
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender, OnConnectedChanged));
     public static readonly DependencyProperty PulseProperty = DependencyProperty.Register(
         nameof(Pulse), typeof(int), typeof(ServoCameraView),
         new FrameworkPropertyMetadata(0, FrameworkPropertyMetadataOptions.AffectsRender));
@@ -105,6 +106,19 @@ public sealed class ServoCameraView : FrameworkElement
 
     private static void OnDriveStateChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) => ((ServoCameraView)d).UpdateAnimation();
 
+    /// <summary>
+    /// 연결되는 순간, 서보가 이미 구동 중(출력 켜짐)이면 화면의 카메라를 그 각도로 "즉시" 맞춘다.
+    /// 연결 직후의 Angle 은 장치가 보고한 실제 펄스(GPW)에서 온 값이라, 서보는 이미 거기에 있으므로 회전 애니메이션 없이 점프하는 것이 맞다.
+    /// </summary>
+    private static void OnConnectedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var v = (ServoCameraView)d;
+        if ((bool)e.NewValue && v.IsOutputOn)
+            v._shown = v.Angle;
+        v.UpdateAnimation();
+        v.InvalidateVisual();
+    }
+
     /// <summary>구동 조건을 만족하고 목표와 다르면 회전 시작, 아니면 그 자리에 멈춤.</summary>
     private void UpdateAnimation()
     {
@@ -136,6 +150,22 @@ public sealed class ServoCameraView : FrameworkElement
             _timer.Stop();
         }
         InvalidateVisual();
+    }
+
+    // ───────── UI 자동화 (접근성·자동 테스트): 화면 읽기 프로그램이 상태를 읽을 수 있게 이름에 담는다 ─────────
+    protected override System.Windows.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => new CameraPeer(this);
+
+    private sealed class CameraPeer : System.Windows.Automation.Peers.FrameworkElementAutomationPeer
+    {
+        private readonly ServoCameraView _v;
+        public CameraPeer(ServoCameraView v) : base(v) => _v = v;
+        protected override string GetClassNameCore() => nameof(ServoCameraView);
+        protected override System.Windows.Automation.Peers.AutomationControlType GetAutomationControlTypeCore()
+            => System.Windows.Automation.Peers.AutomationControlType.Image;
+        protected override bool IsControlElementCore() => true;
+        protected override bool IsContentElementCore() => true;
+        protected override string GetNameCore()
+            => $"카메라 뷰 · {(_v.IsConnected ? "연결됨" : "연결 안 됨")} · {(_v.IsOutputOn ? "출력 켜짐" : "출력 꺼짐")} · 표시 {_v._shown:+0.0;-0.0}° · 목표 {_v.Angle:+0.0;-0.0}°";
     }
 
     // ───────── 기하 ─────────
