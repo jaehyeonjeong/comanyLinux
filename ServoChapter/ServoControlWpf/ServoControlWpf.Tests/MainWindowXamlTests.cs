@@ -43,6 +43,13 @@ public class MainWindowXamlTests
     [InlineData("KeepOutputOnDisconnect")]
     [InlineData("PulseInput")]
     [InlineData("ConnectToggleCommand")]
+    [InlineData("Title")]
+    [InlineData("VersionText")]
+    [InlineData("PiCameraUrl")]
+    [InlineData("IsNetworkSelected")]
+    [InlineData("RunDeployPiDisplayCommand")]
+    [InlineData("OpenDeployPiDisplayTerminalCommand")]
+    [InlineData("EmulatorKindIndex")]
     public void Window_BindsViewModelMember(string member)
     {
         Assert.Contains("{Binding " + member, Xaml);

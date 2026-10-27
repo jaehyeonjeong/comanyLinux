@@ -24,12 +24,13 @@ public sealed class MainViewModel : ObservableObject
     private double _sweepDir = +1;
     private bool _syncing;   // 모델→화면 갱신 중 (Qt 의 QSignalBlocker 역할: 다시 명령이 나가지 않게 막음)
 
-    public MainViewModel(ServoModel model, AppSettings settings, IDialogService dialogs)
+    public MainViewModel(ServoModel model, AppSettings settings, IDialogService dialogs, Services.ICameraSource? cameraSource = null)
     {
         _model = model;
         _settings = settings;
         _dialogs = dialogs;
         Wsl = new WslViewModel(settings, dialogs);
+        Camera = new CameraViewModel(cameraSource ?? new Services.NullCameraSource(), settings);
 
         _sweepTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(SweepIntervalMs) };
         _sweepTimer.Tick += (_, _) => OnSweepTick();
@@ -70,6 +71,9 @@ public sealed class MainViewModel : ObservableObject
 
     public WslViewModel Wsl { get; }
 
+    /// <summary>왼쪽 위 "카메라 화면" (노트북 웹캠, 나중에 Pi 카메라)</summary>
+    public CameraViewModel Camera { get; }
+
     // ───────── 연결 ─────────
     private string _host = "192.168.10.2";
     private int _port = 8888;
@@ -77,7 +81,18 @@ public sealed class MainViewModel : ObservableObject
     private int _tunnelLocalPort;
     private bool _isBusy;
 
-    public string Host { get => _host; set => Set(ref _host, value); }
+    public string Host
+    {
+        get => _host;
+        set { if (Set(ref _host, value)) OnPropertyChanged(nameof(PiCameraUrlHint)); }
+    }
+
+    // ───────── 버전 ─────────
+    public string VersionText => "v" + Services.AppVersion.Short;
+    public string Title => $"서보 원격 제어 · HiTEC HS-311 (WPF) v{Services.AppVersion.Short}";
+
+    /// <summary>Pi 카메라 URL 칸을 비웠을 때 실제로 쓰이는 주소 (Pi 주소·포트에서 자동)</summary>
+    public string PiCameraUrlHint => _settings.ResolvePiCameraUrl(Host);
     public int Port { get => _port; set => Set(ref _port, value); }
     public int TunnelLocalPort { get => _tunnelLocalPort; set => Set(ref _tunnelLocalPort, value); }
 
@@ -104,9 +119,41 @@ public sealed class MainViewModel : ObservableObject
     public string ConnectHint => _mode switch
     {
         ConnectionMode.WslTunnel => "WSL 안의 ssh 가 Pi 의 8888 포트를 로컬로 끌어옵니다 (키 인증 필요)",
-        ConnectionMode.Emulator => "앱 안에서 가짜 pigpiod 를 127.0.0.1:(Pi 포트) 에 띄우고, 실제와 같은 TCP 명령으로 접속합니다",
-        _ => "Windows 에서 Pi 의 pigpiod(8888) 로 바로 접속합니다",
+        ConnectionMode.Emulator => _settings.EmulatorKind == EmulatorKind.Wsl
+            ? "WSL 에서 tools/fake_pigpiod.py 를 띄우고 127.0.0.1:(Pi 포트) 로 접속합니다 — 명령이 가상 네트워크를 실제로 건너감"
+            : "앱 안에서 가짜 pigpiod 를 127.0.0.1:(Pi 포트) 에 띄우고, 실제와 같은 TCP 명령으로 접속합니다",
+        _ => "LAN 의 실제 Pi(pigpiod 8888)로 바로 접속합니다. 127.0.0.1 같은 자기 주소는 에뮬레이터에서 고르세요",
     };
+
+    /// <summary>0 = 앱 안 가짜 Pi, 1 = WSL 가짜 Pi (fake_pigpiod.py). 연결 방식이 '에뮬레이터' 일 때만 의미</summary>
+    public int EmulatorKindIndex
+    {
+        get => _settings.EmulatorKind == EmulatorKind.Wsl ? 1 : 0;
+        set
+        {
+            var k = value == 1 ? EmulatorKind.Wsl : EmulatorKind.InApp;
+            if (_settings.EmulatorKind == k) return;
+            _settings.EmulatorKind = k;
+            _settings.Save();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ConnectHint));
+            OnPropertyChanged(nameof(EmulatorKindHint));
+        }
+    }
+    public string EmulatorKindHint => _settings.EmulatorKind == EmulatorKind.Wsl
+        ? "WSL 의 python3 fake_pigpiod.py 를 띄움 (이미 떠 있으면 그것 사용)"
+        : "가짜 Pi 를 127.0.0.1 에 띄움";
+
+    /// <summary>직접 연결은 실제 Pi(LAN 주소)에만. 자기 자신(127.x, localhost, 0.0.0.0)은 에뮬레이터로 안내</summary>
+    public static bool IsLoopbackHost(string? host)
+    {
+        var h = (host ?? "").Trim();
+        if (h.Length == 0) return true;
+        if (h.Equals("localhost", StringComparison.OrdinalIgnoreCase)) return true;
+        if (System.Net.IPAddress.TryParse(h, out var ip))
+            return System.Net.IPAddress.IsLoopback(ip) || ip.Equals(System.Net.IPAddress.Any) || ip.Equals(System.Net.IPAddress.IPv6Any);
+        return false;
+    }
 
     // ───────── 에뮬레이터 상태 표시 ─────────
     private string _emulatorText = "";
@@ -275,10 +322,17 @@ public sealed class MainViewModel : ObservableObject
             }
             else if (_mode == ConnectionMode.Emulator)
             {
-                driver = StartEmulatorDriver();
+                driver = _settings.EmulatorKind == EmulatorKind.Wsl
+                    ? await StartWslFakePiDriverAsync(new Progress<string>(s => ShowStatus(s)))
+                    : StartEmulatorDriver();
             }
             else
             {
+                if (IsLoopbackHost(Host))
+                    throw new ServoException(
+                        $"직접 연결은 실제 Pi(LAN 주소, 예 192.168.10.2 또는 172.30.1.81)에만 씁니다.\n" +
+                        $"'{Host.Trim()}' 은(는) 이 PC 자신의 주소입니다.\n\n" +
+                        "가짜 Pi 로 연습하려면 연결 방식을 '에뮬레이터' 로 바꾸고 종류에서 '앱 안 가짜 Pi' 또는 'WSL 가짜 Pi' 를 고르세요.", linkLost: true);
                 driver = new RemotePigpioDriver(Host.Trim(), Port);
             }
 
@@ -308,9 +362,15 @@ public sealed class MainViewModel : ObservableObject
                 ShowStatus(_mode == ConnectionMode.Emulator
                     ? "가짜 Pi(에뮬레이터)에 연결했습니다. 실제 TCP 명령이 오가며, 오른쪽 위에 받은 명령이 표시됩니다."
                     : $"{where} 연결했습니다. [0°]를 눌러 중앙부터 확인하세요.");
+            if (_mode == ConnectionMode.Emulator && _settings.EmulatorKind == EmulatorKind.InApp && EmulatorFallbackPort is { } fp)
+                ShowStatus($"에뮬레이터 연결됨 — 포트 {Port} 은 다른 프로그램(예: WSL 의 fake_pigpiod.py)이 쓰고 있어 임시 포트 {fp} 에 띄웠습니다. " +
+                           "그 서버에 붙고 싶으면 에뮬레이터 종류를 'WSL 가짜 Pi' 로 바꾸세요.");
         }
         catch (ServoException ex)
         {
+            // 오류 창은 모달이므로 그 전에 '연결 중…' 상태를 풀어 둔다 (창이 떠 있는 동안 버튼이 잠겨 보이지 않게)
+            IsBusy = false;
+            RaiseConnectionProps();
             ShowStatus("연결 실패");
             _dialogs.ShowError(ex.Message);
         }
@@ -321,6 +381,8 @@ public sealed class MainViewModel : ObservableObject
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // 예상 못 한 오류라도 앱이 죽지 않고 원인을 보여 주게 함 (연결 전이므로 서보 상태는 바뀌지 않음)
+            IsBusy = false;
+            RaiseConnectionProps();
             ShowStatus("연결 실패");
             _dialogs.ShowError("연결 중 예상하지 못한 오류가 났습니다:\n\n" + ex.GetType().Name + ": " + ex.Message);
         }
@@ -335,45 +397,112 @@ public sealed class MainViewModel : ObservableObject
     /// 에뮬레이터 모드: 앱 안에 가짜 pigpiod 를 띄우고(처음 한 번), 실제와 똑같은 RemotePigpioDriver 로 127.0.0.1 에 접속한다.
     /// 가짜 서버는 [연결 해제] 뒤에도 그대로 두어 실제 pigpiod 처럼 마지막 펄스·위치를 기억하게 한다 (창을 닫을 때 종료).
     /// </summary>
+    private int _emuRequestedPort = -1;   // 서버를 띄울 때 사용자가 적어 둔 Pi 포트 (바뀌면 새로 띄움)
+
+    /// <summary>에뮬레이터가 실제로 듣는 포트가 Pi 포트와 다를 때(점유로 임시 포트를 쓸 때) 그 포트. 같으면 null.</summary>
+    public int? EmulatorFallbackPort { get; private set; }
+
     private IServoDriver StartEmulatorDriver()
     {
-        if (_emuServer is not null && _emuServer.EndPoint.Port != Port)
+        if (_emuServer is not null && _emuRequestedPort != Port)
         {
-            _emuServer.Dispose();         // 포트를 바꿨으면 새로 띄움 (기억한 위치는 사라짐)
+            _emuServer.Dispose();         // 포트를 바꿨으면 새로 띄움 (상태 파일 덕분에 기억은 유지)
             _emuServer = null;
         }
         if (_emuServer is null)
         {
             // 상태 파일 덕분에 프로그램을 껐다 켜도 "같은 가짜 서보" 가 마지막 펄스·각도를 가진 채 다시 뜬다
-            var server = new PigpioEmulator.PigpioEmulatorServer("127.0.0.1", Port, PigpioEmulator.PigpioEmulatorServer.DefaultStateFile);
+            var server = new PigpioEmulator.PigpioEmulatorServer("127.0.0.1", Port, _settings.EmulatorStateFile);
+            EmulatorFallbackPort = null;
             try
             {
                 server.Start();
             }
-            catch (System.Net.Sockets.SocketException ex)
+            catch (System.Net.Sockets.SocketException)
             {
+                // 포트가 이미 쓰이는 중 (흔한 경우: WSL 에서 fake_pigpiod.py 나 pigpio-emu 를 띄워 두었을 때 — WSL2 가 그 포트를 Windows 의
+                // 127.0.0.1 로도 열어 준다). 에뮬레이터는 포트가 무엇이든 상관없으므로 빈 포트(0)로 다시 띄우고 사용자에게 알린다.
                 server.Dispose();
-                throw new ServoException(
-                    $"에뮬레이터를 127.0.0.1:{Port} 에 띄울 수 없습니다.\n({ex.Message})\n\n" +
-                    "다른 프로그램(또는 pigpio-emu 콘솔)이 그 포트를 쓰고 있으면 Pi 포트를 바꾸거나, " +
-                    "'직접 연결' 모드로 Pi 주소 127.0.0.1 에 접속하세요.", linkLost: true, inner: ex);
+                server = new PigpioEmulator.PigpioEmulatorServer("127.0.0.1", 0, _settings.EmulatorStateFile);
+                try
+                {
+                    server.Start();
+                }
+                catch (System.Net.Sockets.SocketException ex2)
+                {
+                    server.Dispose();
+                    throw new ServoException(
+                        $"에뮬레이터를 127.0.0.1 에 띄울 수 없습니다.\n({ex2.Message})", linkLost: true, inner: ex2);
+                }
+                EmulatorFallbackPort = server.EndPoint.Port;
             }
             server.CommandReceived += ev => _ui.Post(_ =>
             {
                 if (_model.IsConnected)
-                    EmulatorText = $"가짜 Pi 수신 #{server.CommandCount}: {ev.Description}";
+                    EmulatorText = (EmulatorFallbackPort is { } p ? $"가짜 Pi(임시 포트 {p}) 수신" : "가짜 Pi 수신")
+                                   + $" #{server.CommandCount}: {ev.Description}";
             }, null);
             _emuServer = server;
-            EmulatorText = $"가짜 Pi 대기 중: {server.EndPoint}";
+            _emuRequestedPort = Port;
+            EmulatorText = EmulatorFallbackPort is { } fp
+                ? $"가짜 Pi 대기 중: 127.0.0.1:{fp} (포트 {Port} 은 다른 프로그램이 사용 중이라 임시 포트)"
+                : $"가짜 Pi 대기 중: {server.EndPoint}";
         }
 
+        var port = _emuServer.EndPoint.Port;
         // tunnel 자리에 서버를 넘기지 않는다 → 드라이버가 사라져도(연결 해제) 서버는 계속 살아 기억을 유지
-        return new RemotePigpioDriver("127.0.0.1", Port, null, $"에뮬레이터 127.0.0.1:{Port}");
+        return new RemotePigpioDriver("127.0.0.1", port, null, $"에뮬레이터 127.0.0.1:{port}");
+    }
+
+    // ───────── 에뮬레이터 종류 2: WSL 의 fake_pigpiod.py ─────────
+    private WslFakePi? _wslFakePi;
+
+    private async Task<IServoDriver> StartWslFakePiDriverAsync(IProgress<string> progress)
+    {
+        if (_wslFakePi is not null && _wslFakePi.Port != Port)
+        {
+            _wslFakePi.Dispose();         // 포트를 바꿨으면 새로
+            _wslFakePi = null;
+        }
+        if (_wslFakePi is null)
+        {
+            var fp = await WslFakePi.OpenAsync(Wsl.Distro, Port, progress);
+            fp.LineReceived += line => _ui.Post(_ =>
+            {
+                if (_model.IsConnected || !fp.OwnsProcess)
+                    EmulatorText = "WSL 가짜 Pi: " + line;
+            }, null);
+            _wslFakePi = fp;
+        }
+        EmulatorText = _wslFakePi.OwnsProcess
+            ? $"WSL 가짜 Pi(fake_pigpiod.py) 127.0.0.1:{Port} 띄움 — 받은 명령이 여기에 표시됩니다"
+            : $"이미 떠 있는 WSL 가짜 Pi 127.0.0.1:{Port} 사용 (명령 로그는 그쪽 터미널에)";
+        // 서버(프로세스)는 ViewModel 이 가지므로 드라이버에 넘기지 않는다 → 해제해도 살아 있고, 상태 파일로 기억
+        return new RemotePigpioDriver("127.0.0.1", Port, null, _wslFakePi.Describe());
+    }
+
+    /// <summary>WSL 가짜 Pi 가 기억 중인 펄스 (GPW 를 잠깐 읽어 봄)</summary>
+    private string WslFakePiMemoryText()
+    {
+        try
+        {
+            using var c = new PigpioClient("127.0.0.1", Port, 800);
+            c.Connect(800);
+            var p = c.Command(PigpioClient.CmdGetServoPulsewidth, (uint)_model.Spec.Gpio, 0);
+            return p > 0
+                ? $"WSL 가짜 Pi 기억 중: GPIO{_model.Spec.Gpio} {p} µs ({_model.Spec.PulseToAngle(p):+0.0;-0.0}°) 유지 — 다시 [연결]하면 이 위치로 화면을 맞춥니다"
+                : $"WSL 가짜 Pi 기억 중: GPIO{_model.Spec.Gpio} 출력 꺼짐";
+        }
+        catch (ServoException)
+        {
+            return "WSL 가짜 Pi: 지금은 응답 없음 (꺼졌거나 아직 서보 명령을 받은 적 없음)";
+        }
     }
 
     /// <summary>해제 뒤 가짜 Pi 가 기억하고 있는 상태 (실제 pigpiod 가 접속과 무관하게 펄스를 유지하는 것과 같음)</summary>
     private string EmulatorMemoryText()
     {
+        if (_settings.EmulatorKind == EmulatorKind.Wsl) return WslFakePiMemoryText();
         if (_emuServer is null) return "";
         var gpio = _model.Spec.Gpio;
         var pulse = _emuServer.GetPulse(gpio);
@@ -407,10 +536,32 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             _model.SetAngle(angle);
+            SendPiNote($"WPF {_model.Angle:+0.0;-0.0}° {_model.Pulse}us");
         }
         catch (ServoException ex)
         {
             HandleFailure(ex);
+        }
+    }
+
+    private System.Net.Sockets.UdpClient? _noteUdp;
+
+    /// <summary>
+    /// (선택) Pi 화면 프로그램(pi_display)에 "누가 움직였는지" 메모를 UDP 로 보낸다. 실패해도 무시 — 서보 제어와 무관한 보조 기능.
+    /// 실제 Pi 에 연결된 상태(원격 드라이버)에서만, 스윕 중에는 보내지 않는다(초당 50개가 되므로).
+    /// </summary>
+    private void SendPiNote(string text)
+    {
+        if (!_settings.PiNoteEnabled || !_model.IsConnected || IsSweeping || _mode == ConnectionMode.Emulator) return;
+        try
+        {
+            _noteUdp ??= new System.Net.Sockets.UdpClient();
+            var bytes = System.Text.Encoding.UTF8.GetBytes(text);
+            _noteUdp.Send(bytes, bytes.Length, _settings.ResolvePiNoteHost(Host), _settings.PiNotePort);
+        }
+        catch (Exception ex) when (ex is System.Net.Sockets.SocketException or ObjectDisposedException or ArgumentException)
+        {
+            // 보조 기능이므로 조용히 무시
         }
     }
 
@@ -599,9 +750,13 @@ public sealed class MainViewModel : ObservableObject
         _settings.ScriptDir = Wsl.ScriptDir;
         _settings.Save();
         Wsl.Cancel();
+        Camera.Dispose();          // 웹캠·네트워크 카메라 닫기
+        _noteUdp?.Dispose();
         _model.Dispose(releaseOutput: !keep);   // 가짜 서버가 아직 살아 있어야 펄스 0 명령을 받을 수 있으므로 서버보다 먼저
         _emuServer?.Dispose();                  // 상태 파일에 마지막 펄스·각도 저장
         _emuServer = null;
+        _wslFakePi?.Dispose();                  // 우리가 띄운 WSL fake_pigpiod.py 종료 (상태 파일로 기억은 유지)
+        _wslFakePi = null;
     }
 
     private static bool TryDouble(object? p, out double v)

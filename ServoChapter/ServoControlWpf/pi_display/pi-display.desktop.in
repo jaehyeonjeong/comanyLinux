@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Pi Servo Camera Display
+Comment=카메라 영상 + 서보 이동 로그 (pi_display)
+Exec=/usr/bin/python3 @HOME@/Source/pi_display/pi_display.py --fullscreen
+Path=@HOME@/Source/pi_display
+Terminal=false
+X-GNOME-Autostart-enabled=true

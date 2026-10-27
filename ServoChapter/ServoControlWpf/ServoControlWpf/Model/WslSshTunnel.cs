@@ -137,7 +137,8 @@ public sealed class WslSshTunnel : IDisposable
             "\nPi 가 켜져 있고 WSL 에서 'ssh " + sshAlias + "' 가 되는지 확인하세요.", linkLost: true);
     }
 
-    private static async Task<bool> IsPortOpenAsync(int port, int timeoutMs)
+    /// <summary>127.0.0.1:port 에 TCP 접속이 되는지 (WslFakePi 도 함께 사용)</summary>
+    internal static async Task<bool> IsPortOpenAsync(int port, int timeoutMs)
     {
         using var c = new TcpClient();
         try

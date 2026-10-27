@@ -1,0 +1,18 @@
+<Project>
+
+  <!--
+    버전의 단일 진실 = 솔루션 루트의 VERSION 파일 (예: 1.1.0).
+    여기서 읽어 모든 프로젝트(앱·에뮬레이터·테스트)에 같은 Version / InformationalVersion 을 준다.
+    올릴 때는 tools/bump-version.ps1 (또는 tools/bump_version.sh) 을 쓴다.
+  -->
+  <PropertyGroup>
+    <ServoVersionFile>$(MSBuildThisFileDirectory)VERSION</ServoVersionFile>
+    <Version Condition="Exists('$(ServoVersionFile)')">$([System.IO.File]::ReadAllText('$(ServoVersionFile)').Trim())</Version>
+    <Version Condition="'$(Version)' == ''">0.0.0</Version>
+    <InformationalVersion>$(Version)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Authors>정재현</Authors>
+    <Product>ServoControlWpf</Product>
+  </PropertyGroup>
+
+</Project>

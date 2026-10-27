@@ -38,12 +38,17 @@ public partial class App : Application
 
         // ── View + ViewModel ──
         var window = new MainWindow();
-        _vm = new MainViewModel(model, settings, new DialogService(window));
+        // 카메라: 노트북 웹캠(WinRT) + Pi 카메라(네트워크 MJPEG)를 하나의 목록으로. URL 은 접속할 때마다 설정·Pi 주소에서 계산
+        MainViewModel? vm = null;
+        var piCamera = new Services.MjpegCameraSource(() => settings.ResolvePiCameraUrl(vm?.Host ?? settings.Host));
+        var camera = new Services.CompositeCameraSource(new Services.WinRtCameraSource(), piCamera);
+        _vm = vm = new MainViewModel(model, settings, new DialogService(window), camera);
         window.DataContext = _vm;
-        window.Closed += (_, _) => ShutdownOnce();   // 창 닫기 → 펄스 0 전송, 터널 종료, 설정 저장
+        window.Closed += (_, _) => ShutdownOnce();   // 창 닫기 → 펄스 0 전송, 터널 종료, 설정 저장, 웹캠 닫기
         MainWindow = window;
         window.WindowState = WindowState.Maximized;
         window.Show();
+        _ = _vm.Camera.InitializeAsync();            // 창이 뜬 뒤 카메라 목록을 읽고 기본 카메라(노트북)를 켠다
     }
 
     private void ShutdownOnce()

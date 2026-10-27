@@ -6,9 +6,15 @@ namespace ServoControlWpf.Model;
 
 public enum ConnectionMode
 {
-    Direct,     // Windows → 이더넷 → Pi 의 pigpiod(8888) 로 직접 TCP
+    Direct,     // Windows → LAN → 실제 Pi 의 pigpiod(8888) 로 직접 TCP  (127.0.0.1 같은 자기 주소는 거부)
     WslTunnel,  // Windows → wsl.exe → ssh -L → Pi 의 pigpiod   (모든 통신이 WSL 을 거침)
-    Emulator,   // Windows → 127.0.0.1 → 앱 안에서 띄운 가짜 pigpiod (하드웨어 없이 같은 TCP 경로 검증)
+    Emulator,   // 가짜 Pi: 앱 안(InApp) 또는 WSL 의 fake_pigpiod.py(Wsl) — 하드웨어 없이 같은 TCP 경로 검증
+}
+
+public enum EmulatorKind
+{
+    InApp,      // 앱 안에서 띄운 가짜 pigpiod (PigpioEmulatorServer)
+    Wsl,        // WSL 에서 tools/fake_pigpiod.py 를 띄워 127.0.0.1 로 접속 (가상 네트워크를 실제로 건너감)
 }
 
 /// <summary>
@@ -23,6 +29,7 @@ public sealed class AppSettings
     public string Host { get; set; } = "192.168.10.2";
     public int Port { get; set; } = 8888;
     public ConnectionMode Mode { get; set; } = ConnectionMode.Direct;
+    public EmulatorKind EmulatorKind { get; set; } = EmulatorKind.InApp;
     public string WslDistro { get; set; } = "";          // 비우면 WSL 기본 배포판
     public string SshAlias { get; set; } = "rpi";        // WSL ~/.ssh/config 의 Host 별명
     public int TunnelLocalPort { get; set; } = 18888;    // Windows 쪽 로컬 포트
@@ -53,9 +60,55 @@ public sealed class AppSettings
     /// </summary>
     public double? LastDrivenAngle { get; set; }
 
+    // ── 카메라 화면 ──
+    /// <summary>선택한 카메라 장치 ID. 비우면 첫 번째 장치(보통 노트북 내장 카메라)</summary>
+    public string CameraDeviceId { get; set; } = "";
+    /// <summary>프로그램을 켤 때 카메라 영상을 자동으로 시작할지</summary>
+    public bool CameraEnabled { get; set; } = true;
+
+    // ── Pi 카메라 (네트워크, pi_display 의 MJPEG 스트림) ──
+    /// <summary>스트림 전체 URL. 비우면 PiCameraHost(또는 Pi 주소) + PiCameraPort 로 만든다</summary>
+    public string PiCameraUrl { get; set; } = "";
+    /// <summary>WSL 터널 모드처럼 Pi 주소 칸이 없을 때 쓰는 Pi 호스트. 비우면 연결 설정의 Pi 주소</summary>
+    public string PiCameraHost { get; set; } = "";
+    public int PiCameraPort { get; set; } = 8889;
+    /// <summary>각도 명령을 보낼 때 Pi 화면 프로그램에 메모("WPF +20.0°")를 UDP 로 알릴지</summary>
+    public bool PiNoteEnabled { get; set; } = true;
+    public int PiNotePort { get; set; } = 8890;
+
+    /// <summary>실제로 접속할 Pi 카메라 URL. PiCameraUrl 이 있으면 그대로, 없으면 http://{PiCameraHost 또는 currentHost}:{PiCameraPort}/stream.mjpg</summary>
+    public string ResolvePiCameraUrl(string? currentHost)
+    {
+        if (!string.IsNullOrWhiteSpace(PiCameraUrl)) return PiCameraUrl.Trim();
+        var host = !string.IsNullOrWhiteSpace(PiCameraHost) ? PiCameraHost.Trim() : (currentHost ?? "").Trim();
+        if (host.Length == 0) host = "127.0.0.1";
+        return $"http://{host}:{PiCameraPort}/stream.mjpg";
+    }
+
+    /// <summary>UDP 메모를 보낼 Pi 호스트 (카메라 URL 의 호스트와 같은 규칙)</summary>
+    public string ResolvePiNoteHost(string? currentHost)
+    {
+        if (!string.IsNullOrWhiteSpace(PiCameraUrl) && Uri.TryCreate(PiCameraUrl.Trim(), UriKind.Absolute, out var u)) return u.Host;
+        var host = !string.IsNullOrWhiteSpace(PiCameraHost) ? PiCameraHost.Trim() : (currentHost ?? "").Trim();
+        return host.Length == 0 ? "127.0.0.1" : host;
+    }
+
     [JsonIgnore]
     public static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VI", "ServoControl.json");
+
+    /// <summary>
+    /// 실제로 저장할 경로. null 이면 Save() 가 아무것도 쓰지 않는다 (테스트용 — 테스트가 사용자의 설정 파일을 덮어쓰지 않게).
+    /// </summary>
+    [JsonIgnore]
+    public string? StorePath { get; set; } = FilePath;
+
+    /// <summary>에뮬레이터(가짜 pigpiod)가 펄스·각도를 기억할 상태 파일. null 이면 기억하지 않음 (테스트용)</summary>
+    [JsonIgnore]
+    public string? EmulatorStateFile { get; set; } = PigpioEmulator.PigpioEmulatorServer.DefaultStateFile;
+
+    /// <summary>파일에 저장하지 않는 설정 (단위 테스트용)</summary>
+    public static AppSettings InMemory() => new() { StorePath = null, EmulatorStateFile = null };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -87,10 +140,11 @@ public sealed class AppSettings
 
     public void Save()
     {
+        if (StorePath is null) return;
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(this, JsonOptions));
+            Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);
+            File.WriteAllText(StorePath, JsonSerializer.Serialize(this, JsonOptions));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

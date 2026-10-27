@@ -7,7 +7,8 @@ namespace ServoControlWpf.Tests;
 internal sealed class FakeDialogs : IDialogService
 {
     public List<string> Errors { get; } = new();
-    public void ShowError(string text) => Errors.Add(text);
+    public Action? OnError { get; set; }
+    public void ShowError(string text) { OnError?.Invoke(); Errors.Add(text); }
     public bool Confirm(string title, string text) => true;
     public string? PickFolder(string title, string? initialDir) => null;
 }
@@ -21,7 +22,7 @@ public class MainViewModelTests
         var model = new ServoModel(drv);
         model.Start(spec ?? ServoSpec.Hs311Official());
         var dlg = new FakeDialogs();
-        var vm = new MainViewModel(model, new AppSettings(), dlg);
+        var vm = new MainViewModel(model, AppSettings.InMemory(), dlg);   // 테스트가 실제 설정 파일을 건드리지 않게
         return (vm, drv, dlg);
     }
 

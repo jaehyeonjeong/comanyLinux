@@ -7,7 +7,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
-        Title="서보 원격 제어 · HiTEC HS-311 (WPF)"
+        Title="{Binding Title}"
         Width="1320" Height="800" MinWidth="1000" MinHeight="640"
         FontSize="15" Background="#F7F8FA">
 
@@ -37,20 +37,28 @@
             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="24,0,0,0" VerticalAlignment="Center">
                 <TextBlock Text="연결 방식" VerticalAlignment="Center" Margin="0,0,6,0" />
                 <ComboBox Width="120" SelectedIndex="{Binding ModeIndex}" IsEnabled="{Binding CanEditConnection}"
-                          ToolTip="{Binding ConnectHint}">
+                          ToolTip="{Binding ConnectHint}" AutomationProperties.Name="연결 방식">
                     <ComboBoxItem Content="직접 연결" />
                     <ComboBoxItem Content="WSL 터널" />
                     <ComboBoxItem Content="에뮬레이터" />
                 </ComboBox>
 
-                <!-- 에뮬레이터: 하드웨어 없이 가짜 Pi 에 접속 -->
-                <TextBlock Text="가짜 Pi 를 127.0.0.1 에 띄움" Foreground="#7A4F01" VerticalAlignment="Center" Margin="12,0,0,0"
-                           Visibility="{Binding IsEmulatorMode, Converter={StaticResource BoolToVis}}" />
+                <!-- 에뮬레이터: 하드웨어 없이 가짜 Pi 에 접속 — 앱 안 / WSL 의 fake_pigpiod.py -->
+                <StackPanel Orientation="Horizontal" Visibility="{Binding IsEmulatorMode, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="종류" VerticalAlignment="Center" Margin="12,0,6,0" />
+                    <ComboBox Width="190" SelectedIndex="{Binding EmulatorKindIndex}" IsEnabled="{Binding CanEditConnection}"
+                              ToolTip="{Binding ConnectHint}" AutomationProperties.Name="에뮬레이터 종류">
+                        <ComboBoxItem Content="앱 안 가짜 Pi" />
+                        <ComboBoxItem Content="WSL 가짜 Pi (fake_pigpiod.py)" />
+                    </ComboBox>
+                    <TextBlock Text="{Binding EmulatorKindHint}" Foreground="#7A4F01" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="13" />
+                </StackPanel>
 
                 <!-- 직접 연결: Pi 주소 -->
                 <StackPanel Orientation="Horizontal" Visibility="{Binding IsDirectMode, Converter={StaticResource BoolToVis}}">
                     <TextBlock Text="Pi 주소" VerticalAlignment="Center" Margin="12,0,6,0" />
-                    <TextBox Width="150" Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditConnection}" />
+                    <TextBox Width="150" Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditConnection}"
+                             AutomationProperties.Name="Pi 주소" ToolTip="실제 Pi 의 LAN 주소 (127.0.0.1 등 자기 주소는 에뮬레이터에서)" />
                 </StackPanel>
 
                 <!-- WSL 터널: ssh 별명 · 배포판 · 로컬 포트 -->
@@ -66,7 +74,7 @@
                 </StackPanel>
 
                 <TextBlock Text="Pi 포트" VerticalAlignment="Center" Margin="12,0,6,0" />
-                <TextBox Width="60" Text="{Binding Port}" IsEnabled="{Binding CanEditConnection}" />
+                <TextBox Width="60" Text="{Binding Port}" IsEnabled="{Binding CanEditConnection}" AutomationProperties.Name="Pi 포트" />
 
                 <Button Margin="10,0,0,0" MinWidth="96" Content="{Binding ConnectButtonText}" Command="{Binding ConnectToggleCommand}">
                     <Button.Style>
@@ -117,13 +125,50 @@
                 <ColumnDefinition Width="470" />
             </Grid.ColumnDefinitions>
 
-            <!-- 왼쪽: 서보에 올려진 카메라의 움직임 (표시 전용, 마우스 입력 없음) -->
-            <Border Grid.Column="0" Background="White" CornerRadius="8" BorderBrush="#DDD" BorderThickness="1" Margin="0,0,8,0">
-                <v:ServoCameraView MinAngle="{Binding MinAngle}" MaxAngle="{Binding MaxAngle}"
-                                   Angle="{Binding Angle, Mode=OneWay}" IsOutputOn="{Binding IsOutputOn}" Pulse="{Binding Pulse}"
-                                   IsConnected="{Binding IsConnected}"
-                                   IsHitTestVisible="False" />
-            </Border>
+            <!-- 왼쪽: 위 = 실제 카메라 영상(노트북 웹캠, 나중에 Pi 카메라), 아래 = 서보에 올려진 카메라의 움직임(표시 전용) -->
+            <Grid Grid.Column="0" Margin="0,0,8,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <GroupBox Grid.Row="0" Header="카메라 화면" Margin="0,0,0,8" DataContext="{Binding Camera}">
+                    <DockPanel Margin="4">
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                            <TextBlock Text="카메라" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <Button DockPanel.Dock="Right" Content="새로 고침" Command="{Binding RefreshCommand}" Margin="6,0,0,0" ToolTip="카메라 장치 목록을 다시 읽습니다" />
+                            <Button DockPanel.Dock="Right" Content="{Binding ToggleText}" Command="{Binding ToggleCommand}" Margin="6,0,0,0" MinWidth="56" />
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding FpsText}" Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0" />
+                            <ComboBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" DisplayMemberPath="Name"
+                                      ToolTip="기본값은 첫 번째 장치(노트북 내장 카메라). 'Pi 카메라 (네트워크)' 는 Pi 의 pi_display 가 내보내는 MJPEG 스트림" />
+                        </DockPanel>
+                        <!-- 네트워크 카메라를 골랐을 때만: 스트림 URL (비우면 Pi 주소에서 자동) -->
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4"
+                                   Visibility="{Binding IsNetworkSelected, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="URL" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="Gray" FontSize="12"
+                                       Text="{Binding DataContext.PiCameraUrlHint, RelativeSource={RelativeSource AncestorType=Window}, StringFormat='비우면 {0}'}" />
+                            <TextBox Text="{Binding PiCameraUrl, UpdateSourceTrigger=LostFocus}"
+                                     ToolTip="예: http://172.30.1.81:8889/stream.mjpg — 비우면 연결 설정의 Pi 주소와 포트 8889 로 자동" />
+                        </DockPanel>
+                        <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusText}" Foreground="Gray" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                        <Border Background="#141618" CornerRadius="6">
+                            <Grid>
+                                <Image Source="{Binding Frame}" Stretch="Uniform" RenderOptions.BitmapScalingMode="LowQuality" />
+                                <TextBlock Text="{Binding OverlayText}" Foreground="#BBB" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           TextAlignment="Center" TextWrapping="Wrap" Margin="16" />
+                            </Grid>
+                        </Border>
+                    </DockPanel>
+                </GroupBox>
+
+                <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#DDD" BorderThickness="1">
+                    <v:ServoCameraView MinAngle="{Binding MinAngle}" MaxAngle="{Binding MaxAngle}"
+                                       Angle="{Binding Angle, Mode=OneWay}" IsOutputOn="{Binding IsOutputOn}" Pulse="{Binding Pulse}"
+                                       IsConnected="{Binding IsConnected}"
+                                       IsHitTestVisible="False" />
+                </Border>
+            </Grid>
 
             <!-- 가운데: 다이얼 조종 -->
             <GroupBox Grid.Column="1" Header="다이얼 조종" Margin="0,0,8,0">
@@ -301,17 +346,21 @@
                                          ToolTip="WSL 의 ~/.ssh/config 에 있는 Host 이름 (기본 rpi)" />
                                 <TextBlock Grid.Row="2" Text="스크립트 폴더" VerticalAlignment="Center" Margin="0,0,8,0" />
                                 <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ScriptDir, UpdateSourceTrigger=LostFocus}"
-                                         ToolTip="pi_setup.sh · deploy.sh · pi_info.sh 가 있는 폴더 (Windows 경로 또는 /home/... WSL 경로)" />
+                                         ToolTip="pi_setup.sh · pi_info.sh 가 있는 폴더 (기본 tools\pi, Windows 경로 또는 /home/... WSL 경로)" />
                                 <Button Grid.Row="2" Grid.Column="2" Content="찾기…" Command="{Binding BrowseScriptDirCommand}" Margin="4,0,0,0" Padding="6,4" />
                             </Grid>
 
-                            <UniformGrid Columns="5" Margin="0,8,0,4">
+                            <UniformGrid Columns="2" Margin="0,8,0,0">
+                                <Button Content="Pi 화면 배포" Command="{Binding RunDeployPiDisplayCommand}" Margin="0,0,2,0" Padding="4,8"
+                                        ToolTip="pi_display(카메라 영상 + 이동 로그 프로그램)를 Pi 로 전송하고 모니터에 띄웁니다 (rsync → 실행 → 상태 확인)" />
+                                <Button Content="Pi 화면 배포(+apt) ↗" Command="{Binding OpenDeployPiDisplayTerminalCommand}" Margin="2,0,0,0" Padding="4,8"
+                                        ToolTip="처음 한 번: 필요한 패키지(PyQt5·picamera2·pigpio)를 apt 로 설치하고 자동 시작까지 등록합니다. sudo 비밀번호를 물을 수 있어 새 터미널 창에서 실행" />
+                            </UniformGrid>
+                            <UniformGrid Columns="4" Margin="0,4,0,4">
                                 <Button Content="Pi 상태 확인" Command="{Binding CheckPiCommand}" Margin="0,0,2,0" Padding="4,8"
                                         ToolTip="ssh rpi 로 호스트·IP·pigpiod 상태·온도를 읽어 옵니다" />
                                 <Button Content="pi_info.sh" Command="{Binding RunPiInfoCommand}" Margin="2,0" Padding="4,8"
                                         ToolTip="Pi 하드웨어·OS 정보를 모아 pi_info.txt 로 저장하고 보여 줍니다" />
-                                <Button Content="deploy.sh" Command="{Binding RunDeployCommand}" Margin="2,0" Padding="4,8"
-                                        ToolTip="Qt 프로그램을 Pi 로 전송·빌드·실행합니다" />
                                 <Button Content="pi_setup.sh ↗" Command="{Binding OpenSetupTerminalCommand}" Margin="2,0" Padding="4,8"
                                         ToolTip="새 터미널 창에서 실행 (sudo 비밀번호가 필요할 수 있음)" />
                                 <Button Content="취소" Command="{Binding CancelCommand}" Margin="2,0,0,0" Padding="4,8" />
@@ -340,7 +389,11 @@
 
         <!-- ───────── 상태 바 ───────── -->
         <Border Grid.Row="2" Margin="0,8,0,0" Padding="8,4" Background="#ECEFF3" CornerRadius="4">
-            <TextBlock Text="{Binding StatusText}" MinHeight="20" />
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Text="{Binding VersionText}" Foreground="Gray" Margin="12,0,0,0"
+                           ToolTip="프로그램 버전 (VERSION 파일 · CHANGELOG.md)" />
+                <TextBlock Text="{Binding StatusText}" MinHeight="20" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
         </Border>
     </Grid>
 </Window>

@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -23,6 +24,9 @@
   <ItemGroup>
     <!-- 화면 XAML 의 바인딩이 빠지지 않았는지 검사하기 위해 원본을 출력 폴더로 복사 -->
     <None Include="..\ServoControlWpf\View\MainWindow.xaml" Link="MainWindow.xaml" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 버전 단일 진실과 변경 내역이 어셈블리 버전과 맞는지 검사 -->
+    <None Include="..\VERSION" Link="VERSION" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\CHANGELOG.md" Link="CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
