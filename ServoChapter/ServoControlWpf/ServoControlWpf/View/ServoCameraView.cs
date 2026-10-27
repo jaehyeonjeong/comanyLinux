@@ -294,16 +294,15 @@ public sealed class ServoCameraView : FrameworkElement
         dc.Pop();
 
         // 제목
-        var title = new FormattedText("카메라 팬 (위에서 본 모습)", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, face, Math.Max(10, baseSize * 0.85), GridBrush, dip);
+        var title = FitText("카메라 팬 (위에서 본 모습)", face, Math.Max(10, baseSize * 0.85), GridBrush, dip, w - 24);
         dc.DrawText(title, new Point(12, 8));
 
         // 5-a) 연결 해제 상태: 그림을 흐리게 덮고 안내만 표시. 각도·펄스 글자는 보여 주지 않는다 (명령이 가지 않으므로 의미 없음)
         if (!IsConnected)
         {
             dc.DrawRectangle(DisconnectVeil, null, new Rect(0, 0, w, h));
-            var head = new FormattedText("연결 안 됨", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, bold, baseSize * 1.6, GridBrush, dip);
-            var body2 = new FormattedText("Pi 또는 에뮬레이터에 [연결]하면\n카메라 움직임이 여기에 표시됩니다", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, face, Math.Max(10, baseSize * 0.95), GridBrush, dip)
-            { TextAlignment = TextAlignment.Center };
+            var head = FitText("연결 안 됨", bold, baseSize * 1.6, GridBrush, dip, w - 16);
+            var body2 = FitText("Pi 또는 에뮬레이터에 [연결]하면\n카메라 움직임이 여기에 표시됩니다", face, Math.Max(10, baseSize * 0.95), GridBrush, dip, w - 16, TextAlignment.Center);
             var y0 = c.Y + bodyH * 0.72;
             dc.DrawText(head, new Point(w / 2 - head.Width / 2, y0));
             dc.DrawText(body2, new Point(w / 2 - body2.Width / 2, y0 + head.Height + 4));
@@ -317,15 +316,27 @@ public sealed class ServoCameraView : FrameworkElement
         if (!on) sub = "출력 꺼짐 · 서보에 힘이 없음 (손으로 돌릴 수 있음)";
         else if (IsMoving) sub = $"→ 목표 {(Angle > 0 ? "+" : "")}{Angle:F1}° 로 회전 중 · {Pulse} µs";
         else sub = $"위치 유지 중 · {Pulse} µs";
-        var ft2 = new FormattedText(sub, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, face, Math.Max(10, baseSize * 0.9),
-            !on ? GridBrush : IsMoving ? AccentBrush : TextBrush, dip);
+        var ft2 = FitText(sub, face, Math.Max(10, baseSize * 0.9), !on ? GridBrush : IsMoving ? AccentBrush : TextBrush, dip, w - 16);
         dc.DrawText(ft2, new Point(w / 2 - ft2.Width / 2, c.Y + bodyH * 0.72 + big.Height + 2));
 
         // 범위 끝에 닿아 있으면 경고 (기계적 한계 주의)
         if (on && !IsMoving && (Math.Abs(shown - MinAngle) < 0.05 || Math.Abs(shown - MaxAngle) < 0.05))
         {
-            var warn = new FormattedText("끝단 — '지잉' 소리가 나면 범위를 줄이세요", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, face, Math.Max(9, baseSize * 0.8), WarnBrush, dip);
+            var warn = FitText("끝단 — '지잉' 소리가 나면 범위를 줄이세요", face, Math.Max(9, baseSize * 0.8), WarnBrush, dip, w - 16);
             dc.DrawText(warn, new Point(w / 2 - warn.Width / 2, c.Y + bodyH * 0.72 + big.Height + ft2.Height + 4));
         }
+    }
+
+    /// <summary>글이 maxWidth 보다 넓으면 글꼴을 비례로 줄여(최소 8) 한 줄에 들어가게 만든 FormattedText. 창이 좁아도 글자가 잘리지 않는다.</summary>
+    private static FormattedText FitText(string text, Typeface typeface, double size, Brush brush, double dip, double maxWidth,
+        TextAlignment align = TextAlignment.Left)
+    {
+        var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, size, brush, dip) { TextAlignment = align };
+        if (maxWidth > 0 && ft.Width > maxWidth)
+        {
+            var shrunk = Math.Max(8, size * maxWidth / ft.Width);
+            ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, shrunk, brush, dip) { TextAlignment = align };
+        }
+        return ft;
     }
 }

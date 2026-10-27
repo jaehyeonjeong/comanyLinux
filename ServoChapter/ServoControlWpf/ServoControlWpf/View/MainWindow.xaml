@@ -8,7 +8,7 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         Title="{Binding Title}"
-        Width="1320" Height="800" MinWidth="1000" MinHeight="640"
+        Width="1320" Height="800" MinWidth="1120" MinHeight="660"
         FontSize="15" Background="#F7F8FA">
 
     <Window.Resources>
@@ -25,6 +25,7 @@
 
     <Grid Margin="16,12,16,8">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
@@ -46,12 +47,12 @@
                 <!-- 에뮬레이터: 하드웨어 없이 가짜 Pi 에 접속 — 앱 안 / WSL 의 fake_pigpiod.py -->
                 <StackPanel Orientation="Horizontal" Visibility="{Binding IsEmulatorMode, Converter={StaticResource BoolToVis}}">
                     <TextBlock Text="종류" VerticalAlignment="Center" Margin="12,0,6,0" />
-                    <ComboBox Width="190" SelectedIndex="{Binding EmulatorKindIndex}" IsEnabled="{Binding CanEditConnection}"
-                              ToolTip="{Binding ConnectHint}" AutomationProperties.Name="에뮬레이터 종류">
-                        <ComboBoxItem Content="앱 안 가짜 Pi" />
-                        <ComboBoxItem Content="WSL 가짜 Pi (fake_pigpiod.py)" />
+                    <!-- 설명은 툴팁으로 (연결 바가 길어져 창이 좁을 때 버튼이 밀리는 것을 막음) -->
+                    <ComboBox MinWidth="150" SelectedIndex="{Binding EmulatorKindIndex}" IsEnabled="{Binding CanEditConnection}"
+                              ToolTip="{Binding EmulatorKindHint}" AutomationProperties.Name="에뮬레이터 종류">
+                        <ComboBoxItem Content="앱 안 가짜 Pi" ToolTip="앱 안에서 가짜 pigpiod 를 127.0.0.1 에 띄움 — 준비물 없음" />
+                        <ComboBoxItem Content="WSL 가짜 Pi (fake_pigpiod.py)" ToolTip="WSL 에 리눅스 가짜 pigpiod 를 띄우고 127.0.0.1 로 접속 — 명령이 가상 네트워크를 실제로 건너감. 이미 떠 있으면 그것 사용" />
                     </ComboBox>
-                    <TextBlock Text="{Binding EmulatorKindHint}" Foreground="#7A4F01" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="13" />
                 </StackPanel>
 
                 <!-- 직접 연결: Pi 주소 -->
@@ -89,36 +90,43 @@
                         </Style>
                     </Button.Style>
                 </Button>
-
-                <TextBlock Text="●" FontSize="20" VerticalAlignment="Center" Margin="10,0,4,0">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Foreground" Value="#9E9E9E" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
-                                    <Setter Property="Foreground" Value="#1A7F37" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-                <TextBlock Text="{Binding DriverName}" ToolTip="{Binding DriverName}" VerticalAlignment="Center" MaxWidth="260" TextTrimming="CharacterEllipsis" />
             </StackPanel>
 
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                 <Button Content="전체화면 (F11)" Command="{x:Static v:MainWindow.ToggleFullScreenCommand}" Margin="8,0,0,0" />
                 <Button Content="종료" Click="OnQuitClick" Margin="8,0,0,0" />
             </StackPanel>
-
-            <StackPanel VerticalAlignment="Center" Margin="12,0,8,0">
-                <TextBlock Text="{Binding ConnInfoText}" Foreground="Gray" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding EmulatorText}" Foreground="#7A4F01" FontSize="13" TextTrimming="CharacterEllipsis"
-                           Visibility="{Binding IsEmulatorMode, Converter={StaticResource BoolToVis}}" />
-            </StackPanel>
+            <Border />
         </DockPanel>
 
+        <!-- ───────── 연결 정보 줄: 창 폭 전체를 쓰고, 긴 글은 글꼴을 줄이거나(ShrinkTextBlock) … + 툴팁 ───────── -->
+        <Grid Grid.Row="1" Margin="0,4,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="●" FontSize="18" VerticalAlignment="Center" Margin="2,0,6,0">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="#9E9E9E" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                <Setter Property="Foreground" Value="#1A7F37" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+            <v:ShrinkTextBlock Grid.Column="1" Text="{Binding DriverName}" VerticalAlignment="Center" MaxWidth="380" MinFontSize="11" />
+            <v:ShrinkTextBlock Grid.Column="2" Text="{Binding ConnInfoText}" Foreground="Gray" VerticalAlignment="Center" Margin="14,0,0,0" MaxWidth="320" MinFontSize="11" />
+            <v:ShrinkTextBlock Grid.Column="3" Text="{Binding EmulatorText}" Foreground="#7A4F01" FontSize="13" VerticalAlignment="Center" Margin="14,0,0,0" MinFontSize="10"
+                               Visibility="{Binding IsEmulatorMode, Converter={StaticResource BoolToVis}}" />
+        </Grid>
+
         <!-- ───────── 본문 ───────── -->
-        <Grid Grid.Row="1" Margin="0,10,0,0">
+        <Grid Grid.Row="2" Margin="0,8,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="3*" MinWidth="320" />
                 <ColumnDefinition Width="2*" MinWidth="280" />
@@ -151,7 +159,7 @@
                             <TextBox Text="{Binding PiCameraUrl, UpdateSourceTrigger=LostFocus}"
                                      ToolTip="예: http://172.30.1.81:8889/stream.mjpg — 비우면 연결 설정의 Pi 주소와 포트 8889 로 자동" />
                         </DockPanel>
-                        <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusText}" Foreground="Gray" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                        <v:ShrinkTextBlock DockPanel.Dock="Bottom" Text="{Binding StatusText}" Foreground="Gray" FontSize="12" MinFontSize="10" Margin="0,4,0,0" />
                         <Border Background="#141618" CornerRadius="6">
                             <Grid>
                                 <Image Source="{Binding Frame}" Stretch="Uniform" RenderOptions.BitmapScalingMode="LowQuality" />
@@ -179,14 +187,15 @@
                         <Button Content="◀ 최소" Command="{Binding GoMinCommand}" Margin="0,0,3,0" />
                         <Button Content="최대 ▶" Command="{Binding GoMaxCommand}" Margin="3,0,0,0" />
                     </UniformGrid>
+                    <!-- 좁은 창에서도 "−10°" 가 잘리지 않게 안쪽 여백을 줄임 -->
                     <UniformGrid DockPanel.Dock="Bottom" Columns="5" Margin="0,6,0,0">
-                        <Button Content="−10°" Command="{Binding NudgeCommand}" CommandParameter="-10" Margin="0,0,2,0" />
-                        <Button Content="−1°"  Command="{Binding NudgeCommand}" CommandParameter="-1" Margin="2,0" />
-                        <Button Content="0°"   Command="{Binding CenterCommand}" Margin="2,0" FontWeight="Bold" />
-                        <Button Content="+1°"  Command="{Binding NudgeCommand}" CommandParameter="1" Margin="2,0" />
-                        <Button Content="+10°" Command="{Binding NudgeCommand}" CommandParameter="10" Margin="2,0,0,0" />
+                        <Button Content="−10°" Command="{Binding NudgeCommand}" CommandParameter="-10" Margin="0,0,2,0" Padding="2,4" />
+                        <Button Content="−1°"  Command="{Binding NudgeCommand}" CommandParameter="-1" Margin="2,0" Padding="2,4" />
+                        <Button Content="0°"   Command="{Binding CenterCommand}" Margin="2,0" FontWeight="Bold" Padding="2,4" />
+                        <Button Content="+1°"  Command="{Binding NudgeCommand}" CommandParameter="1" Margin="2,0" Padding="2,4" />
+                        <Button Content="+10°" Command="{Binding NudgeCommand}" CommandParameter="10" Margin="2,0,0,0" Padding="2,4" />
                     </UniformGrid>
-                    <TextBlock DockPanel.Dock="Bottom" Text="{Binding OutputText}" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                    <v:ShrinkTextBlock DockPanel.Dock="Bottom" Text="{Binding OutputText}" HorizontalAlignment="Center" Margin="0,4,0,0" MinFontSize="11" />
 
                     <!-- 각도 ↔ 펄스폭: 어느 쪽을 바꿔도 다른 쪽과 서보 출력이 따라 바뀜 -->
                     <Grid DockPanel.Dock="Bottom" Margin="0,6,0,0">
@@ -388,11 +397,11 @@
         </Grid>
 
         <!-- ───────── 상태 바 ───────── -->
-        <Border Grid.Row="2" Margin="0,8,0,0" Padding="8,4" Background="#ECEFF3" CornerRadius="4">
+        <Border Grid.Row="3" Margin="0,8,0,0" Padding="8,4" Background="#ECEFF3" CornerRadius="4">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Right" Text="{Binding VersionText}" Foreground="Gray" Margin="12,0,0,0"
                            ToolTip="프로그램 버전 (VERSION 파일 · CHANGELOG.md)" />
-                <TextBlock Text="{Binding StatusText}" MinHeight="20" TextTrimming="CharacterEllipsis" />
+                <v:ShrinkTextBlock Text="{Binding StatusText}" MinHeight="20" MinFontSize="11" />
             </DockPanel>
         </Border>
     </Grid>

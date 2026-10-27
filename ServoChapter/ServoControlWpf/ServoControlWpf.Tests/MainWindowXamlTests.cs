@@ -54,4 +54,16 @@ public class MainWindowXamlTests
     {
         Assert.Contains("{Binding " + member, Xaml);
     }
+
+    /// <summary>길이가 들쭉날쭉한 문구는 잘리지 않게 ShrinkTextBlock(자동 축소 + … + 툴팁)으로 표시한다</summary>
+    [Theory]
+    [InlineData("ConnInfoText")]
+    [InlineData("EmulatorText")]
+    [InlineData("DriverName")]
+    [InlineData("StatusText")]
+    [InlineData("OutputText")]
+    public void LongText_UsesShrinkTextBlock(string member)
+    {
+        Assert.Matches(@"<v:ShrinkTextBlock[^>]*\{Binding " + member + @"\b", Xaml);
+    }
 }

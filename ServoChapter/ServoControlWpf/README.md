@@ -1,6 +1,6 @@
 # ServoControlWpf — Windows(WPF)에서 WSL·Raspberry Pi 서보 제어
 
-**버전 1.2.0** — 버전은 `VERSION` 파일 하나가 기준이고(창 제목·상태 바에 표시), 변경 내역은 [CHANGELOG.md](CHANGELOG.md), 올릴 때는 `tools\bump-version.ps1 -Part patch|minor|major`(WSL: `tools/bump_version.sh`).
+**버전 1.2.1** — 버전은 `VERSION` 파일 하나가 기준이고(창 제목·상태 바에 표시), 변경 내역은 [CHANGELOG.md](CHANGELOG.md), 올릴 때는 `tools\bump-version.ps1 -Part patch|minor|major`(WSL: `tools/bump_version.sh`).
 
 Windows(WPF, C#)에서 Raspberry Pi 의 서보 모터(카메라 팬)를 움직이는 프로그램입니다. v1.1.0 부터는 Pi 모니터에 띄우는 **카메라 영상 + 카메라 이동 로그** 프로그램(`pi_display/`, Python)이 함께 들어 있고, WPF 에서 그 영상을 받아 봅니다.
 HiTEC HS-311 서보를 Raspberry Pi 4B 의 pigpiod(TCP 8888)로 제어하며, 세 가지 연결 방식을 지원합니다.
@@ -18,7 +18,7 @@ HiTEC HS-311 서보를 Raspberry Pi 4B 의 pigpiod(TCP 8888)로 제어하며, �
 ```
 ServoControlWpf.sln
 ServoControlWpf/            WPF 앱 (net8.0-windows10.0.19041.0)   Model / ViewModel / View / Services(WSL, 웹캠)
-ServoControlWpf.Tests/      xUnit 테스트 124개 (사양 변환, pigpiod 프로토콜, 모델 롤백·장치 상태 동기화, 에뮬레이터 왕복·재연결 기억·상태 파일·포트 충돌 대체, WSL 가짜 Pi 기동·재사용, 직접 연결 자기 주소 거부, 다이얼·카메라 뷰, 각도↔펄스, 터널 실패 경로, XAML 바인딩 누락 검사, 카메라 뷰모델, MJPEG 파서·네트워크 카메라·합성 소스, 버전 일치)
+ServoControlWpf.Tests/      xUnit 테스트 137개 (사양 변환, 글꼴 자동 축소, pigpiod 프로토콜, 모델 롤백·장치 상태 동기화, 에뮬레이터 왕복·재연결 기억·상태 파일·포트 충돌 대체, WSL 가짜 Pi 기동·재사용, 직접 연결 자기 주소 거부, 다이얼·카메라 뷰, 각도↔펄스, 터널 실패 경로, XAML 바인딩 누락 검사, 카메라 뷰모델, MJPEG 파서·네트워크 카메라·합성 소스, 버전 일치)
 tools/fake_pigpiod.py       리눅스(WSL)용 가짜 pigpiod — 에뮬레이터 종류 "WSL 가짜 Pi" 가 wsl.exe 로 띄움
 tools/pi/                   Pi 관리 스크립트 pi_setup.sh(pigpio 설치·원격 허용) · pi_info.sh(Pi 정보 수집)
 pi_display/                 Pi 모니터용 Python 프로그램: 카메라 영상 + 서보 이동 로그 + MJPEG 서버 (pi_display/README.md)
@@ -54,10 +54,10 @@ dotnet run   --project ServoControlWpf
 
 ## WSL 셸에서 띄우기
 
-프로그램 폴더를 WSL 쪽(예: `~/MyJob/ServoChapter/ServoControlWpf`)에 두었다면 WSL 터미널에서 바로 띄울 수 있습니다. WSL interop이 Windows 프로그램을 대신 실행하므로 창은 Windows 화면에 뜨고, 연결 방식은 Windows에서 띄웠을 때와 같습니다.
+프로그램 폴더를 WSL 쪽(예: `~/MyJob/projects/comanyLinux/ServoChapter/ServoControlWpf`)에 두었다면 WSL 터미널에서 바로 띄울 수 있습니다. WSL interop이 Windows 프로그램을 대신 실행하므로 창은 Windows 화면에 뜨고, 연결 방식은 Windows에서 띄웠을 때와 같습니다.
 
 ```bash
-cd ~/MyJob/ServoChapter/ServoControlWpf
+cd ~/MyJob/projects/comanyLinux/ServoChapter/ServoControlWpf
 chmod +x run-from-wsl.sh
 ./run-from-wsl.sh          # 실행 (Release 없으면 Debug). 복사한 .exe 의 실행 비트도 자동으로 켬
 ./run-from-wsl.sh build    # Windows 의 dotnet.exe 로 빌드 후 실행
@@ -79,7 +79,7 @@ chmod +x run-from-wsl.sh
 
 즉 리눅스 dotnet 은 **없어도 됩니다**. WPF 실행은 항상 Windows 의 `dotnet.exe`/`.exe` 가 맡고, `run-from-wsl.sh` 가 그 일을 대신해 줍니다. (Ubuntu 26.04 의 apt 패키지 이름은 `dotnet-sdk-10.0` 입니다. snap 판은 `libunwind8` 이 없으면 실행이 안 됩니다.)
 
-Pi 없이 전체 흐름 연습: WSL 터미널에서 `./run-from-wsl.sh` 로 WPF 를 띄우고 **에뮬레이터 · WSL 가짜 Pi** → [연결] 하면 앱이 WSL 에 `fake_pigpiod.py` 를 띄워 HWVER·PIGPV·SERVO 명령이 상단에 찍힙니다(터미널에서 보고 싶으면 `./run-from-wsl.sh fakepi` 를 먼저 띄워 두면 그쪽에 찍힘). WSL 에 sshd 를 설치하고 `~/.ssh/config` 에 `Host rpi → HostName 127.0.0.1` 을 두면 "WSL 터널" 모드도 같은 가짜 Pi 로 시험할 수 있습니다(설계 PDF 13-2).
+WSL 에 sshd 를 설치하고 `~/.ssh/config` 에 `Host rpi → HostName 127.0.0.1` 을 두면 "WSL 터널" 모드도 WSL 가짜 Pi 로 시험할 수 있습니다(설계 PDF 13-2).
 
 ## 무선(Wi-Fi) 으로 연결하기
 
@@ -89,11 +89,11 @@ Pi 를 Wi-Fi 에 붙이고(`sudo nmcli dev wifi connect "SSID" password "…"`, 
 ./tools/setup_rpi_wireless.sh 192.168.0.50 pi   # ssh 키 생성 → ~/.ssh/config 의 Host rpi → Pi 에 키 복사 → 확인
 ```
 
-그 다음 WPF 에서 **WSL 터널** 모드(ssh 별명 `rpi`)로 [연결]하면 Pi 쪽 추가 설정 없이 동작합니다(PC IP 가 바뀌어도 됨). **직접 연결**을 쓰려면 Pi 의 pigpiod 가 PC 의 Wi-Fi IP 를 허용해야 하므로 `../ServoControl/pi_setup.sh rpi <PC_WIFI_IP>` 를 실행합니다(스크립트가 그 IP 를 알려 줌). 자세한 순서와 점검표는 설계 PDF 10-11.
+그 다음 WPF 에서 **WSL 터널** 모드(ssh 별명 `rpi`)로 [연결]하면 Pi 쪽 추가 설정 없이 동작합니다(PC IP 가 바뀌어도 됨). **직접 연결**을 쓰려면 Pi 의 pigpiod 가 PC 의 Wi-Fi IP 를 허용해야 하므로 `./tools/pi/pi_setup.sh rpi <PC_WIFI_IP>` 를 실행합니다(스크립트가 그 IP 를 알려 줌). 자세한 순서와 점검표는 설계 PDF 10-11.
 
 ## 실제 Pi 로 쓰기
 
-1. (처음 한 번) WSL 에서 `./pi_setup.sh` — pigpio 설치 + PC(192.168.10.1) 원격 허용. WPF 의 "WSL / Pi 관리" 탭 → [pi_setup.sh ↗] 로도 실행됩니다 (새 터미널 창).
+1. (처음 한 번) WSL 에서 `./tools/pi/pi_setup.sh rpi <PC IP>` — pigpio 설치 + PC 주소 원격 허용. WPF 의 "WSL / Pi 관리" 탭 → [pi_setup.sh ↗] 로도 실행됩니다 (새 터미널 창).
 2. 직접 연결: Pi 주소 `192.168.10.2`, 포트 `8888` → [연결] → [0°] 로 중앙 확인.
 3. WSL 터널: ssh 별명 `rpi` (WSL 의 `~/.ssh/config`, 키 인증) → [연결]. 앱이 `wsl.exe -e ssh -N -L 127.0.0.1:18888:127.0.0.1:8888 rpi` 를 띄우고 `127.0.0.1:18888` 로 접속합니다.
 4. 창을 닫으면 (6번 옵션이 꺼져 있을 때) 펄스 0 을 보내 서보 힘을 뺍니다. 터널·앱 안 에뮬레이터·앱이 띄운 WSL 가짜 Pi 도 함께 종료됩니다.
