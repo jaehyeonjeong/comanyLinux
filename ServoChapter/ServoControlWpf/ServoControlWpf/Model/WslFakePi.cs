@@ -44,8 +44,9 @@ public sealed class WslFakePi : IDisposable
         return null;
     }
 
+    /// <param name="calib">WPF 보정값 문자열("600,1500,2400,-80,80") — 새로 띄울 때 <c>--calib</c> 로 넘겨 각도 표시를 맞춘다. 재사용 때는 CF1 로 따로 전달.</param>
     public static async Task<WslFakePi> OpenAsync(string? distro, int port, IProgress<string>? progress = null,
-        int timeoutMs = 10000, CancellationToken ct = default)
+        int timeoutMs = 10000, CancellationToken ct = default, string? calib = null)
     {
         var fp = new WslFakePi(port);
 
@@ -84,6 +85,7 @@ public sealed class WslFakePi : IDisposable
         psi.ArgumentList.Add("fake_pigpiod.py");
         psi.ArgumentList.Add("--port"); psi.ArgumentList.Add(port.ToString());
         psi.ArgumentList.Add("--bind"); psi.ArgumentList.Add("0.0.0.0");
+        if (!string.IsNullOrWhiteSpace(calib)) { psi.ArgumentList.Add("--calib"); psi.ArgumentList.Add(calib.Trim()); }
 
         var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
         proc.OutputDataReceived += (_, e) =>

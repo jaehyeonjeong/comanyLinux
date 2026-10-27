@@ -159,6 +159,20 @@
                             <TextBox Text="{Binding PiCameraUrl, UpdateSourceTrigger=LostFocus}"
                                      ToolTip="예: http://172.30.1.81:8889/stream.mjpg — 비우면 연결 설정의 Pi 주소와 포트 8889 로 자동" />
                         </DockPanel>
+                        <!-- Pi 카메라(네트워크)일 때만: 녹화 · 사진 (pi_display 의 HTTP API). 설정·인식·전송은 오른쪽 "Pi 카메라" 탭 -->
+                        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,4"
+                                    Visibility="{Binding IsPiPanelVisible, Converter={StaticResource BoolToVis}}">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Left" Content="{Binding RecordText}" Command="{Binding RecordCommand}" MinWidth="88" Padding="8,3"
+                                        AutomationProperties.Name="녹화" Foreground="#B00020" FontWeight="Bold"
+                                        ToolTip="Pi 에서 녹화를 시작/정지합니다. picamera2 면 1080p30 등 녹화 모드 크기로 H.264 하드웨어 인코딩(mp4), 그 밖의 백엔드는 미리보기 MJPEG 를 AVI 로. 정지하면 WSL 로 자동 가져옵니다." />
+                                <Button DockPanel.Dock="Left" Content="📷 사진" Command="{Binding SnapshotCommand}" Margin="6,0,0,0" Padding="8,3"
+                                        AutomationProperties.Name="사진" ToolTip="OV5647 최대 해상도(2592×1944, 5 MP)로 한 장 저장 (녹화 중이면 녹화 해상도). 스트림이 약 1 초 멈출 수 있음" />
+                                <v:ShrinkTextBlock Text="{Binding DetectText}" Foreground="#2E7D32" FontSize="12" MinFontSize="10" VerticalAlignment="Center" Margin="10,0,0,0"
+                                                   Visibility="{Binding IsDetectOn, Converter={StaticResource BoolToVis}}" />
+                            </DockPanel>
+                            <v:ShrinkTextBlock Text="{Binding RecordInfoText}" Foreground="#555" FontSize="12" MinFontSize="10" Margin="0,3,0,0" />
+                        </StackPanel>
                         <v:ShrinkTextBlock DockPanel.Dock="Bottom" Text="{Binding StatusText}" Foreground="Gray" FontSize="12" MinFontSize="10" Margin="0,4,0,0" />
                         <Border Background="#141618" CornerRadius="6">
                             <Grid>
@@ -304,21 +318,25 @@
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                                        <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
                                     </Grid.RowDefinitions>
                                     <TextBlock Grid.Row="0" Text="신호 핀 (BCM)" VerticalAlignment="Center" Margin="0,0,10,4" />
                                     <TextBox   Grid.Row="0" Grid.Column="1" Text="{Binding CalGpio}" Margin="0,0,0,4" ToolTip="GPIO 2~27 (기본 18 = 물리 12번 핀)" />
-                                    <TextBlock Grid.Row="1" Text="최소 펄스 (µs)" VerticalAlignment="Center" Margin="0,0,10,4" />
-                                    <TextBox   Grid.Row="1" Grid.Column="1" Text="{Binding CalMinPulse}" Margin="0,0,0,4" />
+                                    <TextBlock Grid.Row="1" Text="1° 당 µs" VerticalAlignment="Center" Margin="0,0,10,4" />
+                                    <TextBox   Grid.Row="1" Grid.Column="1" Text="{Binding CalUsPerDeg}" Margin="0,0,0,4" KeyDown="OnInputBoxKeyDown" AutomationProperties.Name="1도당 µs"
+                                               ToolTip="각도 ↔ 펄스를 잇는 기울기 (HS-311 공식 10 µs/°). 바꾸면 각도를 지킨 채 최소·최대 펄스가 다시 계산됩니다" />
                                     <TextBlock Grid.Row="2" Text="중립 펄스 (µs)" VerticalAlignment="Center" Margin="0,0,10,4" />
-                                    <TextBox   Grid.Row="2" Grid.Column="1" Text="{Binding CalNeutralPulse}" Margin="0,0,0,4" />
-                                    <TextBlock Grid.Row="3" Text="최대 펄스 (µs)" VerticalAlignment="Center" Margin="0,0,10,4" />
-                                    <TextBox   Grid.Row="3" Grid.Column="1" Text="{Binding CalMaxPulse}" Margin="0,0,0,4" />
-                                    <TextBlock Grid.Row="4" Text="최소 각도 (°)" VerticalAlignment="Center" Margin="0,0,10,4" />
-                                    <TextBox   Grid.Row="4" Grid.Column="1" Text="{Binding CalMinAngle}" Margin="0,0,0,4" />
+                                    <TextBox   Grid.Row="2" Grid.Column="1" Text="{Binding CalNeutralPulse}" Margin="0,0,0,4" KeyDown="OnInputBoxKeyDown" ToolTip="0° 의 펄스폭. 바꾸면 각도를 지킨 채 최소·최대 펄스가 따라 움직입니다" />
+                                    <TextBlock Grid.Row="3" Text="최소 각도 (°)" VerticalAlignment="Center" Margin="0,0,10,4" />
+                                    <TextBox   Grid.Row="3" Grid.Column="1" Text="{Binding CalMinAngle}" Margin="0,0,0,4" KeyDown="OnInputBoxKeyDown" AutomationProperties.Name="최소 각도" ToolTip="고치면 최소 펄스 = 중립 + 각도 × 기울기 로 따라 바뀜 (Enter 또는 다른 칸으로 이동하면 반영)" />
+                                    <TextBlock Grid.Row="4" Text="최소 펄스 (µs)" VerticalAlignment="Center" Margin="0,0,10,4" />
+                                    <TextBox   Grid.Row="4" Grid.Column="1" Text="{Binding CalMinPulse}" Margin="0,0,0,4" KeyDown="OnInputBoxKeyDown" AutomationProperties.Name="최소 펄스" ToolTip="고치면 최소 각도 = (펄스 − 중립) ÷ 기울기 로 따라 바뀜" />
                                     <TextBlock Grid.Row="5" Text="최대 각도 (°)" VerticalAlignment="Center" Margin="0,0,10,4" />
-                                    <TextBox   Grid.Row="5" Grid.Column="1" Text="{Binding CalMaxAngle}" Margin="0,0,0,4" />
-                                    <UniformGrid Grid.Row="6" Grid.ColumnSpan="2" Columns="3" Margin="0,6,0,0">
+                                    <TextBox   Grid.Row="5" Grid.Column="1" Text="{Binding CalMaxAngle}" Margin="0,0,0,4" KeyDown="OnInputBoxKeyDown" AutomationProperties.Name="최대 각도" ToolTip="고치면 최대 펄스가 따라 바뀜" />
+                                    <TextBlock Grid.Row="6" Text="최대 펄스 (µs)" VerticalAlignment="Center" Margin="0,0,10,4" />
+                                    <TextBox   Grid.Row="6" Grid.Column="1" Text="{Binding CalMaxPulse}" Margin="0,0,0,4" KeyDown="OnInputBoxKeyDown" AutomationProperties.Name="최대 펄스" ToolTip="고치면 최대 각도가 따라 바뀜" />
+                                    <v:ShrinkTextBlock Grid.Row="7" Grid.ColumnSpan="2" Text="{Binding CalLinkText}" Foreground="Gray" FontSize="12" MinFontSize="10" Margin="0,2,0,0" />
+                                    <UniformGrid Grid.Row="8" Grid.ColumnSpan="2" Columns="3" Margin="0,6,0,0">
                                         <Button Content="적용" Command="{Binding ApplySpecCommand}" Margin="0,0,3,0" FontWeight="Bold" />
                                         <Button Content="공식값 ±40°" Command="{Binding ApplyOfficialCommand}" Margin="3,0" />
                                         <Button Content="확장값 ±90°" Command="{Binding ApplyExtendedCommand}" Margin="3,0,0,0" />
@@ -328,6 +346,89 @@
 
                             <TextBlock Margin="6,10,6,0" Foreground="Gray" TextWrapping="Wrap" FontSize="13"
                                        Text="배선: 노랑(신호) → 12번 핀(GPIO18), 빨강 → 외부 5 V, 검정 → 외부 전원 − 와 Pi GND(6번) 공통. 서보 전원을 Pi 5 V 핀에서 직접 뽑지 마세요." />
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Pi 카메라(OV5647) 설정 · 인식 · 녹화 전송. 카메라 패널 안에 두면 영상 영역이 줄어들어 탭으로 분리 -->
+                <TabItem Header="  Pi 카메라  " DataContext="{Binding Camera}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="4">
+                            <TextBlock TextWrapping="Wrap" Foreground="Gray" FontSize="13" Margin="2,2,2,6"
+                                       Text="카메라 콤보에서 'Pi 카메라 (네트워크)' 를 골라 영상이 들어올 때 조작할 수 있습니다. 값은 Pi 의 ~/.config/pi_display/camera.json 에 저장되어 다음 실행에도 유지됩니다." />
+                            <v:ShrinkTextBlock Text="{Binding PiSettingsInfo}" Foreground="#555" FontSize="12" MinFontSize="10" Margin="2,0,2,2" />
+                            <v:ShrinkTextBlock Text="{Binding CalibText}" Foreground="#555" FontSize="12" MinFontSize="10" Margin="2,0,2,6"
+                                               ToolTip="Pi 화면 프로그램(pi_display)이 서보 이동 로그의 각도를 계산할 때 쓰는 보정값. 펄스폭은 같아도 보정값이 다르면 각도 숫자가 달라지므로 WPF 의 보정 탭 값과 자동으로 맞춥니다" />
+
+                            <GroupBox Header="카메라 설정 (OV5647 · 5 MP)" Padding="6">
+                                <Grid IsEnabled="{Binding CanControlPi}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="녹화 모드" VerticalAlignment="Center" Margin="0,0,8,4" />
+                                    <ComboBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding RecordModes}" SelectedItem="{Binding RecordMode}" Margin="0,0,0,4"
+                                              AutomationProperties.Name="녹화 모드"
+                                              ToolTip="1080p30 = 1920×1080 30 fps (Pi 4 H.264 인코더 상한) · 720p60 · 480p90 (빠른 팬 동작 관찰). 바꾸면 카메라를 다시 열어 미리보기가 잠깐 끊김 — 녹화 중에는 못 바꿈" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="화이트밸런스" VerticalAlignment="Center" Margin="0,0,8,4" />
+                                    <ComboBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding AwbModes}" SelectedItem="{Binding Awb}" Margin="0,0,0,4"
+                                              ToolTip="auto · daylight(맑은 날) · cloudy(흐림) · tungsten(백열등) · fluorescent(형광등) · indoor(실내)" />
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="밝기" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <Slider Grid.Row="2" Grid.Column="1" Minimum="-1" Maximum="1" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding Brightness}" VerticalAlignment="Center"
+                                            AutomationProperties.Name="밝기" ToolTip="-1 ~ +1 (0 = 보통)" />
+                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding Brightness, StringFormat={}{0:0.00}}" Width="40" VerticalAlignment="Center" FontFamily="Consolas" Margin="6,0,0,0" />
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="대비" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <Slider Grid.Row="3" Grid.Column="1" Minimum="0" Maximum="2" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding Contrast}" VerticalAlignment="Center"
+                                            AutomationProperties.Name="대비" ToolTip="0 ~ 2 (1 = 보통)" />
+                                    <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding Contrast, StringFormat={}{0:0.0}}" Width="40" VerticalAlignment="Center" FontFamily="Consolas" Margin="6,0,0,0" />
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="채도" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <Slider Grid.Row="4" Grid.Column="1" Minimum="0" Maximum="2" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding Saturation}" VerticalAlignment="Center"
+                                            AutomationProperties.Name="채도" ToolTip="0 ~ 2 (1 = 보통, 0 = 흑백)" />
+                                    <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding Saturation, StringFormat={}{0:0.0}}" Width="40" VerticalAlignment="Center" FontFamily="Consolas" Margin="6,0,0,0" />
+                                    <StackPanel Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,6,0,0">
+                                        <CheckBox Content="좌우 반전" IsChecked="{Binding Hflip}" Margin="0,0,14,0" ToolTip="카메라를 거꾸로/뒤집어 달았을 때. 카메라를 다시 엽니다" />
+                                        <CheckBox Content="상하 반전" IsChecked="{Binding Vflip}" ToolTip="카메라를 다시 엽니다" />
+                                    </StackPanel>
+                                </Grid>
+                            </GroupBox>
+
+                            <GroupBox Header="인체 · 사물 인식 (OpenCV)" Padding="6" Margin="0,8,0,0">
+                                <StackPanel>
+                                    <CheckBox Content="인식 켜기 — 미리보기에 박스와 이름 표시" IsChecked="{Binding IsDetectOn}" IsEnabled="{Binding CanControlPi}" AutomationProperties.Name="인식"
+                                              ToolTip="Pi 의 OpenCV(MobileNet-SSD 20종 또는 HOG 사람 검출)로 찾아 미리보기에 그립니다. 녹화 원본(H.264)에는 들어가지 않음. 추론은 별도 스레드라 미리보기는 계속 10 fps" />
+                                    <v:ShrinkTextBlock Text="{Binding DetectText}" Foreground="#2E7D32" FontSize="12" MinFontSize="10" Margin="0,4,0,0" />
+                                    <TextBlock Foreground="Gray" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"
+                                               Text="모델은 install_pi_deps.sh 가 ~/.local/share/pi_display/models/ 에 내려받습니다 (없으면 HOG 로 사람만). Pi 4 에서 약 3~5 fps." />
+                                </StackPanel>
+                            </GroupBox>
+
+                            <GroupBox Header="녹화 파일 전송 (Pi → WSL)" Padding="6" Margin="0,8,0,0"
+                                      DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+                                <StackPanel>
+                                    <TextBlock Foreground="Gray" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,4"
+                                               Text="WSL2 는 NAT 뒤에 있어 Pi 가 보낼 수 없으므로 WSL 이 ssh 별명으로 끌어옵니다(rsync). 쓰는 중인 *.part 는 건너뜁니다." />
+                                    <DockPanel Margin="0,0,0,4">
+                                        <TextBlock Text="WSL 폴더" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <TextBox Text="{Binding Wsl.RecordingsDir, UpdateSourceTrigger=LostFocus}"
+                                                 ToolTip="기본 ~/MyJob/projects/comanyLinux/ServoChapter/recordings — Windows 에서는 \\wsl.localhost\배포판\home\…" />
+                                    </DockPanel>
+                                    <CheckBox Content="녹화를 멈추거나 사진을 찍으면 바로 가져오기" IsChecked="{Binding AutoPullRecordings}" Margin="0,0,0,6"
+                                              ToolTip="끄면 Pi 에만 남고, [지금 가져오기] 나 감시 서비스가 가져옵니다" />
+                                    <UniformGrid Columns="2">
+                                        <Button Content="지금 가져오기" Command="{Binding Wsl.PullRecordingsCommand}" Margin="0,0,2,2" Padding="4,6"
+                                                ToolTip="pull_recordings.sh: Pi 의 ~/Videos/pi_display 에서 새 파일을 rsync 로" />
+                                        <Button Content="폴더 열기" Command="{Binding OpenRecordingsFolderCommand}" Margin="2,0,0,2" Padding="4,6"
+                                                ToolTip="WSL 의 녹화 폴더를 Windows 탐색기로 엽니다" />
+                                        <Button Content="감시 서비스 설치" Command="{Binding Wsl.InstallWatchCommand}" Margin="0,2,2,0" Padding="4,6"
+                                                ToolTip="watch_recordings.sh --install: WSL 의 systemd user 서비스로 30 초마다 가져오기 (WPF 가 꺼져 있어도, sudo 불필요)" />
+                                        <Button Content="감시 상태" Command="{Binding Wsl.WatchStatusCommand}" Margin="2,2,0,0" Padding="4,6"
+                                                ToolTip="watch_recordings.sh --status: 서비스 동작 여부와 최근 가져오기 기록 (결과는 WSL / Pi 관리 탭 로그)" />
+                                    </UniformGrid>
+                                    <v:ShrinkTextBlock Text="{Binding Wsl.LastPullSummary}" Foreground="#555" FontSize="12" MinFontSize="10" Margin="0,6,0,0" />
+                                </StackPanel>
+                            </GroupBox>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -363,7 +464,7 @@
                                 <Button Content="Pi 화면 배포" Command="{Binding RunDeployPiDisplayCommand}" Margin="0,0,2,0" Padding="4,8"
                                         ToolTip="pi_display(카메라 영상 + 이동 로그 프로그램)를 Pi 로 전송하고 모니터에 띄웁니다 (rsync → 실행 → 상태 확인)" />
                                 <Button Content="Pi 화면 배포(+apt) ↗" Command="{Binding OpenDeployPiDisplayTerminalCommand}" Margin="2,0,0,0" Padding="4,8"
-                                        ToolTip="처음 한 번: 필요한 패키지(PyQt5·picamera2·pigpio)를 apt 로 설치하고 자동 시작까지 등록합니다. sudo 비밀번호를 물을 수 있어 새 터미널 창에서 실행" />
+                                        ToolTip="처음 한 번: 필요한 패키지(PyQt5·picamera2·pigpio·ffmpeg·OpenCV·인식 모델)를 apt 로 설치하고 자동 시작까지 등록합니다. sudo 비밀번호를 물을 수 있어 새 터미널 창에서 실행" />
                             </UniformGrid>
                             <UniformGrid Columns="4" Margin="0,4,0,4">
                                 <Button Content="Pi 상태 확인" Command="{Binding CheckPiCommand}" Margin="0,0,2,0" Padding="4,8"

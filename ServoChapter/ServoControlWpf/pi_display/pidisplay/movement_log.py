@@ -22,7 +22,7 @@ from .servo_spec import ServoSpec
 @dataclass(frozen=True)
 class Entry:
     t: float            # time.time()
-    kind: str           # 'start' | 'move' | 'off' | 'on' | 'unknown'
+    kind: str           # 'start' | 'move' | 'off' | 'on' | 'unknown' | 'rec'(녹화·사진 등 이벤트, 내용은 note)
     pulse: int          # 지금 펄스 (0 = 꺼짐)
     angle: Optional[float]   # 지금 각도 (꺼짐이면 마지막 각도)
     delta: Optional[float]   # 이전 각도와의 차이 (move 일 때)
@@ -31,6 +31,8 @@ class Entry:
     def text(self) -> str:
         ts = time.strftime("%H:%M:%S", time.localtime(self.t)) + f".{int((self.t % 1) * 1000):03d}"
         ang = f"{self.angle:+.1f}°" if self.angle is not None else "?"
+        if self.kind == "rec":
+            return f"{ts}  {self.note}"
         if self.kind == "move":
             body = f"{self.pulse} µs  {ang}  Δ{self.delta:+.1f}°"
         elif self.kind == "off":
@@ -116,13 +118,37 @@ class MovementLog:
                 self._pending_note = ""
             self.entries.append(entry)
             self.total += 1
+        self._emit(entry)
+        return entry
+
+    def set_spec(self, spec: ServoSpec) -> Optional[Entry]:
+        """보정값 교체 (WPF 가 /servo/calib 로 맞춰 줌). 현재 각도를 새 공식으로 다시 계산하고 한 줄 남긴다. 같으면 None."""
+        with self._lock:
+            if spec == self.spec:
+                return None
+            self.spec = spec
+            if self._last_pulse:
+                self._last_angle = spec.pulse_to_angle(self._last_pulse)
+            angle = self._last_angle
+        return self.event(f"보정값 변경 → {spec}" + (f"  (지금 {angle:+.1f}°)" if angle is not None else ""))
+
+    def event(self, text: str, kind: str = "rec", t: Optional[float] = None) -> Entry:
+        """서보 변화가 아닌 사건(녹화 시작/끝, 사진, 디스크 정리)을 한 줄 남긴다."""
+        t = time.time() if t is None else t
+        with self._lock:
+            entry = Entry(t, kind, self._last_pulse or 0, self._last_angle, None, text.strip()[:200])
+            self.entries.append(entry)
+            self.total += 1
+        self._emit(entry)
+        return entry
+
+    def _emit(self, entry: Entry) -> None:
         self._append_file(entry.file_line())
         for cb in list(self._listeners):
             try:
                 cb(entry)
             except Exception:       # 리스너 하나의 오류가 로그 전체를 멈추지 않게
                 pass
-        return entry
 
     # ── 조회 ──
     def recent(self, n: int = 20) -> List[Entry]:

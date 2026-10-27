@@ -48,7 +48,7 @@
 
 <h1>ServoControlWpf 소스 코드 설명</h1>
 <div class="sub">클래스별 역할 · 서로 어떻게 협력하는가 · 어디를 고치면 되는가 — 소스를 처음 여는 사람을 위한 안내</div>
-<div class="meta">작성 정재현 (Claude Code 와 함께 작성) · 2026. 10. 26. ~ 27. · Rev. 1.2 (v1.2.1) · 함께 보는 문서: <i>ServoControlWpf 설계 과정과 운용 원리</i>(왜 이렇게 만들었나), 이 문서(코드가 어떻게 생겼나)</div>
+<div class="meta">작성 정재현 (Claude Code 와 함께 작성) · 2026. 10. 26. ~ 27. · Rev. 1.5 (v1.3.2) · 함께 보는 문서: <i>ServoControlWpf 설계 과정과 운용 원리</i>(왜 이렇게 만들었나), 이 문서(코드가 어떻게 생겼나)</div>
 
 <div class="box">
   <b class="t">이 문서를 읽는 법</b>
@@ -147,6 +147,7 @@
 <tr><td><code>Model\PigpioClient.cs</code></td><td class="c">118</td><td>pigpiod 의 <b>16바이트 TCP 규약</b>을 말하는 가장 낮은 층</td></tr>
 <tr><td><code>Model\RemotePigpioDriver.cs</code></td><td class="c">64</td><td>PigpioClient 를 써서 실제 서보를 움직이는 드라이버. 직접·터널·에뮬레이터 모두 이 클래스 하나</td></tr>
 <tr><td><code>Model\WslSshTunnel.cs</code></td><td class="c">158</td><td><code>wsl.exe -e ssh -L</code> 를 띄워 Pi 의 8888 포트를 127.0.0.1:18888 로 끌어오는 터널</td></tr>
+<tr><td><code>Model\AppSettings.cs</code> 추가 항목</td><td class="c">—</td><td>(v1.3.0) <code>RecordingsDir</code>(WSL 녹화 폴더) · <code>AutoPullRecordings</code> · <code>ResolvePiApiBase()</code></td></tr>
 <tr><td><code>Model\WslFakePi.cs</code></td><td class="c">150</td><td>(v1.2.0) 에뮬레이터 종류 "WSL 가짜 Pi": <code>wsl.exe --cd tools -e python3 fake_pigpiod.py</code> 를 띄우고 포트가 열릴 때까지 기다림. 이미 열려 있으면 재사용</td></tr>
 <tr><td><code>Model\ServoModel.cs</code></td><td class="c">99</td><td><b>현재 각도·출력 여부·사양을 기억하는 상태 관리자.</b> 바뀌면 <code>Changed</code> 이벤트</td></tr>
 <tr><td><code>Model\AppSettings.cs</code></td><td class="c">98</td><td>설정(주소·모드·보정값·위치 메모리)을 JSON 파일로 저장·복원</td></tr>
@@ -159,29 +160,31 @@
 <tr><td><code>Services\MjpegCameraSource.cs</code></td><td class="c">170</td><td>Pi 의 MJPEG 스트림을 받아 BGRA 로 디코드하는 네트워크 카메라 (재접속 포함)</td></tr>
 <tr><td><code>Services\CompositeCameraSource.cs</code></td><td class="c">75</td><td>웹캠 + 네트워크 카메라를 하나의 목록·하나의 소스로 묶음</td></tr>
 <tr><td><code>Services\AppVersion.cs</code></td><td class="c">25</td><td>어셈블리에 박힌 버전(VERSION 파일 → Directory.Build.props) 읽기</td></tr>
+<tr><td><code>Services\PiCameraApi.cs</code></td><td class="c">210</td><td>(v1.3.0) pi_display 의 HTTP API 클라이언트: 녹화 시작/정지·상태, 5 MP 사진, 카메라 설정 읽기/쓰기, 인식 켜기/끄기, status.json. 응답 모양 클래스 13개(snake_case JSON)</td></tr>
 <tr><td colspan="4" style="background:#eef3fb"><b>ViewModel — 통역</b></td></tr>
 <tr><td><code>ViewModel\ObservableObject.cs</code></td><td class="c">19</td><td>"값이 바뀌었다" 고 화면에 알리는 기능(<code>INotifyPropertyChanged</code>)의 밑바탕</td></tr>
 <tr><td><code>ViewModel\RelayCommand.cs</code></td><td class="c">21</td><td>버튼·단축키를 ViewModel 메서드에 묶는 <code>ICommand</code></td></tr>
 <tr><td><code>ViewModel\IDialogService.cs</code></td><td class="c">8</td><td>ViewModel 이 MessageBox 를 직접 부르지 않게 하는 작은 창구</td></tr>
 <tr><td><code>ViewModel\PresetSlot.cs</code></td><td class="c">27</td><td>위치 메모리 한 칸(P1~P4)</td></tr>
-<tr><td><code>ViewModel\MainViewModel.cs</code></td><td class="c">560</td><td><b>프로그램의 두뇌.</b> 연결(직접은 LAN 주소만 · 에뮬레이터 종류 2가지)·각도·펄스·스윕·메모리·보정·설정 저장을 모두 조율</td></tr>
-<tr><td><code>ViewModel\WslViewModel.cs</code></td><td class="c">236</td><td>"WSL / Pi 관리" 탭: 스크립트·ssh 실행과 로그</td></tr>
-<tr><td><code>ViewModel\CameraViewModel.cs</code></td><td class="c">230</td><td>왼쪽 위 "카메라 화면": 장치 콤보박스, 자동 시작, 정지/시작, 프레임 → 비트맵</td></tr>
+<tr><td><code>ViewModel\MainViewModel.cs</code></td><td class="c">620</td><td><b>프로그램의 두뇌.</b> 연결(직접은 LAN 주소만 · 에뮬레이터 종류 2가지)·각도·펄스·스윕·메모리·보정·설정 저장을 모두 조율. 녹화가 끝나면 WSL 가져오기를 시작(<code>AutoPullRecordings</code>)</td></tr>
+<tr><td><code>ViewModel\WslViewModel.cs</code></td><td class="c">320</td><td>"WSL / Pi 관리" 탭: 스크립트·ssh 실행과 로그. 녹화 가져오기(<code>pull_recordings.sh</code>)·감시 서비스(<code>watch_recordings.sh</code>) 명령</td></tr>
+<tr><td><code>ViewModel\CameraViewModel.cs</code></td><td class="c">560</td><td>왼쪽 위 "카메라 화면": 장치 콤보박스, 자동 시작, 정지/시작, 프레임 → 비트맵. Pi 카메라일 때 녹화·사진·설정·인식 조작과 1 초 상태 폴링</td></tr>
 <tr><td colspan="4" style="background:#fff7e6"><b>View — 눈에 보이는 것</b></td></tr>
 <tr><td><code>App.xaml(.cs)</code></td><td class="c">60</td><td>시작할 때 부품을 조립하고, 끝날 때 서보 출력을 끈다</td></tr>
-<tr><td><code>View\MainWindow.xaml(.cs)</code></td><td class="c">309+68</td><td>창 배치와 바인딩. 코드 비하인드는 전체화면·Enter·휠 같은 순수 화면 동작만</td></tr>
+<tr><td><code>View\MainWindow.xaml(.cs)</code></td><td class="c">420+68</td><td>창 배치와 바인딩(탭 3개: 서보 · Pi 카메라 · WSL / Pi 관리). 코드 비하인드는 전체화면·Enter·휠 같은 순수 화면 동작만</td></tr>
 <tr><td><code>View\ServoDial.cs</code></td><td class="c">236</td><td>직접 그린 원형 다이얼(노브). 드래그·휠·키보드·UI 자동화 지원</td></tr>
 <tr><td><code>View\ServoCameraView.cs</code></td><td class="c">285</td><td>서보에 올린 카메라를 위에서 본 그림. 연결됐을 때만 서보 속도로 회전. 상태 글은 폭에 맞춰 글꼴 축소(<code>FitText</code>)</td></tr>
 <tr><td><code>View\ShrinkTextBlock.cs</code></td><td class="c">110</td><td>(v1.2.1) 공간이 모자라면 글꼴을 자동으로 줄이고, 그래도 모자라면 … + 툴팁으로 보여 주는 한 줄 글 상자. 상단 정보 줄·상태 줄·카메라 상태에 사용</td></tr>
 <tr><td><code>View\DialogService.cs</code></td><td class="c">21</td><td>MessageBox · 폴더 선택 창 (IDialogService 구현)</td></tr>
 <tr><td colspan="4" style="background:#fdf0f0"><b>에뮬레이터 · 도구 · 테스트</b></td></tr>
-<tr><td><code>PigpioEmulator\PigpioEmulatorServer.cs</code></td><td class="c">182</td><td>가짜 pigpiod 라이브러리. 같은 16바이트 규약 + 서보 움직임 흉내</td></tr>
+<tr><td><code>PigpioEmulator\PigpioEmulatorServer.cs</code></td><td class="c">260</td><td>가짜 pigpiod 라이브러리. 같은 16바이트 규약 + 서보 움직임 흉내. 각도는 <code>Calibration</code>(WPF 보정값, CF1 로도 받음)으로 계산, 상태 파일에 함께 저장</td></tr>
+<tr><td><code>PigpioEmulator\ServoCalibration.cs</code></td><td class="c">75</td><td>(v1.3.1) 보정값 레코드 — 문자열 "600,1500,2400,-80,80" 파싱·생성, <code>PulseToAngle</code>, CF1(87) 패킹/언패킹 (p1=1 펄스 세 값, p1=2 각도×10 두 값)</td></tr>
 <tr><td><code>PigpioEmulatorCli\Program.cs</code></td><td class="c">62</td><td>가짜 pigpiod 콘솔 프로그램 <code>pigpio-emu</code></td></tr>
-<tr><td><code>tools\fake_pigpiod.py</code></td><td class="c">94</td><td>리눅스(WSL)에서 돌리는 가짜 pigpiod (파이썬 표준 라이브러리만). v1.2.0 부터 에뮬레이터 종류 "WSL 가짜 Pi" 가 앱에서 직접 띄움</td></tr>
+<tr><td><code>tools\fake_pigpiod.py</code></td><td class="c">190</td><td>리눅스(WSL)에서 돌리는 가짜 pigpiod (파이썬 표준 라이브러리만). v1.2.0 부터 에뮬레이터 종류 "WSL 가짜 Pi" 가 앱에서 직접 띄움. <code>--calib</code>·CF1 로 WPF 보정값을 받아 각도 표시(상태 파일에 저장), 포트 충돌 시 한글 안내</td></tr>
 <tr><td><code>run-from-wsl.sh</code> · <code>Directory.Build.targets</code></td><td class="c">45+12</td><td>WSL 셸에서 Windows 앱 띄우기 · 리눅스 dotnet 으로 WPF 빌드 시 한글 안내</td></tr>
 <tr><td><code>VERSION</code> · <code>CHANGELOG.md</code> · <code>Directory.Build.props</code> · <code>tools\bump-version.ps1</code>/<code>bump_version.sh</code></td><td class="c">—</td><td>버전 단일 진실, 변경 내역, 빌드에 버전 주입, 버전 올리기 스크립트</td></tr>
-<tr><td><code>pi_display\</code> (Python 13개 모듈 + 스크립트)</td><td class="c">~1300</td><td>Pi 모니터용 카메라 영상 + 서보 이동 로그 프로그램, MJPEG 서버, 배포 스크립트</td></tr>
-<tr><td><code>ServoControlWpf.Tests\*.cs</code> (17개)</td><td class="c">~2100</td><td>xUnit 테스트 137개 (+ Python 11개)</td></tr>
+<tr><td><code>pi_display\</code> (Python 18개 모듈 + 스크립트 4개)</td><td class="c">~2400</td><td>Pi 모니터용 카메라 영상 + 서보 이동 로그 프로그램, MJPEG 서버 + 녹화·사진·설정·인식 API, 녹화기(H.264/AVI), 인식기, 배포·전송(pull/watch) 스크립트</td></tr>
+<tr><td><code>ServoControlWpf.Tests\*.cs</code> (20개)</td><td class="c">~3000</td><td>xUnit 테스트 200개 (+ Python 42개)</td></tr>
 </table>
 
 <!-- ═══════════════════════════════ 3 ═══════════════════════════════ -->
@@ -390,8 +393,23 @@
 <div class="h">CompositeCameraSource <span class="f">Services\CompositeCameraSource.cs · ICameraSource</span> &nbsp;·&nbsp; AppVersion <span class="f">Services\AppVersion.cs</span></div>
 <ul>
 <li><b>CompositeCameraSource(local, network)</b> — 목록은 local + network 를 합치되 <b>local 이 실패(권한 없음)해도 network 항목은 넣음</b>. <code>StartAsync(id)</code> 는 ID 가 <code>mjpeg:</code> 로 시작하면 network, 아니면 local 로 보내고 반대쪽은 먼저 멈춤. <code>FrameArrived</code> 는 활성 쪽만 통과. 덕분에 <code>CameraViewModel</code> 은 소스가 둘인지 모른 채 그대로 동작(<code>App</code> 조립에서만 바뀜).</li>
-<li><b>AppVersion</b> — <code>AssemblyInformationalVersionAttribute</code> 에서 "1.1.0" 을 읽는다(<code>Directory.Build.props</code> 가 <code>VERSION</code> 파일을 읽어 박아 둠). <code>MainViewModel.Title</code>·<code>VersionText</code> 가 사용.</li>
+<li><b>AppVersion</b> — <code>AssemblyInformationalVersionAttribute</code> 에서 "1.3.0" 을 읽는다(<code>Directory.Build.props</code> 가 <code>VERSION</code> 파일을 읽어 박아 둠). <code>MainViewModel.Title</code>·<code>VersionText</code> 가 사용.</li>
 </ul>
+</div>
+
+<div class="cls">
+<div class="h">PiCameraApi <span class="f">Services\PiCameraApi.cs · v1.3.0</span></div>
+<div class="one"><span class="role">역할:</span> pi_display 의 HTTP API(스트림과 같은 주소 <code>http://&lt;Pi&gt;:8889</code>)로 녹화·사진·카메라 설정·인식을 조작하고 상태를 읽는다. <code>CameraViewModel</code> 만 쓴다.</div>
+<p><b>쉽게 말하면</b> "Pi 에게 녹화 시작해/멈춰/사진 찍어/밝기 올려 라고 말하고 대답(JSON)을 C# 객체로 바꿔 주는 전화기" 입니다.</p>
+<table>
+<tr><th style="width:36%">멤버</th><th>하는 일</th></tr>
+<tr><td><code>PiCameraApi(Func&lt;string&gt; baseUrlProvider)</code> · <code>BaseUrl</code> · <code>BaseFromStreamUrl(url)</code></td><td>주소는 호출 때마다 받음(스트림 URL <code>…/stream.mjpg</code> 를 주면 경로를 떼어 <code>http://host:port</code>). 잘못된 값이면 빈 문자열 → 호출 시 <code>CameraException</code></td></tr>
+<tr><td><code>RecordStartAsync · RecordStopAsync · RecordStatusAsync · ListRecordingsAsync · SnapshotSaveAsync</code></td><td><code>POST /record/start|stop</code>, <code>GET /record/status</code>, <code>/recordings.json</code>, <code>POST /snapshot/save</code> → <code>PiRecordStatus</code>(recording·file·seconds·bytes·disk) / <code>PiRecordResult</code>(name·bytes·seconds·frames·kind·reason) / <code>PiSnapshotResult</code>(2592×1944 등)</td></tr>
+<tr><td><code>GetSettingsAsync · SetSettingsAsync(partial)</code></td><td><code>GET/POST /camera/settings</code>. 바꿀 키만 사전으로(<code>record_mode · hflip · vflip · brightness · contrast · saturation · awb</code>) → <code>PiSettingsApplyResult</code>(확정값·restarted·applied)</td></tr>
+<tr><td><code>DetectSetAsync(on) · DetectStatusAsync · StatusAsync</code></td><td><code>POST /detect/on|off</code>, <code>GET /detect/status</code>, <code>GET /status.json</code>(→ <code>PiStatus</code>: record · detect · settings 블록)</td></tr>
+<tr><td>오류 처리</td><td>연결 실패·5 초 시간 초과 → "Pi 카메라 서버(…)에 연결할 수 없습니다"; 4xx/5xx 는 서버의 <code>{"error": "…"}</code> 글을 그대로 + "(HTTP 409)" 처럼 코드. 모두 <code>CameraException</code> 하나로 통일해 화면은 메시지 한 줄만 보여 줌</td></tr>
+</table>
+<p><b>주의:</b> 본문은 <code>StringContent</code>(JSON 문자열)로 보냅니다. <code>JsonContent</code> 는 chunked 전송이 될 수 있는데 Pi 의 <code>BaseHTTPRequestHandler</code> 는 <code>Content-Length</code> 만 읽어 빈 본문으로 받습니다(테스트에서 발견). JSON 은 <code>JsonNamingPolicy.SnakeCaseLower</code> 로 Python 쪽 이름과 1:1.</p>
 </div>
 
 <!-- ═══════════════════════════════ 5 ═══════════════════════════════ -->
@@ -441,6 +459,7 @@
 <tr><td><code>ToggleSweepCommand</code></td><td>20 ms 타이머로 <code>angle += 방향 × 속도 × 0.02</code>, 끝에서 방향 반전. 손으로 조작하면 자동 정지</td></tr>
 <tr><td><code>PresetRecall/Store(i)</code></td><td>메모리 이동/저장(저장 즉시 <code>AppSettings.Save</code>)</td></tr>
 <tr><td><code>ApplySpec · ApplyOfficial · ApplyExtended</code></td><td>보정값 적용. 확장값은 먼저 <code>Confirm</code> 경고. 실패하면 입력칸을 실제 적용값으로 되돌림</td></tr>
+<tr><td><code>CalGpio · CalUsPerDeg · CalNeutralPulse · CalMinAngle/CalMinPulse · CalMaxAngle/CalMaxPulse · CalLinkText</code> (v1.3.2)</td><td>보정 입력칸. 각도 ↔ 펄스가 기울기(<code>CalUsPerDeg</code>, 1° 당 µs)로 묶여 setter 에서 짝이 되는 칸을 <code>Link()</code> 로 따라 바꿈(<code>PulseFor</code>/<code>AngleFor</code>; 중립·기울기는 각도를 지키며 양쪽 펄스 재계산; <code>_calLinking</code> 으로 되돌이 방지). <code>SetCalibration(spec)</code> 은 연동 없이 모델 값을 넣고 기울기를 + 쪽에서 구함. <code>CalLinkText</code> 는 "펄스 = 1500 + 각도 × 10 µs/° → …" 요약</td></tr>
 </table>
 <h4>핵심 내부 메서드</h4>
 <table>
@@ -451,7 +470,8 @@
 <tr><td><code>StartEmulatorDriver()</code> · <code>EmulatorFallbackPort</code></td><td>앱 안에 <code>PigpioEmulatorServer("127.0.0.1", Port)</code> 를 <b>처음 한 번</b> 띄워 <code>_emuServer</code> 에 보관하고, 실제와 똑같은 <code>RemotePigpioDriver</code> 로 접속. 포트가 이미 쓰이면(예: WSL 의 fake_pigpiod → wslrelay) 빈 포트로 다시 띄우고 <code>EmulatorFallbackPort</code> 에 적어 상단·상태 줄에 알림. 서버는 연결 해제 뒤에도 살아 있어 실제 pigpiod 처럼 펄스·위치를 기억(창을 닫을 때 종료). <code>CommandReceived</code> 를 UI 스레드로 넘겨 <code>EmulatorText</code> 갱신</td></tr>
 <tr><td><code>StartWslFakePiDriverAsync()</code> · <code>_wslFakePi</code> (v1.2.0)</td><td>에뮬레이터 종류 "WSL 가짜 Pi": <code>WslFakePi.OpenAsync(Wsl.Distro, Port)</code> 로 WSL 에 fake_pigpiod.py 를 띄우거나(이미 열려 있으면 재사용) 그 뒤 <code>RemotePigpioDriver("127.0.0.1", Port, null, …)</code> 로 접속. 프로세스는 <code>_wslFakePi</code> 에 보관해 해제 뒤에도 유지, 포트를 바꾸면 새로. stdout 한 줄마다 <code>EmulatorText = "WSL 가짜 Pi: …"</code>. 해제 중 <code>WslFakePiMemoryText()</code> 가 GPW 로 "기억 중" 표시</td></tr>
 <tr><td><code>KeepOutputOnDisconnect</code> · <code>OnDisconnect()</code></td><td>"연결 해제 시 서보 출력 유지" 체크박스(설정 저장). 켜져 있고 출력 중이면 <code>SetDriver(sim, releaseOld:false)</code> 로 접속만 끊고 "서보는 마지막 위치 −20.0° (1300 µs)를 유지합니다" 안내. 에뮬레이터 모드면 <code>EmulatorMemoryText()</code> 로 "가짜 Pi 기억 중: …" 표시</td></tr>
-<tr><td><code>Shutdown()</code></td><td>창 닫을 때: 스윕 정지 → 설정 저장(<code>LastDrivenAngle</code> 포함) → WSL 작업 취소 → <code>model.Dispose(releaseOutput: !keep)</code>(옵션이 꺼져 있을 때만 펄스 0, 터널 종료) → <code>_emuServer.Dispose()</code>(상태 파일 저장) → <code>_wslFakePi.Dispose()</code>(앱이 띄운 WSL fake_pigpiod.py 종료)</td></tr>
+<tr><td><code>AutoPullRecordings</code> · <code>OnPiFileSaved(name)</code> · <code>OpenRecordingsFolderCommand</code> (v1.3.0)</td><td><code>Camera.PiFileSaved</code>(녹화 끝·사진 저장)를 받아 옵션이 켜져 있으면 <code>Wsl.PullRecordingsAsync()</code> 를 돌리고 결과("전송 완료: rec_….avi → ~/…/recordings (새 파일 1개)" / 실패·WSL 작업 중 안내)를 카메라 결과 줄·상태 바·<code>LastTransferText</code> 에. [폴더 열기] 는 <code>Wsl.ToWindowsPathAsync</code>(wslpath -w) → <code>explorer.exe</code></td></tr>
+<tr><td><code>Shutdown()</code></td><td>창 닫을 때: 스윕 정지 → 설정 저장(<code>LastDrivenAngle</code> 포함) → WSL 작업 취소 → 녹화 중이면 정지 전송(최대 2 초, 가져오기는 감시 서비스에) → <code>model.Dispose(releaseOutput: !keep)</code>(옵션이 꺼져 있을 때만 펄스 0, 터널 종료) → <code>_emuServer.Dispose()</code>(상태 파일 저장) → <code>_wslFakePi.Dispose()</code>(앱이 띄운 WSL fake_pigpiod.py 종료)</td></tr>
 </table>
 <p><b>주의:</b> 서보 명령은 <b>동기</b>(1.5초 타임아웃)로 단순하게 두었습니다. 비동기는 연결 과정(터널 대기)에만 씁니다. <code>catch (Exception)</code> 으로 예상 못 한 오류까지 잡아 "연결 중 예상하지 못한 오류" 창으로 보여 주므로 앱이 조용히 멈추지 않습니다.</p>
 </div>
@@ -466,6 +486,8 @@
 <tr><td><code>RunPiInfoCommand</code></td><td><code>tools\pi\pi_info.sh</code> 를 인라인 실행(끝나면 <code>pi_info.txt</code> 내용 표시)</td></tr>
 <tr><td><code>OpenSetupTerminalCommand</code> [pi_setup.sh ↗]</td><td>sudo 가 필요하므로 <b>새 터미널 창</b>에서</td></tr>
 <tr><td><code>RunSshCommand</code> · <code>CancelCommand</code> · <code>ClearLogCommand</code> · <code>BrowseScriptDirCommand</code></td><td>자유 ssh 명령 · 실행 취소 · 로그 지우기 · 폴더 선택</td></tr>
+<tr><td><code>PullRecordingsCommand</code> · <code>PullRecordingsAsync()</code> · <code>ParsePulled(lines)</code> (v1.3.0)</td><td><code>pi_display/pull_recordings.sh &lt;ssh별명&gt; &lt;RecordingsDir&gt;</code> 를 같은 실행기로 돌리고 출력의 마지막 "PULLED n" 을 읽어 (성공, n) 을 돌려줌. <code>LastPullSummary</code> = "새 파일 1개 → ~/…/recordings". 다른 작업이 돌고 있으면 (false, −1)</td></tr>
+<tr><td><code>InstallWatchCommand</code> · <code>WatchStatusCommand</code> · <code>RecordingsDir</code> · <code>ToWindowsPathAsync(wslPath)</code></td><td><code>watch_recordings.sh --install / --status</code> · 녹화 폴더(설정 저장, 비우면 기본값) · <code>wslpath -w</code> 로 WSL 경로를 <code>\\wsl.localhost\…</code> 로 (폴더 열기용)</td></tr>
 </table>
 <p><b>핵심 메서드 <code>RunGuardedAsync</code>:</b> 모든 실행을 감싸서 "실행 중" 표시(버튼 잠금), 취소 토큰, 종료 코드·실패·취소 로그를 한곳에서 처리합니다. 출력 줄은 백그라운드 스레드에서 오므로 <code>SynchronizationContext.Post</code> 로 UI 스레드에 넘겨 <code>Log</code> 에 붙입니다(2000줄 넘으면 앞을 버림).
 <b>주의:</b> 스크립트 폴더가 <code>/</code> 나 <code>~</code> 로 시작하면 WSL 내부 경로로 보고 존재 여부를 Windows 에서 확인하지 않습니다.</p>
@@ -481,6 +503,14 @@
 <tr><td><code>IsRunning · IsBusy · StatusText · OverlayText · ToggleText</code></td><td>상태. <code>OverlayText</code> 는 영상이 없을 때 검은 화면 가운데 안내(권한·오류·꺼짐)</td></tr>
 <tr><td><code>RefreshCommand</code> · <code>ToggleCommand</code></td><td>목록 다시 읽기 · 정지/시작</td></tr>
 <tr><td><code>OnFrame</code> → <code>Render</code></td><td>백그라운드 프레임을 <code>SynchronizationContext.Post</code> 로 UI 스레드에 넘김. <code>_pending</code> 플래그로 UI 가 바쁘면 프레임을 버림(밀림 방지)</td></tr>
+<tr><td colspan="2" style="background:#eef3fb"><b>Pi 카메라 조작 (v1.3.0, 생성자에 <code>PiCameraApi</code> 가 주어졌을 때만)</b></td></tr>
+<tr><td><code>IsPiPanelVisible</code> · <code>CanControlPi</code> · <code>IsPiBusy</code></td><td>네트워크 카메라를 골랐으면 버튼·탭 내용 표시 / 영상 수신 중이어야 명령 가능 / 요청이 Pi 에 가 있는 동안 버튼 잠금</td></tr>
+<tr><td><code>RecordCommand</code> · <code>IsRecording</code> · <code>RecordText</code> · <code>RecordInfoText</code> · <code>PiFileSaved</code></td><td>[● 녹화] ↔ [■ 정지 00:01:23 · 12 MB]. 정지 응답(또는 Pi 가 스스로 멈춘 것을 폴링이 감지)으로 "녹화 저장: …" 을 적고 <code>PiFileSaved(파일 이름)</code> 이벤트 → <code>MainViewModel</code> 이 가져오기. <code>SetTransferResult(text)</code> 로 전송 결과를 같은 줄에</td></tr>
+<tr><td><code>SnapshotCommand</code></td><td><code>POST /snapshot/save</code> → "사진 저장: img_….jpg · 2592×1944 · 1.0 MB" + <code>PiFileSaved</code></td></tr>
+<tr><td><code>RecordMode · Hflip · Vflip · Brightness · Contrast · Saturation · Awb</code> · <code>RecordModes · AwbModes</code> · <code>PiSettingsInfo</code></td><td>탭 "Pi 카메라" 의 바인딩. setter 가 <code>Queue(key, value)</code> 로 모아 <code>SettingsDebounceMs</code>(300) 뒤 한 번에 <code>SetSettingsAsync</code>(바뀐 키만). 응답 확정값을 <code>LoadSettings</code> 로 넣을 때는 <code>_applyingRemote</code> 로 다시 보내지 않음. 첫 폴링에서 서버 값을 한 번 읽어 옴(<code>_settingsLoaded</code>)</td></tr>
+<tr><td><code>IsDetectOn</code> · <code>DetectText</code></td><td>체크 → <code>DetectSetAsync</code>. 실패(OpenCV 없음 501)면 체크를 되돌리고 "인식 오류: …". 폴링이 "인식: 사람 1 · 의자 2 (MobileNet-SSD 4.1 fps, 120 ms)" 갱신</td></tr>
+<tr><td><code>StartPiPolling / StopPiPolling</code> · <code>PollLoopAsync</code> · <code>ApplyStatus(PiStatus)</code></td><td>네트워크 카메라 수신 중 <code>PollIntervalMs</code>(1000)마다 <code>status.json</code> → record(시간·용량·끝남 감지)·detect·settings 반영. 카메라를 바꾸거나 멈추면 중단하고 녹화 표시 해제. <code>ApplyStatus</code> 는 테스트가 직접 부를 수 있음</td></tr>
+<tr><td><code>StopRecordingIfAnyAsync(timeout)</code></td><td>창을 닫을 때 녹화 중이면 정지만 보냄(파일이 닫히게)</td></tr>
 </table>
 <p><b>주의:</b> 설정 저장은 <code>AppSettings.Save()</code> 를 거치므로 테스트는 반드시 <code>AppSettings.InMemory()</code> 를 써야 합니다(실제 설정 파일을 덮어쓴 사고가 있었음).</p>
 </div>
@@ -567,7 +597,8 @@ window.Closed += (_, _) => ShutdownOnce();      // 창 닫힘 → 펄스 0, 터�
 <h2 class="pb">7. 에뮬레이터와 도구 — Pi 없이 돌리기</h2>
 
 <div class="cls">
-<div class="h">PigpioEmulatorServer <span class="f">PigpioEmulator\PigpioEmulatorServer.cs · 별도 라이브러리 프로젝트</span></div>
+<div class="h">PigpioEmulatorServer <span class="f">PigpioEmulator\PigpioEmulatorServer.cs · 별도 라이브러리 프로젝트</span> &nbsp;·&nbsp; ServoCalibration <span class="f">PigpioEmulator\ServoCalibration.cs · v1.3.1</span></div>
+<p><b>보정값(v1.3.1):</b> 실제 pigpiod 처럼 서버는 펄스만 기억하고, "흉내 낸 각도" 와 명령 설명의 각도는 <code>Calibration</code>(<code>ServoCalibration</code> 레코드, 기본 HS-311 공식값)으로 계산합니다. WPF 는 서버를 띄울 때와 보정 [적용] 때 <code>SetCalibration(spec.ToCalibration())</code> 을 부르고(기억 중인 각도를 새 공식으로 다시 계산, 상태 파일 <code>{"Calib":…,"Gpios":{…}}</code> 에 저장 — 옛 사전 모양 파일도 읽음), 네트워크 너머의 가짜 Pi 에는 pigpio 사용자 명령 <b>CF1(87)</b> 두 번(<code>PigpioClient.SendCalibration</code>: p1=1 펄스 <code>min | neutral&lt;&lt;16</code>, <code>max</code> / p1=2 각도×10 int32 두 개)으로 같은 값을 보냅니다. 잘못된 값은 −7 로 거부하고 이전 값을 지킵니다.</p>
 <div class="one"><span class="role">역할:</span> <b>가짜 pigpiod.</b> 실제와 같은 16바이트 규약으로 응답하므로 WPF 와 pi_display 는 진짜 Pi 인지 가짜인지 구별하지 못한다. 포트가 이미 쓰이면 <code>MainViewModel</code> 이 빈 포트(0)로 다시 띄워 임시 포트를 쓴다.</div>
 <p><b>쉽게 말하면</b> 운전 연습용 시뮬레이터입니다. TCP·바이트 열·오류 처리 경로를 실제와 똑같이 밟되, 끝에 서보 대신 숫자만 바뀝니다.</p>
 <table>
@@ -602,38 +633,47 @@ window.Closed += (_, _) => ShutdownOnce();      // 창 닫힘 → 펄스 0, 터�
 
 <div class="cls">
 <div class="h">pi_display <span class="f">pi_display\ · Python 3 (Pi 에서 실행, WSL 에서도 --fake-camera 로)</span></div>
-<div class="one"><span class="role">역할:</span> Pi 모니터에 카메라 영상과 서보(카메라 팬) 이동 로그를 띄우고, 같은 영상을 HTTP MJPEG 로 WPF 에 보낸다.</div>
+<div class="one"><span class="role">역할:</span> Pi 모니터에 카메라 영상과 서보(카메라 팬) 이동 로그를 띄우고, 같은 영상을 HTTP MJPEG 로 WPF 에 보내며, WPF 의 HTTP 요청으로 녹화·5 MP 사진·카메라 설정·OpenCV 인식을 한다.</div>
 <table>
 <tr><th style="width:30%">모듈</th><th>하는 일</th></tr>
-<tr><td><code>pi_display.py</code></td><td>진입점. 플래그 파싱 → 로그·허브·폴러·카메라·메모 수신·HTTP 서버 조립 → PyQt5 화면(없으면 <code>--no-gui</code> 로 자동 전환)</td></tr>
-<tr><td><code>pidisplay/servo_spec.py</code></td><td>펄스 ↔ 각도. C# <code>ServoSpec</code> 과 같은 공식. <code>--calib</code> 로 WPF 보정값과 맞춤</td></tr>
+<tr><td><code>pi_display.py</code></td><td>진입점. 플래그 파싱 → 로그·허브·폴러·<code>CameraManager</code>(카메라 + 설정)·<code>Recorder</code>·<code>Detector</code>·메모 수신·HTTP 서버 조립 → PyQt5 화면(없으면 <code>--no-gui</code> 로 자동 전환). 녹화 관련 플래그 <code>--rec-dir --rec-max-minutes --rec-max-gb --rec-bitrate --no-record</code>, 인식 <code>--detect --detect-every --detect-conf --model-dir --no-detect</code>, <code>--record-mode --camera-settings</code></td></tr>
+<tr><td><code>pidisplay/recorder.py</code> (v1.3.0)</td><td><code>Recorder(hub, backend, rec_dir, …)</code>: <code>start()</code> 는 백엔드의 <code>record_capable</code> 에 따라 <b>h264</b>(picamera2 <code>start_encoder(H264Encoder, FfmpegOutput|FileOutput, name="main")</code>) 또는 <b>mjpeg-avi</b>(허브의 JPEG 를 <code>AviMjpegWriter</code> 로) — 파일은 <code>.part</code> 로 열어 <code>stop()</code> 때 최종 이름. <code>status() · list() · path_of(name)</code>(경로 탈출 금지) · <code>snapshot()</code>(백엔드 <code>capture_still</code>, 없으면 미리보기 한 장). 시간 제한 감시 스레드, 디스크 가드(<code>max_gb</code> 초과 시 오래된 것 삭제, 여유 &lt; 500 MB 면 507). 사건은 <code>on_event</code> → <code>MovementLog.event</code></td></tr>
+<tr><td><code>pidisplay/avi_writer.py</code> (v1.3.0)</td><td>순수 Python AVI(MJPG) 기록기 — RIFF <code>hdrl(avih·strh·strf) · movi(00dc…) · idx1</code>. 홀수 길이 패딩, 닫을 때 길이·프레임 수·측정 fps 역기입, 10 프레임마다 flush. <code>read_avi_info(path)</code> 는 검증용 헤더 읽기</td></tr>
+<tr><td><code>pidisplay/camera_settings.py</code> (v1.3.0)</td><td><code>CameraSettings</code>(record_mode · hflip · vflip · brightness · contrast · saturation · awb; 범위 자르기·검증, <code>~/.config/pi_display/camera.json</code> 저장) + <code>CameraManager</code>(백엔드 열기, <code>apply(partial)</code> — 즉시 적용 값은 <code>set_controls</code>, 모드·반전은 닫고 다시 열기, 녹화 중이면 409, <code>describe()</code>)</td></tr>
+<tr><td><code>pidisplay/detector.py</code> (v1.3.0)</td><td><code>Detector</code>: <code>OpenCvEngine</code>(MobileNet-SSD 가 있으면 <code>cv2.dnn</code>, 없으면 HOG 사람 검출) 또는 <code>FakeEngine</code>(테스트). <code>annotate(jpeg)</code> 가 <code>FrameHub</code> 필터로 꽂혀 every 장마다 원본을 작업 스레드(큐 깊이 1)에 넘기고 최근 박스를 그려 돌려줌. <code>status()</code>: available·enabled·model·fps·objects·summary("사람 1 · 의자 2"). OpenCV 없으면 <code>available=false</code>, 켜기 요청은 501</td></tr>
+<tr><td><code>pidisplay/errors.py</code></td><td><code>ApiError(message, code)</code> — 서버가 그대로 HTTP 상태 코드 + <code>{"error":…}</code> 로 바꿈</td></tr>
+<tr><td><code>pidisplay/servo_spec.py</code></td><td>펄스 ↔ 각도. C# <code>ServoSpec</code> 과 같은 공식·같은 문자열(<code>parse</code>/<code>to_calib</code>). 보정값은 <code>--calib</code> &gt; 저장 파일 <code>~/.config/pi_display/servo.json</code>(WPF 가 <code>POST /servo/calib</code> 로 보낸 것) &gt; 공식값. <code>MovementLog.set_spec</code> 이 바꾸고 "보정값 변경" 줄을 남김</td></tr>
 <tr><td><code>pidisplay/servo_poller.py</code></td><td>50 ms 마다 GPW(84). <code>pigpio</code> 모듈이 있으면 그것, 없으면 표준 소켓으로 16바이트 규약 직접. −93 = 알 수 없음, 끊기면 2초마다 재접속</td></tr>
-<tr><td><code>pidisplay/movement_log.py</code></td><td>펄스가 <b>바뀔 때만</b> 기록(start/move/off/on/unknown), 메모리 500개 + 파일(5 MB 회전), 리스너로 화면·stdout 에 전달, 1초 안의 메모 부착</td></tr>
-<tr><td><code>pidisplay/frame_hub.py</code></td><td>최신 JPEG 1장 + Condition. 서버·화면이 함께 읽고 밀린 프레임은 버림. fps 계산</td></tr>
-<tr><td><code>pidisplay/camera/</code></td><td><code>select_backend("auto")</code> = picamera2 → libcamera-vid → picamera → opencv 순 시도. <code>fake</code> 는 테스트 패턴(PIL 없으면 내장 JPEG 2장). 모든 백엔드는 <code>hub.publish(jpeg)</code> 만 하면 됨</td></tr>
-<tr><td><code>pidisplay/mjpeg_server.py</code></td><td>stdlib <code>ThreadingHTTPServer</code>: <code>/stream.mjpg</code>(파트마다 Content-Length) <code>/snapshot.jpg</code> <code>/status.json</code> <code>/log.txt</code> <code>/</code>. 클라이언트 수 집계</td></tr>
+<tr><td><code>pidisplay/movement_log.py</code></td><td>펄스가 <b>바뀔 때만</b> 기록(start/move/off/on/unknown), 메모리 500개 + 파일(5 MB 회전), 리스너로 화면·stdout 에 전달, 1초 안의 메모 부착. <code>event(text)</code> 는 녹화 시작/끝·사진·디스크 정리를 같은 줄(<code>kind="rec"</code>)로</td></tr>
+<tr><td><code>pidisplay/frame_hub.py</code></td><td>최신 JPEG 1장 + Condition. 서버·화면이 함께 읽고 밀린 프레임은 버림. fps 계산. <code>set_filter(fn)</code> — 보관 직전에 프레임을 바꾸는 한 칸(인식 박스 그리기)</td></tr>
+<tr><td><code>pidisplay/camera/</code></td><td><code>select_backend("auto")</code> = picamera2 → libcamera-vid → picamera → opencv 순 시도. <code>fake</code> 는 테스트 패턴(PIL 없으면 내장 JPEG 2장). 모든 백엔드는 <code>hub.publish(jpeg)</code> 만 하면 됨. 선택 기능(기본은 없음): <code>record_capable</code>("h264"|"mjpeg-avi") · <code>camera</code> · <code>set_controls(dict)</code> · <code>capture_still(path)</code>. <b>picamera2 백엔드</b>는 main(녹화 모드 크기)+lores(미리보기) 두 스트림, lores 에 MJPEGEncoder(하드웨어, 실패 시 JpegEncoder → 단일 스트림), 미리보기는 녹화 fps 에서 k 장마다 1장, 5 MP 정지는 <code>switch_mode_and_capture_file</code></td></tr>
+<tr><td><code>pidisplay/mjpeg_server.py</code></td><td>stdlib <code>ThreadingHTTPServer</code>: GET <code>/stream.mjpg</code>(파트마다 Content-Length) <code>/snapshot.jpg</code> <code>/status.json</code>(record·detect·settings 블록 포함) <code>/log.txt</code> <code>/</code> <code>/record/status</code> <code>/recordings.json</code> <code>/recordings/&lt;name&gt;</code> <code>/camera/settings</code> <code>/detect/status</code> <code>/servo/calib</code>; POST <code>/record/start|stop</code> <code>/snapshot/save</code> <code>/camera/settings</code> <code>/detect/on|off|config</code> <code>/servo/calib</code>. 본문은 JSON 또는 쿼리, 오류는 <code>ApiError</code> → <code>{"error":…}</code>. <code>ServerContext</code> 에 recorder·detector·camera 를 넣으면 기능이 켜지고, 없으면 501</td></tr>
 <tr><td><code>pidisplay/note_listener.py</code></td><td>UDP 8890 으로 온 "WPF +20.0° 1700us" 를 다음 로그 줄에 붙임(선택)</td></tr>
-<tr><td><code>pidisplay/ui_qt.py</code></td><td>PyQt5 800×480: 왼쪽 영상(100 ms 타이머), 오른쪽 로그(최신 위, 꺼짐 회색·큰 이동 주황), 상단 현재 각도·URL, 하단 상태줄. ESC 종료, F11 전체 화면</td></tr>
-<tr><td><code>deploy_pi_display.sh</code> · <code>install_pi_deps.sh</code> · <code>*.in</code></td><td>rsync → (apt) → <code>DISPLAY=:0 nohup python3 pi_display.py --fullscreen</code> → status.json 확인. 사용자 이름은 <code>ssh rpi 'echo $USER:$HOME'</code> 로 알아내 템플릿(<code>@USER@ @HOME@</code>)에 치환. 자동 시작은 <code>~/.config/autostart/*.desktop</code>(화면) 또는 systemd(서버만)</td></tr>
-<tr><td><code>tests/</code></td><td>servo_spec · movement_log · mjpeg_server 단위 테스트 11개 (<code>python3 -m unittest discover -s pi_display/tests</code>)</td></tr>
+<tr><td><code>pidisplay/ui_qt.py</code></td><td>PyQt5 800×480: 왼쪽 영상(100 ms 타이머), 오른쪽 로그(최신 위, 꺼짐 회색·큰 이동 주황·녹화 빨강), 상단 현재 각도·"● REC 00:01:23 · 12 MB"·URL, 하단 상태줄(+ 인식 요약). ESC 종료, F11 전체 화면</td></tr>
+<tr><td><code>deploy_pi_display.sh</code> · <code>install_pi_deps.sh</code> · <code>*.in</code></td><td>rsync → (apt: PyQt5·pigpio·PIL·picamera2·<b>ffmpeg·python3-opencv</b> + MobileNet-SSD 모델 내려받기, <code>--no-models</code>) → <code>DISPLAY=:0 nohup python3 pi_display.py --fullscreen</code> → status.json 확인. 사용자 이름은 <code>ssh rpi 'echo $USER:$HOME'</code> 로 알아내 템플릿(<code>@USER@ @HOME@</code>)에 치환. 자동 시작은 <code>~/.config/autostart/*.desktop</code>(화면) 또는 systemd(서버만)</td></tr>
+<tr><td><code>pull_recordings.sh</code> · <code>watch_recordings.sh</code> (v1.3.0)</td><td>WSL 에서 실행. pull: <code>rsync -a --partial --exclude '*.part' rpi:~/Videos/pi_display/ 목적지/</code>, 받은 파일 출력 + 마지막 줄 <code>PULLED n</code> + <code>pull.log</code>; 별명 <code>local:/경로</code> 또는 <code>--src</code> 는 ssh 없이 로컬 복사(시험). watch: 주기 루프, <code>--install</code> 로 systemd user 서비스 <code>pi-recordings-watch.service</code>(없으면 nohup), <code>--status/--uninstall/--once</code></td></tr>
+<tr><td><code>tests/</code></td><td>servo_spec · movement_log · mjpeg_server(16) · avi_writer(4) · recorder(8) · camera_settings(7) · detector(3) 단위 테스트 42개 (<code>python3 -m unittest discover -s pi_display/tests</code>)</td></tr>
 </table>
-<p><b>주의:</b> Python 3.9(Bullseye) 호환 문법만 사용. 카메라 외의 모든 것이 표준 라이브러리라 WSL 에서 그대로 돌아간다. Pi 에서 PyQt5·picamera2 는 <code>install_pi_deps.sh</code> 가 apt 로 설치.</p>
+<p><b>주의:</b> Python 3.9(Bullseye) 호환 문법만 사용. 카메라·OpenCV 외의 모든 것이 표준 라이브러리라 WSL 에서 그대로 돌아간다(녹화는 AVI 경로, 인식은 "불가"). Pi 에서 PyQt5·picamera2·ffmpeg·OpenCV 는 <code>install_pi_deps.sh</code> 가 apt 로 설치. <code>Recorder</code> 에는 현재 백엔드를 비추는 프록시를 넘겨 설정 변경으로 카메라가 다시 열려도 최신 백엔드를 본다.</p>
 </div>
 
 <!-- ═══════════════════════════════ 8 ═══════════════════════════════ -->
 <h2 class="pb">8. 테스트 프로젝트 — 무엇을 지키는가</h2>
-<p><code>ServoControlWpf.Tests</code>(xUnit, 137개) + <code>pi_display/tests</code>(Python, 11개). 테스트는 "이 규칙이 깨지면 알려 달라" 는 약속입니다. 각 파일이 지키는 규칙을 적었습니다.</p>
+<p><code>ServoControlWpf.Tests</code>(xUnit, 218개) + <code>pi_display/tests</code>(Python, 44개). 테스트는 "이 규칙이 깨지면 알려 달라" 는 약속입니다. 각 파일이 지키는 규칙을 적었습니다.</p>
 <table>
 <tr><th style="width:24%">파일</th><th style="width:6%" class="c">수</th><th>지키는 규칙</th><th style="width:22%">어떻게</th></tr>
 <tr><td><code>ServoSpecTests</code></td><td class="c">17</td><td>+20° → 1700 µs, −40° → 1100, 범위 밖은 잘림(표 데이터 여러 건), 비대칭 보정, <code>PulseToAngle</code> 역변환, 기본값이 공식 HS-311, <code>IsValid</code> 가 잘못된 값을 거부(경계값 여러 건)</td><td>순수 계산</td></tr>
 <tr><td><code>PigpioClientTests</code></td><td class="c">6</td><td>요청 바이트가 정확히 <code>08 00 00 00 12 00 00 00 dc 05 00 00 00 00 00 00</code>, 음수 res → 한글 메시지(연결 유지), 응답 없음 → 시간 초과 <code>LinkLost</code>, 접속 거부 → <code>LinkLost</code> + 안내문, <code>RemotePigpioDriver.Open</code> 이 HWVER·PIGPV 를 읽고 <code>Release</code> 가 펄스 0 을 보냄, 오류 코드 → 문구</td><td>인프로세스 가짜 pigpiod(<code>TcpListener</code>)</td></tr>
 <tr><td><code>ServoModelTests</code></td><td class="c">13</td><td><code>SetAngle</code> 성공 시 펄스 출력 + <code>Changed</code>, 실패 시 상태 불변, 잘못된 <code>SetSpec</code> 거부, 출력 실패 시 이전 사양 유지, 성공 시 각도 클램프·재출력, GPIO 변경 시 이전 핀 Release 후 새 핀 Open, <code>SetDriver</code> 가 이전 드라이버를 Release·Dispose, <code>Release</code> 가 출력 꺼짐 표시, 장치가 1700 µs 보고 → +20°·출력 켜짐, 출력 유지 해제는 Release 없이 마지막 각도 기억, 장치가 0 보고 → 마지막 각도 복원, <code>Dispose</code> 기본은 출력 끔·<code>Dispose(false)</code> 는 유지, 저장된 각도로 시작</td><td>호출을 기록하는 가짜 드라이버(<code>RecordingDriver</code>)</td></tr>
-<tr><td><code>EmulatorTests</code></td><td class="c">6</td><td><code>ServoModel → RemotePigpioDriver → 에뮬레이터</code> 전체 경로(Info "Pi 리비전 c03111 · pigpio v79", 펄스 저장), 잘못된 펄스는 실제 pigpio 처럼 거부, 흉내 낸 각도가 시간에 따라 목표로 이동, 해제(출력 유지) 후 재연결하면 기억한 1300 µs(−20°)로 복원, 서보로 쓴 적 없는 핀의 GPW 는 −93 → 드라이버 null, 상태 파일로 서버를 껐다 켜도 1250 µs·−25° 유지(프로그램 재시작 흉내)</td><td>실제 TCP(127.0.0.1 임의 포트)</td></tr>
+<tr><td><code>EmulatorTests</code></td><td class="c">10</td><td>보정값: <code>SetCalibration</code> 뒤 같은 600 µs 가 −90° → −80°, CF1 왕복·거부·소수 각도, 상태 파일에 보정값 유지, 옛 파일 호환 (v1.3.1); <code>ServoModel → RemotePigpioDriver → 에뮬레이터</code> 전체 경로(Info "Pi 리비전 c03111 · pigpio v79", 펄스 저장), 잘못된 펄스는 실제 pigpio 처럼 거부, 흉내 낸 각도가 시간에 따라 목표로 이동, 해제(출력 유지) 후 재연결하면 기억한 1300 µs(−20°)로 복원, 서보로 쓴 적 없는 핀의 GPW 는 −93 → 드라이버 null, 상태 파일로 서버를 껐다 켜도 1250 µs·−25° 유지(프로그램 재시작 흉내)</td><td>실제 TCP(127.0.0.1 임의 포트)</td></tr>
 <tr><td><code>ServoDialTests</code></td><td class="c">9</td><td>마우스 방향 → 값(위 = 0°, ±135° = 끝, 45° → 13°, 빈 구간은 가까운 끝 — 표 데이터 7건), 범위 변경 반영, 1° 단위 맞춤·클램프</td><td>STA 스레드에서 컨트롤 생성</td></tr>
 <tr><td><code>ServoCameraViewTests</code></td><td class="c">5</td><td>연결 해제면 Angle 을 바꿔도 안 움직임 / 연결+출력 켜짐이면 회전 시작 / 출력 꺼짐이면 정지, 켜지는 순간 출발 / 회전 중 해제하면 제자리 정지 / 구동 중인 서보에 연결되는 순간 회전 없이 바로 맞춤</td><td>STA 스레드</td></tr>
-<tr><td><code>MainViewModelTests</code></td><td class="c">5</td><td>각도 → 펄스 계산·출력, 펄스 1650 → 각도 15.0° 출력(양방향), 범위 밖 펄스는 min/max 로 잘림, 비대칭 보정에서 왕복, 드라이버 실패 시 이전 값으로 되돌리고 오류 창</td><td>가짜 대화상자(<code>FakeDialogs</code>) + 가짜 드라이버</td></tr>
+<tr><td><code>MainViewModelTests</code></td><td class="c">11</td><td>각도 → 펄스 계산·출력, 펄스 1650 → 각도 15.0° 출력(양방향), 범위 밖 펄스는 min/max 로 잘림, 비대칭 보정에서 왕복, 드라이버 실패 시 이전 값으로 되돌리고 오류 창; 보정 입력칸 연동 6건(각도→펄스, 펄스→각도, 중립·기울기 변경, [적용] 반영, 비대칭 설정 표시, 공식값 버튼) (v1.3.2)</td><td>가짜 대화상자(<code>FakeDialogs</code>) + 가짜 드라이버</td></tr>
 <tr><td><code>WslSshTunnelTests</code></td><td class="c">1</td><td>없는 ssh 별명으로 터널을 열면 멈추지 않고 1초 안에 <code>ServoException</code>(ssh 오류 문장 포함)</td><td>실제 <code>wsl.exe -e ssh</code>(WSL 있는 PC)</td></tr>
-<tr><td><code>MainWindowXamlTests</code></td><td class="c">16</td><td>XAML 에 카메라 뷰의 6개 바인딩(특히 <code>IsConnected</code>)과 표시 전용 속성, 창의 핵심 바인딩(<code>EmulatorKindIndex</code> 포함)이 빠지지 않았는지, 긴 글 자리(장치 이름·Pi 리비전·가짜 Pi 수신·상태 줄·출력 상태)가 <code>ShrinkTextBlock</code> 인지 — 바인딩 한 줄이 사라져 "연결해도 카메라가 연결 안 됨" 으로 보였던 문제의 재발 방지</td><td>테스트 출력 폴더로 복사한 <code>MainWindow.xaml</code> 원본을 정규식으로 검사</td></tr>
+<tr><td><code>MainWindowXamlTests</code></td><td class="c">47</td><td>XAML 에 카메라 뷰의 6개 바인딩(특히 <code>IsConnected</code>)과 표시 전용 속성, 창의 핵심 바인딩(<code>EmulatorKindIndex</code>·녹화·사진·인식·설정·전송 명령 포함)이 빠지지 않았는지, 긴 글 자리 8곳이 <code>ShrinkTextBlock</code> 인지, Pi 컨트롤 5개에 접근성 이름이 있는지, 카메라 설정이 카메라 패널이 아니라 "Pi 카메라" 탭에 있는지 — 바인딩 한 줄이 사라져 "연결해도 카메라가 연결 안 됨" 으로 보였던 문제의 재발 방지</td><td>테스트 출력 폴더로 복사한 <code>MainWindow.xaml</code> 원본을 정규식으로 검사</td></tr>
+<tr><td><code>PiCameraApiTests</code> (v1.3.0)</td><td class="c">10</td><td>URL → 기본 주소 변환 6건, 가짜 API 서버와 녹화 시작·중복(409)·정지 왕복, status/목록/사진/설정(본문 snake_case + Content-Length)/인식, <code>{"error":…}</code> → 예외 메시지, 닫힌 포트·잘못된 URL</td><td><code>FakePiApiServer</code>(TcpListener, 요청 기록·경로별 응답)</td></tr>
+<tr><td><code>CameraViewModelRecordingTests</code> (v1.3.0)</td><td class="c">20</td><td>Pi 화면 보정값이 다르면 <code>POST /servo/calib</code> 한 번, 같으면 안 보냄(v1.3.1);API 없으면 패널 숨김, 네트워크 카메라면 패널 활성·서버 설정 로드(되돌려 보내지 않음), 노트북이면 Pi 에 안 물음, 녹화 토글·폴링 표시·<code>PiFileSaved</code>, Pi 쪽 자동 정지 감지, 사진, 오류 표시·버튼 복구, 설정 디바운스(한 번·마지막 값·바뀐 키만), 인식 on/off, 카메라 전환 시 폴링 정지, 종료 시 정지 전송, 시간·용량 표기</td><td><code>FakeCameraSource</code> + <code>FakePiApiServer</code>, 폴링 50 ms·디바운스 30 ms</td></tr>
+<tr><td><code>RecordingTransferTests</code> (v1.3.0)</td><td class="c">9</td><td>설정 기본값·JSON 왕복, "PULLED n" 파싱 5건, WSL 뷰모델 명령·폴더·스크립트 존재, <code>MainViewModel</code> 옵션·폴더 열기 명령, 자동 가져오기 꺼짐 안내</td><td>가짜 API 서버 + <code>FakeDialogs</code></td></tr>
 <tr><td><code>CameraViewModelTests</code></td><td class="c">7</td><td>기본 = 첫 번째 장치 자동 시작, 저장된 장치 우선, 장치 없음 안내, "꺼짐" 선택 시 정지 + 설정 저장, 열기 실패 시 메시지 + 앱 유지, 프레임 → 비트맵(같은 크기면 재사용), 창이 닫히며 선택이 null 이 돼도 설정 유지</td><td>가짜 카메라(<code>FakeCameraSource</code>) + 즉시 실행되는 <code>SynchronizationContext</code></td></tr>
 <tr><td><code>MjpegStreamParserTests</code></td><td class="c">7</td><td>청크 분할(1·7·1000바이트)·Content-Length 유무·여분 헤더에서도 JPEG 를 정확히 복원</td><td>순수 바이트</td></tr>
 <tr><td><code>MjpegCameraSourceTests</code></td><td class="c">4</td><td>가짜 MJPEG 서버(TcpListener)에서 빨간 JPEG 수신 → BGRA 확인, 정지 시간, 닫힌 포트·잘못된 URL 은 <code>CameraException</code></td><td>127.0.0.1 임시 포트</td></tr>
@@ -642,7 +682,7 @@ window.Closed += (_, _) => ShutdownOnce();      // 창 닫힘 → 펄스 0, 터�
 <tr><td><code>EmulatorModeTests</code></td><td class="c">14</td><td>에뮬레이터 [연결] 전체 흐름, 포트 점유 시 임시 포트 대체, 연결 실패 시 오류 창 전에 busy 해제, <b>직접 연결에 127.0.0.1·localhost·::1·0.0.0.0·빈칸을 넣으면 "에뮬레이터" 안내와 함께 거부</b>(5건), <code>IsLoopbackHost</code> 분류(6건)</td><td>실제 TcpListener 로 포트 점유 + <code>FakeDialogs</code></td></tr>
 <tr><td><code>WslFakePiTests</code> (v1.2.0)</td><td class="c">3</td><td><code>tools\fake_pigpiod.py</code> 를 찾음 / 실제 <code>wsl.exe</code> 로 띄워 PIGPV=79·SERVO 1700·GPW 1700 왕복, stdout 에 "SERVO gpio=18 1700" 줄, Dispose 뒤 포트 닫힘 / 이미 열린 포트(앱 안 에뮬레이터)는 재사용(<code>OwnsProcess=false</code>)</td><td>실제 WSL(없는 PC 는 통과)</td></tr>
 <tr><td><code>ShrinkTextBlockTests</code> (v1.2.1)</td><td class="c">8</td><td>폭이 넉넉하면 원래 글꼴·툴팁 없음 / 80% 폭이면 글꼴이 줄어 들어감 / 120px 면 최소 10pt 에서 멈추고 … + 전체 글 툴팁 / 넓어지면 복원 / 짧은 글로 바뀌면 복원 / 가로 StackPanel 에서는 MaxWidth 가 예산 / 직접 쓴 툴팁은 덮어쓰지 않음 / 안쪽 TextBlock 이 글을 노출(UI 자동화)</td><td>STA 스레드에서 Grid·StackPanel 에 넣고 Measure/Arrange</td></tr>
-<tr><td><code>pi_display/tests</code> (Python)</td><td class="c">11</td><td>servo_spec 공식, movement_log 규칙(변화만·꺼짐/켜짐·메모·파일), mjpeg_server 응답(snapshot·stream 파트·status.json·clients)</td><td><code>unittest</code>, 가짜 카메라 백엔드</td></tr>
+<tr><td><code>pi_display/tests</code> (Python)</td><td class="c">44</td><td>/servo/calib GET/POST 가 각도 공식을 바꾸고 저장 콜백·로그를 남김, to_calib 왕복;servo_spec 공식, movement_log 규칙(변화만·꺼짐/켜짐·메모·파일), mjpeg_server 응답(snapshot·stream 파트·status.json·clients + 녹화 시작/정지/목록/내려받기·사진·설정 GET/POST·인식·오류 JSON·501), avi_writer 헤더·패딩·인덱스, recorder 시작/정지/.part/시간 제한/디스크 가드/사진/경로 검증, camera_settings 검증·저장·즉시 적용 vs 재시작, detector 필터 흐름·요약·OpenCV 없음</td><td><code>unittest</code>, 가짜 카메라 백엔드·<code>FakeEngine</code>·가짜 시계</td></tr>
 </table>
 <div class="box tip"><b class="t">테스트가 가능한 이유 = 층을 나눈 이유</b>
 가짜 드라이버를 꽂을 수 있는 건 <code>IServoDriver</code> 인터페이스 덕분이고, 창 없이 ViewModel 을 돌릴 수 있는 건 <code>IDialogService</code> 덕분이며, 바이트 열을 검사할 수 있는 건 <code>PigpioClient</code> 를 따로 뗐기 때문입니다.</div>
@@ -709,12 +749,20 @@ window.Closed += (_, _) => ShutdownOnce();      // 창 닫힘 → 펄스 0, 터�
 <tr><td>Pi 프로그램에 카메라 백엔드 추가</td><td><code>pi_display/pidisplay/camera/</code> 에 <code>CameraBackend</code> 를 상속한 모듈 하나(<code>start()</code> 에서 캡처 시작, JPEG 마다 <code>self._publish(jpeg)</code>) + <code>camera/__init__.py</code> 의 <code>_make</code>·<code>ORDER</code> 에 등록</td></tr>
 <tr><td>Pi 로그 형식·종류</td><td><code>pi_display/pidisplay/movement_log.py</code> 의 <code>Entry.text()</code>, <code>observe()</code></td></tr>
 <tr><td>Pi 화면 배치(800×480)</td><td><code>pi_display/pidisplay/ui_qt.py</code> 의 <code>DisplayWindow.__init__</code></td></tr>
+<tr><td>녹화 모드 추가(예 1640×1232@40)·비트레이트</td><td><code>pidisplay/camera_settings.py</code> 의 <code>RECORD_MODES</code> + <code>camera/picamera2_backend.py</code> 의 <code>RECORD_MODES</code>(같게) + <code>recorder.py</code> 의 <code>DEFAULT_BITRATES</code>. WPF 는 서버가 주는 <code>record_modes</code> 목록을 그대로 콤보에 넣으므로 손댈 것 없음</td></tr>
+<tr><td>녹화 상한(60 분 · 8 GB · 여유 500 MB)</td><td>배포 플래그 <code>-- --rec-max-minutes 120 --rec-max-gb 16</code> 또는 <code>Recorder</code> 생성자 기본값</td></tr>
+<tr><td>Pi API 경로 추가(예 /servo/center)</td><td><code>pidisplay/mjpeg_server.py</code> 의 <code>do_GET/do_POST</code> 에 <code>elif</code> 한 줄 + 실패는 <code>raise ApiError(msg, code)</code>; WPF 는 <code>Services\PiCameraApi.cs</code> 에 메서드 하나(+ 응답 클래스) → <code>CameraViewModel</code> 커맨드</td></tr>
+<tr><td>녹화 전송 폴더·주기 기본값</td><td>WPF <code>AppSettings.DefaultRecordingsDir</code> · 스크립트 <code>pull_recordings.sh</code>/<code>watch_recordings.sh</code> 머리의 <code>DEST</code>·<code>INTERVAL</code>. Pi 쪽 저장 폴더는 <code>--rec-dir</code>(기본 <code>~/Videos/pi_display</code>, pull 스크립트도 같은 경로를 봄)</td></tr>
+<tr><td>인식 종류 바꾸기(다른 모델)</td><td><code>pidisplay/detector.py</code> 의 <code>OpenCvEngine</code> — <code>detect(jpeg) → [Detection(label, conf, box 0~1)]</code> 규격만 지키면 됨. 한글 이름은 <code>KO</code> 표</td></tr>
+<tr><td>카메라 설정 항목 추가(예 노출)</td><td><code>CameraSettings</code> 필드 + <code>from_dict</code> 검증 + <code>controls()</code> 매핑, WPF <code>CameraViewModel</code> 속성(setter 에서 <code>Queue</code>) + 탭 XAML 한 줄</td></tr>
 <tr><td>색·글꼴</td><td><code>App.xaml</code> 의 스타일, <code>ServoDial</code>/<code>ServoCameraView</code> 맨 위의 <code>Brush</code> 상수</td></tr>
 <tr><td>리눅스 가짜 Pi 의 동작</td><td><code>tools/fake_pigpiod.py</code> 의 <code>handle()</code>; .NET 판은 <code>PigpioEmulatorServer.Handle()</code> — 둘을 같이 고쳐야 함</td></tr>
+<tr><td>보정 칸의 기울기 기본값·범위, 각도 소수 자리</td><td><code>MainViewModel</code> 의 <code>_calUsPerDeg = 10.0</code>, <code>CalUsPerDeg</code> setter 의 0~50 검사, <code>AngleFor</code> 의 반올림 자리(1)</td></tr>
+<tr><td>보정값 전달 방식·문자열 형식</td><td>C# <code>PigpioEmulator.ServoCalibration</code>(문자열·CF1 패킹) ↔ Python <code>fake_pigpiod.Calib</code>·<code>pidisplay/servo_spec.ServoSpec.to_calib</code> — 세 곳이 같은 형식을 지켜야 함. 전달 시점은 <code>MainViewModel.OnSpecApply</code>·<code>StartEmulatorDriver</code>·<code>StartWslFakePiDriverAsync</code>·<code>CameraViewModel.ApplyServoCalib</code></td></tr>
 </table>
 
 <div class="box tip"><b class="t">고친 뒤 확인하는 순서</b>
-<code>dotnet build ServoControlWpf.sln -c Release</code>(경고 0 유지) → <code>dotnet test</code>(137개) → WSL 에서 <code>python3 -m unittest discover -s pi_display/tests</code>(11개) → 에뮬레이터 모드로 [연결] → 다이얼·펄스 입력 → [출력 끄기] → [연결 해제] → 창 닫기. 상단의 "가짜 Pi 수신" 글자가 바뀌면 TCP 로 실제 명령이 나간 것입니다.</div>
+<code>dotnet build ServoControlWpf.sln -c Release</code>(경고 0 유지) → <code>dotnet test</code>(218개) → WSL 에서 <code>python3 -m unittest discover -s pi_display/tests</code>(44개) → 에뮬레이터 모드로 [연결] → 다이얼·펄스 입력 → [출력 끄기] → [연결 해제] → 창 닫기. 상단의 "가짜 Pi 수신" 글자가 바뀌면 TCP 로 실제 명령이 나간 것입니다. 녹화·전송을 건드렸으면 WSL 에 <code>pi_display.py --no-gui --fake-camera</code> 를 띄우고 Pi 카메라 → [● 녹화] → [■ 정지] 뒤 결과 줄에 "전송 완료" 가 뜨는지까지.</div>
 
 <!-- ═══════════════════════════════ 11 ═══════════════════════════════ -->
 <h2>11. 용어 사전</h2>

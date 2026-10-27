@@ -76,6 +76,16 @@ public sealed class AppSettings
     public bool PiNoteEnabled { get; set; } = true;
     public int PiNotePort { get; set; } = 8890;
 
+    // ── 녹화 영상 전송 (Pi → WSL, pi_display/pull_recordings.sh) ──
+    /// <summary>WSL 안에서 녹화·사진이 모이는 폴더 (Windows 에서는 \\wsl.localhost\&lt;배포판&gt;\home\…)</summary>
+    public string RecordingsDir { get; set; } = DefaultRecordingsDir;
+    /// <summary>녹화를 멈추면 바로 pull_recordings.sh 로 가져올지</summary>
+    public bool AutoPullRecordings { get; set; } = true;
+    public const string DefaultRecordingsDir = "~/MyJob/projects/comanyLinux/ServoChapter/recordings";
+
+    /// <summary>pi_display API 기본 주소 (스트림 URL 에서 경로를 뗀 것, 예 http://172.30.1.81:8889)</summary>
+    public string ResolvePiApiBase(string? currentHost) => Services.PiCameraApi.BaseFromStreamUrl(ResolvePiCameraUrl(currentHost));
+
     /// <summary>실제로 접속할 Pi 카메라 URL. PiCameraUrl 이 있으면 그대로, 없으면 http://{PiCameraHost 또는 currentHost}:{PiCameraPort}/stream.mjpg</summary>
     public string ResolvePiCameraUrl(string? currentHost)
     {

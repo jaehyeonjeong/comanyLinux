@@ -5,7 +5,7 @@
 import threading
 import time
 from collections import deque
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 
 class FrameHub:
@@ -18,8 +18,19 @@ class FrameHub:
         self.width = 0
         self.height = 0
         self.backend = "-"
+        self._filter: Optional[Callable[[bytes], bytes]] = None
+
+    def set_filter(self, fn: Optional[Callable[[bytes], bytes]]) -> None:
+        """보관 직전에 프레임을 바꿀 함수 (인식 박스 그리기 등). 예외가 나면 원본을 쓴다. None 이면 해제."""
+        self._filter = fn
 
     def publish(self, jpeg: bytes, width: int = 0, height: int = 0) -> None:
+        f = self._filter
+        if f is not None:
+            try:
+                jpeg = f(jpeg) or jpeg
+            except Exception:
+                pass
         now = time.time()
         with self._cond:
             self._jpeg = jpeg

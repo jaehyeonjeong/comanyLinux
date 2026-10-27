@@ -61,7 +61,8 @@ public class EmulatorModeTests
             Assert.NotNull(vm.EmulatorFallbackPort);
             Assert.NotEqual(port, vm.EmulatorFallbackPort);
             Assert.Contains("임시 포트", vm.EmulatorText);
-            Assert.Contains("임시 포트", vm.StatusText);
+            // IsConnected 는 SetDriver 직후 true 가 되고 상태 줄 안내는 그 뒤에 적히므로 잠깐 기다림 (경쟁으로 가끔 실패하던 곳)
+            Assert.True(await WaitAsync(() => vm.StatusText.Contains("임시 포트")), "상태 줄에 임시 포트 안내: " + vm.StatusText);
             Assert.Empty(dlg.Errors);                      // 오류 창 없이 조용히 해결
             Assert.False(vm.IsBusy);
 

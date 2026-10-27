@@ -82,6 +82,89 @@ public class MainViewModelTests
         Assert.Equal(1400, vm.PulseInput);
     }
 
+    // ───────── 보정 입력칸 연동 (v1.3.2): 각도 ↔ 펄스가 "1° 당 µs" 로 묶여 있다 ─────────
+
+    [Fact]
+    public void CalibrationInputs_AngleEdit_UpdatesPulse()
+    {
+        var (vm, _, _) = Make();                         // 공식값 1100/1500/1900 ±40° → 기울기 10
+        Assert.Equal(10.0, vm.CalUsPerDeg);
+        vm.CalMaxAngle = 60;
+        Assert.Equal(2100, vm.CalMaxPulse);
+        vm.CalMinAngle = -80;
+        Assert.Equal(700, vm.CalMinPulse);
+        Assert.Equal(1500, vm.CalNeutralPulse);         // 중립·반대쪽은 그대로
+        Assert.Equal(2100, vm.CalMaxPulse);
+        Assert.Contains("-80° = 700 µs", vm.CalLinkText);
+        Assert.Contains("+60° = 2100 µs", vm.CalLinkText);
+    }
+
+    [Fact]
+    public void CalibrationInputs_PulseEdit_UpdatesAngle()
+    {
+        var (vm, _, _) = Make();
+        vm.CalMinPulse = 600;
+        Assert.Equal(-90.0, vm.CalMinAngle, 6);
+        vm.CalMaxPulse = 2250;
+        Assert.Equal(75.0, vm.CalMaxAngle, 6);
+        vm.CalMaxPulse = 1655;                           // 소수 각도는 0.1° 단위
+        Assert.Equal(15.5, vm.CalMaxAngle, 6);
+    }
+
+    [Fact]
+    public void CalibrationInputs_NeutralOrSlopeEdit_KeepsAngles_RecomputesPulses()
+    {
+        var (vm, _, _) = Make();
+        vm.CalNeutralPulse = 1400;
+        Assert.Equal((-40.0, 40.0), (vm.CalMinAngle, vm.CalMaxAngle));
+        Assert.Equal((1000, 1800), (vm.CalMinPulse, vm.CalMaxPulse));
+        vm.CalUsPerDeg = 11.25;
+        Assert.Equal((950, 1850), (vm.CalMinPulse, vm.CalMaxPulse));
+        vm.CalUsPerDeg = 0;                              // 잘못된 기울기는 무시
+        Assert.Equal(11.25, vm.CalUsPerDeg);
+        vm.CalUsPerDeg = -3;
+        Assert.Equal(11.25, vm.CalUsPerDeg);
+    }
+
+    [Fact]
+    public void CalibrationInputs_ApplyUsesLinkedValues()
+    {
+        var (vm, _, dlg) = Make();
+        vm.CalMaxAngle = 60;                             // → 2100 µs
+        vm.CalMinPulse = 600;                            // → −90°
+        vm.ApplySpecCommand.Execute(null);
+        Assert.Empty(dlg.Errors);
+        Assert.Equal((600, 2100), (vm.MinPulse, vm.MaxPulse));
+        Assert.Equal((-90.0, 60.0), (vm.MinAngle, vm.MaxAngle));
+        Assert.Equal(1500, vm.CalNeutralPulse);
+        vm.Angle = 60;
+        Assert.Equal(2100, vm.Pulse);
+    }
+
+    [Fact]
+    public void CalibrationInputs_LoadedAsymmetricSpec_ShownAsIs_SlopeFromPlusSide()
+    {
+        // 설정에서 읽어 온 비대칭 보정(−쪽 10 µs/°, +쪽 7.5 µs/°)은 그대로 보여 주고 연동 계산으로 덮어쓰지 않는다
+        var (vm, _, _) = Make(new ServoSpec(1100, 1500, 1800, -40, 40, 18));
+        Assert.Equal((1100, 1500, 1800), (vm.CalMinPulse, vm.CalNeutralPulse, vm.CalMaxPulse));
+        Assert.Equal((-40.0, 40.0), (vm.CalMinAngle, vm.CalMaxAngle));
+        Assert.Equal(7.5, vm.CalUsPerDeg);
+        vm.CalMinAngle = -20;                            // 그 뒤의 편집은 표시된 기울기(7.5)로 연동
+        Assert.Equal(1350, vm.CalMinPulse);
+    }
+
+    [Fact]
+    public void CalibrationInputs_PresetButtons_ResetSlope()
+    {
+        var (vm, _, _) = Make();
+        vm.CalUsPerDeg = 12;
+        vm.ApplyOfficialCommand.Execute(null);
+        Assert.Equal(10.0, vm.CalUsPerDeg);
+        Assert.Equal((1100, 1900), (vm.CalMinPulse, vm.CalMaxPulse));
+        vm.CalMaxAngle = 30;
+        Assert.Equal(1800, vm.CalMaxPulse);
+    }
+
     [Fact]
     public void SettingPulse_WhenDriverFails_RevertsAndReportsError()
     {

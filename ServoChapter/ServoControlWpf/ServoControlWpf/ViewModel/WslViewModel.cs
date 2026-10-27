@@ -43,6 +43,10 @@ public sealed class WslViewModel : ObservableObject
         }, () => !IsRunning);
         RunDeployPiDisplayCommand = new RelayCommand(async () => await RunDeployPiDisplayAsync(), () => !IsRunning);
         OpenDeployPiDisplayTerminalCommand = new RelayCommand(OpenDeployPiDisplayTerminal, () => !IsRunning);
+        PullRecordingsCommand = new RelayCommand(async () => await PullRecordingsAsync(), () => !IsRunning);
+        InstallWatchCommand = new RelayCommand(async () => await RunWatchAsync("--install"), () => !IsRunning);
+        WatchStatusCommand = new RelayCommand(async () => await RunWatchAsync("--status"), () => !IsRunning);
+        _recordingsDir = string.IsNullOrWhiteSpace(settings.RecordingsDir) ? AppSettings.DefaultRecordingsDir : settings.RecordingsDir;
         CancelCommand = new RelayCommand(Cancel, () => IsRunning);
         ClearLogCommand = new RelayCommand(() => { Log.Clear(); OnPropertyChanged(nameof(LogText)); });
         BrowseScriptDirCommand = new RelayCommand(() =>
@@ -67,6 +71,22 @@ public sealed class WslViewModel : ObservableObject
     public string ScriptDir { get => _scriptDir; set { if (Set(ref _scriptDir, value)) _settings.ScriptDir = value; } }
     public string SshCommandText { get => _sshCommandText; set => Set(ref _sshCommandText, value); }
 
+    private string _recordingsDir;
+    /// <summary>Pi 의 녹화·사진을 모아 둘 WSL 폴더 (pull_recordings.sh 의 목적지). 설정에 저장.</summary>
+    public string RecordingsDir
+    {
+        get => _recordingsDir;
+        set
+        {
+            var v = string.IsNullOrWhiteSpace(value) ? AppSettings.DefaultRecordingsDir : value.Trim();
+            if (Set(ref _recordingsDir, v)) { _settings.RecordingsDir = v; _settings.Save(); }
+        }
+    }
+
+    private string _lastPullSummary = "";
+    /// <summary>마지막 가져오기 결과 한 줄 ("새 파일 1개 → ~/MyJob/…/recordings")</summary>
+    public string LastPullSummary { get => _lastPullSummary; private set => Set(ref _lastPullSummary, value); }
+
     // ───────── 상태 ─────────
     private bool _isRunning;
     private string _wslStatus = "WSL 상태: 아직 확인 안 함 — [WSL 확인]을 누르세요";
@@ -79,7 +99,7 @@ public sealed class WslViewModel : ObservableObject
         {
             if (Set(ref _isRunning, value))
             {
-                foreach (var c in new[] { ProbeCommand, CheckPiCommand, RunPiInfoCommand, OpenSetupTerminalCommand, RunSshCommand, CancelCommand, RunDeployPiDisplayCommand, OpenDeployPiDisplayTerminalCommand })
+                foreach (var c in new[] { ProbeCommand, CheckPiCommand, RunPiInfoCommand, OpenSetupTerminalCommand, RunSshCommand, CancelCommand, RunDeployPiDisplayCommand, OpenDeployPiDisplayTerminalCommand, PullRecordingsCommand, InstallWatchCommand, WatchStatusCommand })
                     c.RaiseCanExecuteChanged();
             }
         }
@@ -103,6 +123,12 @@ public sealed class WslViewModel : ObservableObject
     public RelayCommand RunDeployPiDisplayCommand { get; }
     /// <summary>[Pi 화면 배포(+apt) ↗]: 처음 한 번, apt 설치가 있어 sudo 비밀번호를 물을 수 있으므로 새 터미널 창에서</summary>
     public RelayCommand OpenDeployPiDisplayTerminalCommand { get; }
+    /// <summary>[녹화 가져오기]: pi_display/pull_recordings.sh ssh별명 목적지 — Pi 의 새 녹화·사진을 rsync 로 WSL 폴더에</summary>
+    public RelayCommand PullRecordingsCommand { get; }
+    /// <summary>[감시 서비스 설치]: watch_recordings.sh --install — WPF 가 꺼져 있어도 30 초마다 가져오는 systemd user 서비스</summary>
+    public RelayCommand InstallWatchCommand { get; }
+    /// <summary>[감시 상태]: watch_recordings.sh --status</summary>
+    public RelayCommand WatchStatusCommand { get; }
 
     /// <summary>pi_display 폴더 (실행 파일 위치에서 위로 올라가며 deploy_pi_display.sh 를 찾음). 없으면 "".</summary>
     public string PiDisplayDir { get; } = FindPiDisplayDir();
@@ -201,6 +227,72 @@ public sealed class WslViewModel : ObservableObject
         {
             _dialogs.ShowError("터미널 창을 열 수 없습니다: " + ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Pi → WSL 녹화 가져오기. 스크립트의 마지막 줄 "PULLED n" 을 읽어 (성공 여부, 새 파일 수) 를 돌려준다.
+    /// 다른 작업이 돌고 있으면 (false, -1).
+    /// </summary>
+    public async Task<(bool ok, int pulled)> PullRecordingsAsync()
+    {
+        if (PiDisplayDir.Length == 0)
+        {
+            _dialogs.ShowError("pi_display 폴더(pull_recordings.sh)를 찾지 못했습니다. 프로그램 폴더 구조를 확인하세요.");
+            return (false, -1);
+        }
+        if (IsRunning)
+            return (false, -1);
+        var lines = new List<string>();
+        var ok = await RunGuardedAsync($"$ wsl --cd \"{PiDisplayDir}\" bash ./pull_recordings.sh {SshAlias} {RecordingsDir}",
+            ct => WslService.RunScriptAsync(DistroOrNull, PiDisplayDir, "pull_recordings.sh", new[] { SshAlias, RecordingsDir },
+                (line, err) => { lock (lines) lines.Add(line); OnLine(line, err); }, ct));
+        int pulled;
+        lock (lines) pulled = ParsePulled(lines);
+        LastPullSummary = ok
+            ? (pulled > 0 ? $"새 파일 {pulled}개 → {RecordingsDir}" : $"새 파일 없음 ({RecordingsDir})")
+            : "가져오기 실패 — 로그 확인 (Pi 가 켜져 있고 ssh 별명이 맞는지)";
+        return (ok, pulled);
+    }
+
+    /// <summary>pull_recordings.sh 출력에서 "PULLED n" 줄을 찾아 n 을 돌려준다 (없으면 -1)</summary>
+    public static int ParsePulled(IEnumerable<string> lines)
+    {
+        var n = -1;
+        foreach (var raw in lines)
+        {
+            var line = raw.Trim();
+            if (line.StartsWith("PULLED ", StringComparison.Ordinal) && int.TryParse(line.AsSpan(7).Trim(), out var v))
+                n = v;
+        }
+        return n;
+    }
+
+    private async Task RunWatchAsync(string action)
+    {
+        if (PiDisplayDir.Length == 0)
+        {
+            _dialogs.ShowError("pi_display 폴더(watch_recordings.sh)를 찾지 못했습니다.");
+            return;
+        }
+        var args = action == "--install" ? new[] { SshAlias, RecordingsDir, "--install" } : new[] { SshAlias, RecordingsDir, action };
+        await RunGuardedAsync($"$ wsl --cd \"{PiDisplayDir}\" bash ./watch_recordings.sh {string.Join(' ', args)}",
+            ct => WslService.RunScriptAsync(DistroOrNull, PiDisplayDir, "watch_recordings.sh", args, OnLine, ct));
+    }
+
+    /// <summary>WSL 경로(~/… 또는 /home/…)를 Windows 탐색기가 열 수 있는 경로로 (wslpath -w). 실패하면 null.</summary>
+    public async Task<string?> ToWindowsPathAsync(string wslPath, CancellationToken ct = default)
+    {
+        if (!WslService.WslExeExists) return null;
+        var lines = new List<string>();
+        try
+        {
+            var r = await WslService.RunShellAsync(DistroOrNull, null,
+                "p=\"" + wslPath.Replace("\"", "\\\"") + "\"; p=\"${p/#\\~/$HOME}\"; mkdir -p \"$p\" && wslpath -w \"$p\"",
+                (l, e) => { if (!e) lock (lines) lines.Add(l); }, ct);
+            if (r.ExitCode != 0) return null;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception) { return null; }
+        lock (lines) return lines.Select(l => l.Trim()).LastOrDefault(l => l.Length > 0);
     }
 
     private static string FindPiDisplayDir()

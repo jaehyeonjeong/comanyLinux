@@ -33,7 +33,8 @@ public class WslFakePiTests
 
         var port = FreePort();
         var lines = new List<string>();
-        var fp = await WslFakePi.OpenAsync(null, port, timeoutMs: 20000);
+        // --calib 로 WPF 보정값(600/1500/2400, ±80°)을 넘기면 600 µs 를 −90° 가 아니라 −80° 로 적어야 함
+        var fp = await WslFakePi.OpenAsync(null, port, timeoutMs: 20000, calib: "600,1500,2400,-80,80");
         try
         {
             Assert.True(fp.OwnsProcess);
@@ -44,9 +45,19 @@ public class WslFakePiTests
                 Assert.Equal(79, c.Command(PigpioClient.CmdPigpv, 0, 0));
                 Assert.Equal(0, c.Command(PigpioClient.CmdServo, 18, 1700));
                 Assert.Equal(1700, c.Command(PigpioClient.CmdGetServoPulsewidth, 18, 0));
+                Assert.Equal(0, c.Command(PigpioClient.CmdServo, 18, 600));
+                // CF1 로 보정값을 다시 바꾸면(공식값) 같은 600 µs 가 −90° 로
+                Assert.True(c.SendCalibration(PigpioEmulator.ServoCalibration.Default));
+                Assert.Equal(0, c.Command(PigpioClient.CmdServo, 18, 600));
             }
             await Task.Delay(500);
-            lock (lines) Assert.Contains(lines, l => l.Contains("SERVO gpio=18 1700"));
+            lock (lines)
+            {
+                Assert.Contains(lines, l => l.Contains("SERVO gpio=18 1700"));
+                Assert.Contains(lines, l => l.Contains("SERVO gpio=18 600 µs → 목표 -80.0°"));
+                Assert.Contains(lines, l => l.Contains("CALIB 각도 -40°~40°"));
+                Assert.Contains(lines, l => l.Contains("SERVO gpio=18 600 µs → 목표 -90.0°"));
+            }
             Assert.Contains("fake_pigpiod.py", fp.Describe());
         }
         finally

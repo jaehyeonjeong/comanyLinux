@@ -19,6 +19,17 @@ public sealed class PigpioClient : IDisposable
     public const uint CmdHwVer = 17;   // 하드웨어 리비전
     public const uint CmdPigpv = 26;   // pigpio 버전
     public const uint CmdGetServoPulsewidth = 84;   // GPW: 그 GPIO 에 지금 내보내는 서보 펄스폭 (0 = 꺼짐, −93 = 서보로 쓴 적 없음)
+    public const uint CmdCustom1 = 87;              // CF1: 가짜 Pi 에 보정값 전달 (PigpioEmulator.ServoCalibration) — 에뮬레이터 모드에서만 사용
+
+    /// <summary>가짜 Pi 에 WPF 보정값을 알려 준다 (CF1 두 번). 둘 다 0 을 돌려주면 true.</summary>
+    public bool SendCalibration(PigpioEmulator.ServoCalibration calib)
+    {
+        var (pp2, pp3) = calib.PackPulses();
+        var (ap2, ap3) = calib.PackAngles();
+        var r1 = Command(CmdCustom1, PigpioEmulator.ServoCalibration.SubPulses, pp2, pp3);
+        var r2 = Command(CmdCustom1, PigpioEmulator.ServoCalibration.SubAngles, ap2, ap3);
+        return r1 == 0 && r2 == 0;
+    }
 
     public const int DefaultTimeoutMs = 1500;
 
@@ -80,7 +91,7 @@ public sealed class PigpioClient : IDisposable
     /// 명령 하나를 보내고 res 를 돌려준다. 통신 오류/시간 초과는 LinkLost 예외,
     /// pigpio 가 음수 코드로 거부하면 LinkLost=false 예외(연결은 유지).
     /// </summary>
-    public int Command(uint cmd, uint p1, uint p2)
+    public int Command(uint cmd, uint p1, uint p2, uint p3 = 0)
     {
         if (!IsConnected)
             throw new ServoException("Pi와의 연결이 끊겼습니다. [연결]을 다시 눌러 주세요.", linkLost: true);
@@ -89,7 +100,7 @@ public sealed class PigpioClient : IDisposable
         BinaryPrimitives.WriteUInt32LittleEndian(req[0..4], cmd);
         BinaryPrimitives.WriteUInt32LittleEndian(req[4..8], p1);
         BinaryPrimitives.WriteUInt32LittleEndian(req[8..12], p2);
-        BinaryPrimitives.WriteUInt32LittleEndian(req[12..16], 0);   // p3 (추가 데이터 길이) = 0
+        BinaryPrimitives.WriteUInt32LittleEndian(req[12..16], p3);  // 보통 0 (추가 데이터 길이). CF1 보정값 전달 때만 값 사용
 
         Span<byte> resp = stackalloc byte[16];
         try

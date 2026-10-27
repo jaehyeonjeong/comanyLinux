@@ -24,13 +24,19 @@ public sealed class MainViewModel : ObservableObject
     private double _sweepDir = +1;
     private bool _syncing;   // 모델→화면 갱신 중 (Qt 의 QSignalBlocker 역할: 다시 명령이 나가지 않게 막음)
 
-    public MainViewModel(ServoModel model, AppSettings settings, IDialogService dialogs, Services.ICameraSource? cameraSource = null)
+    public MainViewModel(ServoModel model, AppSettings settings, IDialogService dialogs, Services.ICameraSource? cameraSource = null,
+                         Services.PiCameraApi? piApi = null)
     {
         _model = model;
         _settings = settings;
         _dialogs = dialogs;
         Wsl = new WslViewModel(settings, dialogs);
-        Camera = new CameraViewModel(cameraSource ?? new Services.NullCameraSource(), settings);
+        // Pi 카메라 API(녹화·사진·설정·인식)는 스트림 URL 과 같은 주소(…:8889)를 쓴다 — 호출할 때마다 현재 Pi 주소에서 계산
+        var api = piApi ?? new Services.PiCameraApi(() => _settings.ResolvePiApiBase(Host));
+        Camera = new CameraViewModel(cameraSource ?? new Services.NullCameraSource(), settings, api);
+        Camera.PiFileSaved += OnPiFileSaved;
+        Camera.CalibProvider = () => _model.Spec.ToCalibString();   // Pi 화면 프로그램도 WPF 보정값으로 각도를 적게
+        OpenRecordingsFolderCommand = new RelayCommand(async () => await OpenRecordingsFolderAsync());
 
         _sweepTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(SweepIntervalMs) };
         _sweepTimer.Tick += (_, _) => OnSweepTick();
@@ -184,6 +190,68 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    // ───────── Pi 녹화 → WSL 자동 전송 ─────────
+    /// <summary>녹화가 끝나거나 사진을 저장하면 바로 WSL 의 pull_recordings.sh 로 가져올지</summary>
+    public bool AutoPullRecordings
+    {
+        get => _settings.AutoPullRecordings;
+        set
+        {
+            if (_settings.AutoPullRecordings == value) return;
+            _settings.AutoPullRecordings = value;
+            _settings.Save();
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>[폴더 열기]: WSL 의 녹화 폴더를 Windows 탐색기로 (\\wsl.localhost\…)</summary>
+    public RelayCommand OpenRecordingsFolderCommand { get; }
+
+    /// <summary>마지막 전송 결과 (상태 줄·카메라 패널에 표시). 테스트용으로 공개.</summary>
+    public string LastTransferText { get; private set; } = "";
+
+    private void OnPiFileSaved(string fileName)
+    {
+        if (!AutoPullRecordings)
+        {
+            Camera.SetTransferResult($"{fileName} 저장됨 — 자동 가져오기가 꺼져 있어 Pi 에만 있습니다 (WSL 탭 [녹화 가져오기])");
+            return;
+        }
+        _ = PullAfterSaveAsync(fileName);
+    }
+
+    private async Task PullAfterSaveAsync(string fileName)
+    {
+        Camera.SetTransferResult($"{fileName} → WSL 로 가져오는 중… (rsync, ssh {Wsl.SshAlias})");
+        var (ok, pulled) = await Wsl.PullRecordingsAsync();
+        LastTransferText = ok
+            ? (pulled > 0 ? $"전송 완료: {fileName} → {Wsl.RecordingsDir} (새 파일 {pulled}개)"
+                          : $"{fileName}: 새로 받은 파일 없음 — 이미 있거나 Pi 가 아직 닫지 않음 (감시 서비스가 다시 시도)")
+            : (pulled == -1 && Wsl.IsRunning
+                ? $"{fileName} 저장됨 — WSL 작업 중이라 지금은 못 가져옴 (감시 서비스 또는 [녹화 가져오기])"
+                : $"전송 실패: {fileName} — WSL 탭 로그 확인 (Pi 켜짐·ssh 별명 '{Wsl.SshAlias}')");
+        Camera.SetTransferResult(LastTransferText);
+        ShowStatus(LastTransferText);
+    }
+
+    private async Task OpenRecordingsFolderAsync()
+    {
+        var win = await Wsl.ToWindowsPathAsync(Wsl.RecordingsDir);
+        if (win is null)
+        {
+            _dialogs.ShowError($"WSL 폴더를 Windows 경로로 바꿀 수 없습니다: {Wsl.RecordingsDir}\nWSL 이 설치되어 있는지 확인하세요.");
+            return;
+        }
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", win) { UseShellExecute = false });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            _dialogs.ShowError("탐색기를 열 수 없습니다: " + ex.Message);
+        }
+    }
+
     public bool IsBusy
     {
         get => _isBusy;
@@ -278,14 +346,81 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<PresetSlot> Presets { get; } = new();
 
     // ───────── 보정 입력칸 ─────────
+    // 각도와 펄스는 "1° 당 µs"(기울기, CalUsPerDeg) 하나로 묶여 있다:  펄스 = 중립 펄스 + 각도 × 기울기.
+    //   최소/최대 각도를 고치면 짝이 되는 펄스가, 펄스를 고치면 각도가 따라 바뀐다.
+    //   중립 펄스나 기울기를 고치면 각도를 지킨 채 양쪽 펄스를 다시 계산한다.
+    // 설정에서 읽어 온 값(비대칭 보정일 수도 있음)은 그대로 보여 주고, 기울기는 + 쪽에서 구한다.
     private int _calGpio, _calMinPulse, _calNeutral, _calMaxPulse;
-    private double _calMinAngle, _calMaxAngle;
+    private double _calMinAngle, _calMaxAngle, _calUsPerDeg = 10.0;
+    private bool _calLinking;      // 연동 계산 중(되돌아오는 setter 가 다시 계산하지 않게) 또는 모델 값을 넣는 중
+
     public int CalGpio { get => _calGpio; set => Set(ref _calGpio, value); }
-    public int CalMinPulse { get => _calMinPulse; set => Set(ref _calMinPulse, value); }
-    public int CalNeutralPulse { get => _calNeutral; set => Set(ref _calNeutral, value); }
-    public int CalMaxPulse { get => _calMaxPulse; set => Set(ref _calMaxPulse, value); }
-    public double CalMinAngle { get => _calMinAngle; set => Set(ref _calMinAngle, value); }
-    public double CalMaxAngle { get => _calMaxAngle; set => Set(ref _calMaxAngle, value); }
+
+    public int CalMinPulse
+    {
+        get => _calMinPulse;
+        set { if (Set(ref _calMinPulse, value)) Link(() => { _calMinAngle = AngleFor(value); OnPropertyChanged(nameof(CalMinAngle)); }); }
+    }
+
+    public int CalNeutralPulse
+    {
+        get => _calNeutral;
+        set { if (Set(ref _calNeutral, value)) Link(RecomputePulsesFromAngles); }
+    }
+
+    public int CalMaxPulse
+    {
+        get => _calMaxPulse;
+        set { if (Set(ref _calMaxPulse, value)) Link(() => { _calMaxAngle = AngleFor(value); OnPropertyChanged(nameof(CalMaxAngle)); }); }
+    }
+
+    public double CalMinAngle
+    {
+        get => _calMinAngle;
+        set { if (Set(ref _calMinAngle, value)) Link(() => { _calMinPulse = PulseFor(value); OnPropertyChanged(nameof(CalMinPulse)); }); }
+    }
+
+    public double CalMaxAngle
+    {
+        get => _calMaxAngle;
+        set { if (Set(ref _calMaxAngle, value)) Link(() => { _calMaxPulse = PulseFor(value); OnPropertyChanged(nameof(CalMaxPulse)); }); }
+    }
+
+    /// <summary>1° 당 µs (HS-311 공식 10). 바꾸면 각도를 지킨 채 최소·최대 펄스를 다시 계산. 0 이하·50 초과는 무시.</summary>
+    public double CalUsPerDeg
+    {
+        get => _calUsPerDeg;
+        set
+        {
+            if (double.IsNaN(value) || value <= 0 || value > 50) { OnPropertyChanged(); return; }
+            if (Set(ref _calUsPerDeg, Math.Round(value, 2))) Link(RecomputePulsesFromAngles);
+        }
+    }
+
+    /// <summary>"펄스 = 1500 + 각도 × 10 µs/°  →  −40° = 1100 µs, +40° = 1900 µs"</summary>
+    public string CalLinkText
+        => $"펄스 = {_calNeutral} + 각도 × {_calUsPerDeg:0.##} µs/°  →  {_calMinAngle:+0.#;-0.#}° = {_calMinPulse} µs, {_calMaxAngle:+0.#;-0.#}° = {_calMaxPulse} µs";
+
+    private int PulseFor(double angle) => (int)Math.Round(_calNeutral + angle * _calUsPerDeg, MidpointRounding.AwayFromZero);
+    private double AngleFor(int pulse) => Math.Round((pulse - _calNeutral) / _calUsPerDeg, 1, MidpointRounding.AwayFromZero);
+
+    private void RecomputePulsesFromAngles()
+    {
+        _calMinPulse = PulseFor(_calMinAngle);
+        _calMaxPulse = PulseFor(_calMaxAngle);
+        OnPropertyChanged(nameof(CalMinPulse));
+        OnPropertyChanged(nameof(CalMaxPulse));
+    }
+
+    /// <summary>짝이 되는 칸을 따라 바꾼다 (연동 중이거나 모델 값을 넣는 중이면 건너뜀)</summary>
+    private void Link(Action update)
+    {
+        if (_calLinking) return;
+        _calLinking = true;
+        try { update(); }
+        finally { _calLinking = false; }
+        OnPropertyChanged(nameof(CalLinkText));
+    }
 
     // ───────── 커맨드 ─────────
     public RelayCommand ConnectToggleCommand { get; }
@@ -442,6 +577,7 @@ public sealed class MainViewModel : ObservableObject
                     EmulatorText = (EmulatorFallbackPort is { } p ? $"가짜 Pi(임시 포트 {p}) 수신" : "가짜 Pi 수신")
                                    + $" #{server.CommandCount}: {ev.Description}";
             }, null);
+            server.SetCalibration(_model.Spec.ToCalibration());   // 가짜 Pi 의 각도 표시를 WPF 보정값에 맞춤 (펄스는 그대로)
             _emuServer = server;
             _emuRequestedPort = Port;
             EmulatorText = EmulatorFallbackPort is { } fp
@@ -466,7 +602,7 @@ public sealed class MainViewModel : ObservableObject
         }
         if (_wslFakePi is null)
         {
-            var fp = await WslFakePi.OpenAsync(Wsl.Distro, Port, progress);
+            var fp = await WslFakePi.OpenAsync(Wsl.Distro, Port, progress, calib: _model.Spec.ToCalibString());
             fp.LineReceived += line => _ui.Post(_ =>
             {
                 if (_model.IsConnected || !fp.OwnsProcess)
@@ -474,11 +610,28 @@ public sealed class MainViewModel : ObservableObject
             }, null);
             _wslFakePi = fp;
         }
+        // 이미 떠 있던 것이든 새로 띄운 것이든 보정값을 CF1 로 한 번 더 맞춤 (재사용 때는 --calib 를 못 주므로)
+        await Task.Run(PushCalibrationToWslFakePi);
         EmulatorText = _wslFakePi.OwnsProcess
             ? $"WSL 가짜 Pi(fake_pigpiod.py) 127.0.0.1:{Port} 띄움 — 받은 명령이 여기에 표시됩니다"
             : $"이미 떠 있는 WSL 가짜 Pi 127.0.0.1:{Port} 사용 (명령 로그는 그쪽 터미널에)";
         // 서버(프로세스)는 ViewModel 이 가지므로 드라이버에 넘기지 않는다 → 해제해도 살아 있고, 상태 파일로 기억
         return new RemotePigpioDriver("127.0.0.1", Port, null, _wslFakePi.Describe());
+    }
+
+    /// <summary>WSL 가짜 Pi 에 WPF 보정값을 CF1 로 전달 (각도 표시 일치). 응답이 없으면 false.</summary>
+    private bool PushCalibrationToWslFakePi()
+    {
+        try
+        {
+            using var c = new PigpioClient("127.0.0.1", Port, 800);
+            c.Connect(800);
+            return c.SendCalibration(_model.Spec.ToCalibration());
+        }
+        catch (ServoException)
+        {
+            return false;
+        }
     }
 
     /// <summary>WSL 가짜 Pi 가 기억 중인 펄스 (GPW 를 잠깐 읽어 봄)</summary>
@@ -653,6 +806,10 @@ public sealed class MainViewModel : ObservableObject
         _settings.StoreSpec(spec);
         _settings.Save();
         SetCalibration(spec);
+        // 각도를 계산하는 다른 쪽(앱 안 가짜 Pi · WSL 가짜 Pi · Pi 화면 프로그램)에도 같은 보정값을 전달
+        _emuServer?.SetCalibration(spec.ToCalibration());
+        if (_wslFakePi is not null) _ = Task.Run(PushCalibrationToWslFakePi);
+        _ = Camera.PushCalibrationAsync();
         ShowStatus($"보정값 적용: {spec}");
     }
 
@@ -703,12 +860,22 @@ public sealed class MainViewModel : ObservableObject
 
     private void SetCalibration(ServoSpec spec)
     {
-        CalGpio = spec.Gpio;
-        CalMinPulse = spec.MinPulse;
-        CalNeutralPulse = spec.NeutralPulse;
-        CalMaxPulse = spec.MaxPulse;
-        CalMinAngle = spec.MinAngle;
-        CalMaxAngle = spec.MaxAngle;
+        // 모델(설정)의 값을 그대로 넣는다 — 연동 계산 없이. 기울기는 + 쪽(최대 펄스 − 중립)/최대각 에서 구한다 (비대칭이면 − 쪽은 그대로 표시)
+        _calLinking = true;
+        try
+        {
+            CalGpio = spec.Gpio;
+            CalMinPulse = spec.MinPulse;
+            CalNeutralPulse = spec.NeutralPulse;
+            CalMaxPulse = spec.MaxPulse;
+            CalMinAngle = spec.MinAngle;
+            CalMaxAngle = spec.MaxAngle;
+            var slope = spec.MaxAngle > 0 ? (spec.MaxPulse - spec.NeutralPulse) / spec.MaxAngle : 10.0;
+            _calUsPerDeg = Math.Round(Math.Clamp(slope, 0.01, 50), 2);
+            OnPropertyChanged(nameof(CalUsPerDeg));
+        }
+        finally { _calLinking = false; }
+        OnPropertyChanged(nameof(CalLinkText));
     }
 
     private ServoSpec CalibrationFromInputs()
@@ -750,6 +917,8 @@ public sealed class MainViewModel : ObservableObject
         _settings.ScriptDir = Wsl.ScriptDir;
         _settings.Save();
         Wsl.Cancel();
+        // 녹화 중이면 파일이 닫히도록 정지만 보낸다 (최대 2 초). 가져오기는 WSL 의 감시 서비스가 다음 주기에 한다.
+        try { Camera.StopRecordingIfAnyAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult(); } catch (Exception ex) when (ex is not OutOfMemoryException) { }
         Camera.Dispose();          // 웹캠·네트워크 카메라 닫기
         _noteUdp?.Dispose();
         _model.Dispose(releaseOutput: !keep);   // 가짜 서버가 아직 살아 있어야 펄스 0 명령을 받을 수 있으므로 서버보다 먼저

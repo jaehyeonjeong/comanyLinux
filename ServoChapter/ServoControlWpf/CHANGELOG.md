@@ -5,6 +5,42 @@
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-10-27
+
+### Changed
+- **보정 입력칸 연동**: "서보" 탭의 보정 칸에서 각도를 고치면 펄스가, 펄스를 고치면 각도가 따라 바뀌지 않던 문제(사용자 보고). 새 칸 **"1° 당 µs"**(기울기, HS-311 공식 10)로 두 값을 묶음 — `펄스 = 중립 + 각도 × 기울기`. 최소/최대 각도 ↔ 최소/최대 펄스가 서로 따라오고, 중립 펄스나 기울기를 바꾸면 각도를 지킨 채 양쪽 펄스를 다시 계산. 칸 순서를 "1° 당 µs · 중립 · 최소 각도/펄스 · 최대 각도/펄스" 로 바꾸고 아래에 "펄스 = 1500 + 각도 × 10 µs/° → −40° = 1100 µs, +40° = 1900 µs" 요약 줄. Enter 로도 반영. 설정에서 읽어 온 비대칭 보정은 그대로 보여 주고(기울기는 + 쪽에서 계산) 편집할 때부터 연동.
+- 테스트 10개(총 218): 각도→펄스, 펄스→각도(0.1° 단위), 중립·기울기 변경 시 각도 유지, 잘못된 기울기 무시, [적용]이 연동된 값으로 모델에 반영, 비대칭 설정 표시, 공식값 버튼이 기울기 복원, XAML 바인딩.
+
+## [1.3.1] - 2026-10-27
+
+### Fixed
+- **각도 표시 불일치**: WPF 보정값을 600/1500/2400 µs · ±80° 로 두면 같은 600 µs 를 WPF 는 −80°, 에뮬레이터(앱 안·WSL 가짜 Pi)는 −90°(공식값 10 µs/°)로 보여 주던 문제. pigpiod 는 펄스만 알고 각도는 보는 쪽이 계산하므로, 이제 **WPF 보정값이 기준**이 되어 다른 쪽에 전달된다: 앱 안 가짜 Pi 는 `PigpioEmulatorServer.SetCalibration`, WSL 가짜 Pi 는 띄울 때 `--calib` + 접속 때 pigpio 사용자 명령 **CF1(87)** 두 번(펄스 세 값 / 각도×10 두 값 — `PigpioEmulator.ServoCalibration`), Pi 화면 프로그램(pi_display)은 네트워크 카메라로 붙으면 `POST /servo/calib` 로 자동 전달(`status.json servo.calib` 가 다를 때, "Pi 카메라" 탭에 결과 표시). 보정 탭에서 값을 바꿔도 즉시 다시 전달. 가짜 Pi 와 pi_display 는 받은 보정값을 상태 파일(`PigpioEmulator.json`·`fake_pigpiod.json`·`~/.config/pi_display/servo.json`)에 저장해 다음 실행에도 유지, 기억 중인 각도는 새 보정값으로 다시 계산(펄스는 그대로). 실제 Pi 에서도 pi_display 의 이동 로그 각도가 WPF 와 같아진다.
+- 에뮬레이터 상태 파일 형식이 `{"Calib":…, "Gpios":{…}}` 로 바뀜 — 옛 파일(gpio → {Pulse,Angle})도 그대로 읽는다.
+
+### Changed
+- `tools/fake_pigpiod.py`: 포트가 이미 쓰이면(`Address already in use`) 스택 추적 대신 누가 듣고 있는지(`ss -ltnp`)와 할 일(그대로 쓰기 / `pkill -f '[f]ake_pigpiod.py'` / 다른 포트)을 한글로 안내하고 종료 코드 1.
+
+## [1.3.0] - 2026-10-27
+
+### Added
+- **Pi 카메라 녹화** (OV5647 5 MP 모듈 기준): WPF 카메라 패널의 [● 녹화]/[■ 정지] 버튼으로 Pi 가 영상을 파일로 남김. picamera2 백엔드는 카메라 main 스트림을 **Pi 4 하드웨어 H.264 인코더**로 바로 기록(ffmpeg 있으면 .mp4, 없으면 .h264), 그 밖의 백엔드(libcamera-vid·legacy·USB·가짜 카메라)는 미리보기 MJPEG 를 **순수 Python AVI(MJPG)** 로 저장 (`pidisplay/recorder.py`, `avi_writer.py`). 쓰는 동안 `.part`, 정지 시 최종 이름. 한 번에 최대 60 분, 폴더 8 GB 상한(오래된 것부터 삭제), 여유 500 MB 미만이면 거부. 버튼에 경과 시간·용량 표시, Pi 모니터에도 "● REC".
+- **Pi → WSL 자동 전송**: 녹화가 끝나거나 사진을 찍으면 WPF 가 `pi_display/pull_recordings.sh`(rsync over ssh, `*.part` 제외)를 실행해 `~/MyJob/projects/comanyLinux/ServoChapter/recordings` 로 가져옴(설정 `RecordingsDir`·`AutoPullRecordings`). WPF 가 꺼져 있어도 가져오도록 `watch_recordings.sh --install` 이 WSL **systemd user 서비스**(30 초 주기, sudo 불필요)를 등록. 결과는 "Pi 카메라" 탭과 상태 줄에 표시, [폴더 열기] 는 `\\wsl.localhost\…` 를 탐색기로. WSL2 가 NAT 뒤라 Pi→WSL push 는 불가하므로 pull 방식.
+- **5 MP 정지 사진** [📷 사진]: picamera2 가 2592×1944 정지 설정으로 한 장 저장(약 1 초 스트림 끊김, 녹화 중이면 녹화 해상도). 같은 폴더에 `img_….jpg` 로 남아 함께 전송.
+- **카메라 설정** (오른쪽 새 "Pi 카메라" 탭): 녹화 모드 1080p30 / 720p60 / 480p90, 좌우·상하 반전, 밝기·대비·채도, 화이트밸런스. 즉시 적용되는 값은 `set_controls`, 모드·반전은 카메라를 다시 열어 적용(녹화 중 409 거부). Pi 의 `~/.config/pi_display/camera.json` 에 저장. 슬라이더는 300 ms 모아서 한 번에 전송.
+- **인체·사물 인식** (OpenCV): `pidisplay/detector.py` — MobileNet-SSD(VOC 20종, `install_pi_deps.sh` 가 내려받음) 또는 HOG(사람만)로 미리보기 프레임에 박스·이름을 그림(별도 스레드, 3 장마다 추론). 결과는 `status.json` 의 `detect` 와 WPF "인식: 사람 1 · 의자 2 (… fps)". H.264 녹화 원본에는 안 들어감. OpenCV 없는 환경(WSL)은 "인식 불가" 안내.
+- pi_display HTTP API: `POST /record/start|stop`, `GET /record/status`, `/recordings.json`, `/recordings/<name>`, `POST /snapshot/save`, `GET/POST /camera/settings`, `/detect/status`, `POST /detect/on|off|config`. 오류는 `{"error":…}` + 4xx/5xx. `status.json` 에 `record`·`detect`·`settings` 블록.
+- WPF `Services/PiCameraApi.cs`(API 클라이언트, snake_case JSON), `CameraViewModel` 녹화·사진·설정·인식 멤버와 1 초 상태 폴링, `WslViewModel` [지금 가져오기]/[감시 서비스 설치]/[감시 상태], `MainViewModel.AutoPullRecordings`·[폴더 열기].
+- 테스트: xUnit 63개 추가(총 200) — `PiCameraApiTests`(가짜 API 서버), `CameraViewModelRecordingTests`, `RecordingTransferTests`, XAML 바인딩; Python 31개 추가(총 42) — `test_avi_writer`·`test_recorder`·`test_camera_settings`·`test_detector`·`test_mjpeg_server` 확장. 셸 스크립트는 로컬 모드(`--src`, 별명 `local:/경로`)로 검증.
+
+### Changed
+- `Picamera2Backend` 가 main(녹화 모드 크기) + lores(미리보기) 두 스트림을 열고 미리보기는 lores 에 MJPEGEncoder(하드웨어) — 구버전이면 JpegEncoder → 단일 스트림으로 강등. 미리보기 publish 는 녹화 fps 에서 간축(60/90 fps 를 네트워크로 다 보내지 않음).
+- `install_pi_deps.sh` 가 `ffmpeg python3-opencv` 와 인식 모델(약 23 MB)을 함께 설치(`--no-models` 로 생략), `~/Videos/pi_display` 폴더 생성.
+- `MovementLog` 에 `event()` — 녹화 시작/끝·사진·디스크 정리를 서보 로그와 같은 줄에 남김(`kind="rec"`).
+
+### Notes
+- 1080p30 H.264·5 MP 사진·인식 fps 는 실제 Pi 카메라가 없어 이 PC 에서 검증하지 못함(코드는 picamera2 공개 API 기준). WSL 가짜 카메라로는 AVI 경로·전송·설정 저장·API 전체를 검증.
+- HTTP API 에 인증 없음(LAN 전용). 5 MP 촬영 중 미리보기 약 1 초 정지.
+
 ## [1.2.1] - 2026-10-27
 
 ### Fixed

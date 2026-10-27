@@ -38,9 +38,11 @@ class _Bridge(QObject):
 
 
 class DisplayWindow(QMainWindow):
-    def __init__(self, hub, log, poller, http_port: int, version: str, gpio: int, fullscreen: bool):
+    def __init__(self, hub, log, poller, http_port: int, version: str, gpio: int, fullscreen: bool,
+                 recorder=None, detector=None):
         super().__init__()
         self.hub, self.log, self.poller = hub, log, poller
+        self.recorder, self.detector = recorder, detector
         self.setWindowTitle(f"Pi 서보 카메라 v{version}")
         self.setStyleSheet("QMainWindow{background:#101214;color:#e8e8e8} QLabel{color:#e8e8e8} "
                            "QListWidget{background:#181b1f;color:#e8e8e8;border:1px solid #333;font-size:12px}")
@@ -59,8 +61,11 @@ class DisplayWindow(QMainWindow):
         self.angle_label.setAlignment(Qt.AlignCenter)
         url = QLabel(f"http://{_local_ip()}:{http_port}")
         url.setStyleSheet("color:#9cf")
+        self.rec_label = QLabel("")                     # "● REC 00:01:23 · 12 MB" (녹화 중만)
+        self.rec_label.setStyleSheet("color:#ff5252;font-weight:bold")
         top.addWidget(title, 2)
         top.addWidget(self.angle_label, 3)
+        top.addWidget(self.rec_label, 1)
         top.addWidget(url, 2, Qt.AlignRight)
         v.addLayout(top)
 
@@ -113,7 +118,9 @@ class DisplayWindow(QMainWindow):
 
     def _add_entry(self, e: Entry) -> None:
         item = QListWidgetItem(e.text())
-        if e.kind == "off":
+        if e.kind == "rec":
+            item.setForeground(QColor("#ff8a80"))
+        elif e.kind == "off":
             item.setForeground(QColor("#888"))
         elif e.kind == "move" and e.delta is not None and abs(e.delta) >= 20:
             item.setForeground(QColor("#ffb347"))
@@ -144,11 +151,21 @@ class DisplayWindow(QMainWindow):
         if self.hub.age > 3:
             cam += " · 프레임 끊김"
         pig = f"pigpiod {'연결됨' if self.poller.connected else '연결 안 됨'} ({self.poller.backend})"
-        self.status.setText(f"{cam}   |   {pig}   |   로그 {self.log.total}건   |   {time.strftime('%Y-%m-%d %H:%M:%S')}   ESC 종료")
+        extra = ""
+        if self.recorder is not None:
+            st = self.recorder.status()
+            if st["recording"]:
+                s = int(st["seconds"])
+                self.rec_label.setText(f"● REC {s // 3600:02d}:{s % 3600 // 60:02d}:{s % 60:02d} · {st['bytes'] / 1048576:.0f} MB")
+            else:
+                self.rec_label.setText("")
+        if self.detector is not None and self.detector.enabled:
+            extra = f"   |   인식 {self.detector.summary()}"
+        self.status.setText(f"{cam}   |   {pig}   |   로그 {self.log.total}건{extra}   |   {time.strftime('%Y-%m-%d %H:%M:%S')}   ESC 종료")
 
 
-def run_ui(hub, log, poller, http_port: int, version: str, gpio: int, fullscreen: bool) -> int:
+def run_ui(hub, log, poller, http_port: int, version: str, gpio: int, fullscreen: bool, recorder=None, detector=None) -> int:
     app = QApplication.instance() or QApplication([])
-    win = DisplayWindow(hub, log, poller, http_port, version, gpio, fullscreen)
+    win = DisplayWindow(hub, log, poller, http_port, version, gpio, fullscreen, recorder=recorder, detector=detector)
     _ = win
     return app.exec_()

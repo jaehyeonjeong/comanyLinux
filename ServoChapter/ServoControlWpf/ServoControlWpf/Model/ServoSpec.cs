@@ -47,6 +47,14 @@ public readonly record struct ServoSpec
 
     public double ClampAngle(double a) => Math.Clamp(a, MinAngle, MaxAngle);
 
+    /// <summary>
+    /// 가짜 Pi(PigpioEmulatorServer·fake_pigpiod.py)·Pi 화면 프로그램(pi_display --calib)에 넘기는 보정값 문자열
+    /// "최소펄스,중립펄스,최대펄스,최소각,최대각" (예 "600,1500,2400,-80,80"). 셋이 같은 값을 써야 같은 각도가 나온다.
+    /// </summary>
+    public string ToCalibString() => ToCalibration().ToCalibString();
+
+    public PigpioEmulator.ServoCalibration ToCalibration() => new(MinPulse, NeutralPulse, MaxPulse, MinAngle, MaxAngle);
+
     /// <summary>중립 기준으로 +쪽과 −쪽을 따로 비례 계산 (양쪽 기울기가 달라도 보정 가능)</summary>
     public int AngleToPulse(double angle)
     {

@@ -39,5 +39,9 @@ class ServoSpec:
             raise ValueError("보정값이 올바르지 않습니다 (500~2500 µs, 최소<중립<최대, 최소각<0<최대각)")
         return spec
 
+    def to_calib(self) -> str:
+        """parse() 의 역 — WPF ServoSpec.ToCalibString() 과 같은 문자열 (예 '600,1500,2400,-80,80')"""
+        return f"{self.min_pulse},{self.neutral_pulse},{self.max_pulse},{self.min_angle:g},{self.max_angle:g}"
+
     def __str__(self) -> str:
         return f"{self.min_pulse}~{self.neutral_pulse}~{self.max_pulse} µs, {self.min_angle:g}°~{self.max_angle:g}°"

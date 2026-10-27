@@ -16,6 +16,100 @@ public class EmulatorTests
     }
 
     [Fact]
+    public void Calibration_ChangesSimulatedAngle_NotPulse()
+    {
+        // 사용자 보정 600/1500/2400, ±80°: 600 µs 는 WPF 에서 −80° 인데 가짜 Pi 가 공식값(10 µs/°)으로 −90° 라고 하면 안 맞음
+        using var server = StartServer();
+        using var c = new PigpioClient("127.0.0.1", server.EndPoint.Port);
+        c.Connect();
+        Assert.Equal(0, c.Command(PigpioClient.CmdServo, 18, 600));
+        Thread.Sleep(400);                                            // 0.19 s/60° → 90° 는 0.29 s
+        Assert.Equal(-90.0, server.GetSimulatedAngle(18), 1);         // 기본 = HS-311 공식값
+
+        var spec = new ServoSpec(600, 1500, 2400, -80, 80, 18);
+        server.SetCalibration(spec.ToCalibration());
+        Assert.Equal(600, server.GetPulse(18));                       // 펄스는 그대로
+        Assert.Equal(-80.0, server.GetSimulatedAngle(18), 1);         // 각도만 WPF 공식으로
+        Assert.Equal("600,1500,2400,-80,80", server.Calibration.ToCalibString());
+        Assert.Equal(spec.PulseToAngle(2000), server.Calibration.PulseToAngle(2000), 6);
+    }
+
+    [Fact]
+    public void Calibration_CanBeSentOverTheWire_WithCf1()
+    {
+        using var server = StartServer();
+        var received = new List<string>();
+        server.CommandReceived += ev => { lock (received) received.Add(ev.Description); };
+        using var c = new PigpioClient("127.0.0.1", server.EndPoint.Port);
+        c.Connect();
+        Assert.True(c.SendCalibration(new ServoSpec(600, 1500, 2400, -80, 80, 18).ToCalibration()));
+        Assert.Equal("600,1500,2400,-80,80", server.Calibration.ToCalibString());
+        // CommandReceived 는 응답을 보낸 뒤 올라오므로 잠깐 기다림
+        for (var i = 0; i < 50; i++)
+        {
+            lock (received) if (received.Count >= 2) break;
+            Thread.Sleep(20);
+        }
+        lock (received)
+        {
+            Assert.Contains(received, d => d.Contains("CALIB 펄스 600/1500/2400"));
+            Assert.Contains(received, d => d.Contains("CALIB 각도 -80°~80°"));
+        }
+        // 잘못된 값은 −7 로 거부(클라이언트는 음수 응답을 ServoException 으로 올림)하고 이전 값 유지
+        Assert.Throws<ServoException>(() => c.Command(PigpioClient.CmdCustom1, PigpioEmulator.ServoCalibration.SubPulses, 2000u | (1500u << 16), 1900));
+        Assert.Throws<ServoException>(() => c.Command(PigpioClient.CmdCustom1, PigpioEmulator.ServoCalibration.SubAngles, unchecked((uint)-950), 800));
+        Assert.Equal("600,1500,2400,-80,80", server.Calibration.ToCalibString());
+        // 소수 각도(−40.5°)도 1/10 단위로 왕복
+        Assert.True(c.SendCalibration(new PigpioEmulator.ServoCalibration(1100, 1500, 1900, -40.5, 40)));
+        Assert.Equal("1100,1500,1900,-40.5,40", server.Calibration.ToCalibString());
+    }
+
+    [Fact]
+    public void Calibration_IsKeptInStateFile()
+    {
+        var file = Path.Combine(Path.GetTempPath(), "emu-calib-" + Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            using (var s1 = new PigpioEmulatorServer("127.0.0.1", 0, file))
+            {
+                s1.Start();
+                s1.SetCalibration(new PigpioEmulator.ServoCalibration(600, 1500, 2400, -80, 80));
+                using var c = new PigpioClient("127.0.0.1", s1.EndPoint.Port);
+                c.Connect();
+                c.Command(PigpioClient.CmdServo, 18, 600);
+            }
+            using var s2 = new PigpioEmulatorServer("127.0.0.1", 0, file);
+            s2.Start();
+            Assert.Equal("600,1500,2400,-80,80", s2.Calibration.ToCalibString());
+            Assert.Equal(600, s2.GetPulse(18));
+            Assert.Equal(-80.0, s2.GetSimulatedAngle(18), 1);          // 되살릴 때도 보정값 기준
+        }
+        finally
+        {
+            if (File.Exists(file)) File.Delete(file);
+        }
+    }
+
+    [Fact]
+    public void OldStateFileFormat_StillLoads()
+    {
+        var file = Path.Combine(Path.GetTempPath(), "emu-old-" + Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            File.WriteAllText(file, "{\"18\":{\"Pulse\":1700,\"Angle\":20.0}}");     // v1.3.0 까지의 모양
+            using var s = new PigpioEmulatorServer("127.0.0.1", 0, file);
+            s.Start();
+            Assert.Equal(1700, s.GetPulse(18));
+            Assert.Equal(20.0, s.GetSimulatedAngle(18), 1);
+            Assert.Equal(PigpioEmulator.ServoCalibration.Default, s.Calibration);
+        }
+        finally
+        {
+            if (File.Exists(file)) File.Delete(file);
+        }
+    }
+
+    [Fact]
     public void FullPath_Model_Driver_Emulator()
     {
         using var server = StartServer();

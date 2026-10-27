@@ -1,8 +1,8 @@
 # ServoControlWpf — Windows(WPF)에서 WSL·Raspberry Pi 서보 제어
 
-**버전 1.2.1** — 버전은 `VERSION` 파일 하나가 기준이고(창 제목·상태 바에 표시), 변경 내역은 [CHANGELOG.md](CHANGELOG.md), 올릴 때는 `tools\bump-version.ps1 -Part patch|minor|major`(WSL: `tools/bump_version.sh`).
+**버전 1.3.2** — 버전은 `VERSION` 파일 하나가 기준이고(창 제목·상태 바에 표시), 변경 내역은 [CHANGELOG.md](CHANGELOG.md), 올릴 때는 `tools\bump-version.ps1 -Part patch|minor|major`(WSL: `tools/bump_version.sh`).
 
-Windows(WPF, C#)에서 Raspberry Pi 의 서보 모터(카메라 팬)를 움직이는 프로그램입니다. v1.1.0 부터는 Pi 모니터에 띄우는 **카메라 영상 + 카메라 이동 로그** 프로그램(`pi_display/`, Python)이 함께 들어 있고, WPF 에서 그 영상을 받아 봅니다.
+Windows(WPF, C#)에서 Raspberry Pi 의 서보 모터(카메라 팬)를 움직이는 프로그램입니다. Pi 모니터에 띄우는 **카메라 영상 + 카메라 이동 로그** 프로그램(`pi_display/`, Python)이 함께 들어 있고, WPF 에서 그 영상을 받아 보며 **녹화(Pi 4 하드웨어 H.264)·5 MP 사진·카메라 설정·OpenCV 인식**을 조작하고, 녹화 파일은 **Pi → WSL 로 자동 전송**됩니다(아래 "Pi 화면 프로그램").
 HiTEC HS-311 서보를 Raspberry Pi 4B 의 pigpiod(TCP 8888)로 제어하며, 세 가지 연결 방식을 지원합니다.
 
 | 연결 방식 | 경로 | 언제 쓰나 |
@@ -18,10 +18,10 @@ HiTEC HS-311 서보를 Raspberry Pi 4B 의 pigpiod(TCP 8888)로 제어하며, �
 ```
 ServoControlWpf.sln
 ServoControlWpf/            WPF 앱 (net8.0-windows10.0.19041.0)   Model / ViewModel / View / Services(WSL, 웹캠)
-ServoControlWpf.Tests/      xUnit 테스트 137개 (사양 변환, 글꼴 자동 축소, pigpiod 프로토콜, 모델 롤백·장치 상태 동기화, 에뮬레이터 왕복·재연결 기억·상태 파일·포트 충돌 대체, WSL 가짜 Pi 기동·재사용, 직접 연결 자기 주소 거부, 다이얼·카메라 뷰, 각도↔펄스, 터널 실패 경로, XAML 바인딩 누락 검사, 카메라 뷰모델, MJPEG 파서·네트워크 카메라·합성 소스, 버전 일치)
+ServoControlWpf.Tests/      xUnit 테스트 218개 (사양 변환·보정값 전달·보정 칸 연동, 글꼴 자동 축소, pigpiod 프로토콜, 모델 롤백·장치 상태 동기화, 에뮬레이터 왕복·재연결 기억·상태 파일·포트 충돌 대체, WSL 가짜 Pi 기동·재사용, 직접 연결 자기 주소 거부, 다이얼·카메라 뷰, 각도↔펄스, 터널 실패 경로, XAML 바인딩 누락 검사, 카메라 뷰모델, MJPEG 파서·네트워크 카메라·합성 소스, Pi 카메라 API·녹화/사진/설정/인식 뷰모델·전송 설정, 버전 일치)
 tools/fake_pigpiod.py       리눅스(WSL)용 가짜 pigpiod — 에뮬레이터 종류 "WSL 가짜 Pi" 가 wsl.exe 로 띄움
 tools/pi/                   Pi 관리 스크립트 pi_setup.sh(pigpio 설치·원격 허용) · pi_info.sh(Pi 정보 수집)
-pi_display/                 Pi 모니터용 Python 프로그램: 카메라 영상 + 서보 이동 로그 + MJPEG 서버 (pi_display/README.md)
+pi_display/                 Pi 모니터용 Python 프로그램: 카메라 영상 + 서보 이동 로그 + MJPEG 서버 + 녹화·사진·설정·인식 API, 전송 스크립트 pull/watch_recordings.sh (pi_display/README.md)
 VERSION · CHANGELOG.md      버전 단일 진실 · 변경 내역.  Directory.Build.props 가 VERSION 을 모든 프로젝트에 주입
 PigpioEmulator/             가짜 pigpiod 라이브러리 (16바이트 프로토콜 + 서보 움직임 흉내)
 PigpioEmulatorCli/          가짜 pigpiod 콘솔 프로그램 `pigpio-emu`
@@ -39,6 +39,10 @@ dotnet run   --project ServoControlWpf
 .NET SDK 8 이상이 필요합니다 (SDK 10 으로도 빌드됩니다, 런타임은 8 또는 그 이상 어느 것이든 됨). 앱의 대상 프레임워크는 `net8.0-windows10.0.19041.0`(웹캠용 Windows 10 API 사용)이라 출력 폴더가 `bin\Release\net8.0-windows10.0.19041.0\` 입니다. 처음 빌드할 때 Windows SDK 프로젝션 패키지를 자동으로 내려받습니다(인터넷 필요).
 
 ## 하드웨어 없이 써 보기 (에뮬레이터)
+
+> **보정 칸은 서로 묶여 있습니다** (v1.3.2): "서보" 탭의 보정에서 각도를 고치면 짝이 되는 펄스가, 펄스를 고치면 각도가 따라 바뀝니다. 둘을 잇는 값은 "1° 당 µs"(HS-311 공식 10) 칸이고, 중립 펄스나 이 기울기를 바꾸면 각도를 지킨 채 최소·최대 펄스가 다시 계산됩니다. 아래 요약 줄로 확인한 뒤 [적용].
+>
+> **각도 숫자가 맞으려면**: pigpiod 와 가짜 Pi 는 펄스폭만 알고, 각도는 보는 쪽이 보정값으로 계산합니다. v1.3.1 부터 WPF 의 보정 탭 값이 기준이 되어 앱 안 가짜 Pi·WSL 가짜 Pi(`--calib`, CF1 명령)·Pi 화면 프로그램(`POST /servo/calib`)에 자동으로 전달되므로, 보정값을 600/1500/2400 µs · ±80° 로 두면 600 µs 가 어디서나 −80° 로 보입니다.
 
 연결 방식 **에뮬레이터** 를 고르면 옆에 **종류** 콤보가 나타납니다.
 
@@ -114,6 +118,13 @@ Pi 모니터(800×480)에 Pi 카메라 영상과 **서보가 실제로 움직인
 ```
 
 Pi 없이 전체 흐름: WSL 1 `./run-from-wsl.sh fakepi`, WSL 2 `python3 pi_display/pi_display.py --no-gui --fake-camera --pigpio-host 127.0.0.1`, WPF **에뮬레이터 · WSL 가짜 Pi**(8888, 이미 떠 있는 WSL 1 을 재사용) + 카메라 콤보 "Pi 카메라 (네트워크)". 다이얼을 돌리면 WSL 2 에 `로그: … 1700 µs +20.0° Δ+10.0°` 가 찍힙니다.
+
+### 녹화 · 사진 · 설정 · 인식 (v1.3.0, 카메라 OV5647 5 MP 기준)
+
+- 카메라 화면에서 Pi 카메라를 보고 있으면 **[● 녹화]/[■ 정지 00:01:23 · 12 MB]** 와 **[📷 사진]** 버튼이 나타납니다. 녹화는 Pi 가 합니다 — picamera2 백엔드면 녹화 모드(1080p30 / 720p60 / 480p90) 크기로 **Pi 4 하드웨어 H.264**(mp4), 그 밖의 백엔드(libcamera-vid·USB·가짜 카메라)는 미리보기 MJPEG 를 AVI 로. 사진은 2592×1944. 파일은 Pi 의 `~/Videos/pi_display/`, 한 번에 최대 60 분, 8 GB 상한.
+- **Pi → WSL 자동 전송**: 녹화를 멈추거나 사진을 찍으면 WPF 가 `pi_display/pull_recordings.sh`(rsync over ssh `rpi`)를 돌려 `~/MyJob/projects/comanyLinux/ServoChapter/recordings` 로 가져오고 결과를 같은 줄에 보여 줍니다. WPF 가 꺼져 있어도 가져오려면 "Pi 카메라" 탭 [감시 서비스 설치](`watch_recordings.sh --install`, WSL systemd user 서비스 30 초 주기). WSL2 는 NAT 뒤라 Pi 가 보내는(push) 방식은 안 되므로 WSL 이 끌어옵니다. [폴더 열기] 는 `\\wsl.localhost\…` 를 탐색기로.
+- 오른쪽 **"Pi 카메라" 탭**: 녹화 모드·화이트밸런스·밝기·대비·채도·좌우/상하 반전(Pi 의 `~/.config/pi_display/camera.json` 에 저장, 모드·반전은 카메라를 다시 열어 적용), **인체·사물 인식**(OpenCV MobileNet-SSD 20 종 또는 HOG, 미리보기에 박스; H.264 원본에는 안 들어감), 전송 폴더·자동 가져오기 체크·버튼.
+- Pi 처음 설치 때 `deploy_pi_display.sh rpi --install-deps` 가 `ffmpeg python3-opencv` 와 인식 모델(23 MB)도 설치합니다. 실제 Pi 카메라는 아직 없어 H.264·5 MP·인식 속도는 미검증이고, WSL 가짜 카메라로 AVI 녹화 → 전송 → 사진 → 설정 저장까지 확인했습니다.
 
 **왼쪽 아래**는 서보에 올려진 카메라를 위에서 본 그림입니다(표시 전용, 마우스 입력 없음). 명령한 각도를 향해 HS-311 속도(0.19 s/60°)로 돌아가고, 시야(62°)·허용 범위·끝단 경고를 보여 줍니다.
 **연결된 상태에서만 움직입니다.** 연결 해제 상태에서는 "연결 안 됨" 안내가 덮이고, 다이얼·각도·펄스를 바꿔도 카메라는 제자리입니다(명령이 서보로 나가지 않으므로).

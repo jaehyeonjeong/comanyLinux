@@ -5,6 +5,19 @@ namespace ServoControlWpf.Tests;
 
 public class ServoSpecTests
 {
+    [Fact]
+    public void CalibString_MatchesPythonFormat_AndRoundTrips()
+    {
+        var s = new ServoSpec(600, 1500, 2400, -80, 80, 18);
+        Assert.Equal("600,1500,2400,-80,80", s.ToCalibString());            // pi_display --calib / fake_pigpiod --calib 와 같은 형식
+        Assert.True(PigpioEmulator.ServoCalibration.TryParse(s.ToCalibString(), out var c));
+        Assert.Equal(s.ToCalibration(), c);
+        Assert.Equal(s.PulseToAngle(600), c.PulseToAngle(600), 6);          // 같은 공식
+        Assert.Equal("1100,1500,1900,-40.5,40", new ServoSpec(1100, 1500, 1900, -40.5, 40, 18).ToCalibString());
+        Assert.False(PigpioEmulator.ServoCalibration.TryParse("2000,1500,1900,-40,40", out _));
+        Assert.False(PigpioEmulator.ServoCalibration.TryParse("a,b,c,d,e", out _));
+    }
+
     [Theory]
     [InlineData(0.0, 1500)]
     [InlineData(20.0, 1700)]     // 1500 + 20 × 400 / 40

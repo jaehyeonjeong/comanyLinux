@@ -1,7 +1,10 @@
 #!/bin/bash
 # Pi 에서 실행 (deploy_pi_display.sh --install-deps 가 ssh 로 호출): pi_display 에 필요한 패키지 설치 + 카메라 스택 안내
+#   옵션: --no-models   MobileNet-SSD 모델(약 23 MB) 내려받기 생략 (인식은 OpenCV 내장 HOG 로 사람만)
 set -e
 export DEBIAN_FRONTEND=noninteractive
+MODELS=1
+for a in "$@"; do case "$a" in --no-models) MODELS=0 ;; esac; done
 echo "== OS: $(grep PRETTY_NAME /etc/os-release | cut -d= -f2 | tr -d '"')  ($(getconf LONG_BIT)bit)"
 
 echo "== 카메라 스택 확인"
@@ -25,7 +28,25 @@ if [[ "$STACK" == "libcamera" ]]; then
 else
   sudo apt-get install -y -qq python3-picamera || echo "  (python3-picamera 설치 실패)"
 fi
-sudo apt-get install -y -qq python3-opencv scrot 2>/dev/null || true
+echo "== 녹화(mp4 담기)·인식 패키지"
+sudo apt-get install -y -qq ffmpeg || echo "  (ffmpeg 없음 — 녹화는 .h264 원시 파일로 저장됩니다: ffmpeg -i a.h264 -c copy a.mp4 로 변환)"
+sudo apt-get install -y -qq python3-opencv python3-numpy || echo "  (python3-opencv 없음 — 인체/사물 인식을 쓸 수 없습니다)"
+sudo apt-get install -y -qq scrot 2>/dev/null || true
+
+if [[ $MODELS -eq 1 ]]; then
+  echo "== 인식 모델 (MobileNet-SSD, VOC 20종)"
+  MD="${XDG_DATA_HOME:-$HOME/.local/share}/pi_display/models"
+  mkdir -p "$MD"
+  BASE="https://github.com/chuanqi305/MobileNet-SSD/raw/master"
+  for f in deploy.prototxt mobilenet_iter_73000.caffemodel; do
+    if [[ -s "$MD/$f" ]]; then echo "  있음: $f"; continue; fi
+    curl -fsSL --retry 2 -o "$MD/$f.tmp" "$BASE/$f" && mv "$MD/$f.tmp" "$MD/$f" && echo "  받음: $f ($(du -h "$MD/$f" | cut -f1))" \
+      || { rm -f "$MD/$f.tmp"; echo "  (내려받기 실패: $f — 인식은 HOG(사람만) 로 동작)"; }
+  done
+fi
+
+echo "== 녹화 폴더"
+mkdir -p "$HOME/Videos/pi_display" && echo "  $HOME/Videos/pi_display  (여유 $(df -h "$HOME" | awk 'NR==2{print $4}'))"
 
 echo "== pigpiod"
 if ! systemctl is-active --quiet pigpiod; then

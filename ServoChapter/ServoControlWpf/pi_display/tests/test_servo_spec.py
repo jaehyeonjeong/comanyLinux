@@ -23,6 +23,12 @@ class ServoSpecTests(unittest.TestCase):
         self.assertAlmostEqual(s.pulse_to_angle(1234), -15.2)
         self.assertEqual(s.angle_to_pulse(15), 1725)
 
+    def test_to_calib_roundtrip_matches_wpf_format(self):
+        s = ServoSpec(600, 1500, 2400, -80.0, 80.0)
+        self.assertEqual(s.to_calib(), "600,1500,2400,-80,80")              # C# ToCalibString() 과 같은 문자열
+        self.assertEqual(ServoSpec.parse(s.to_calib()), s)
+        self.assertEqual(ServoSpec(1100, 1500, 1900, -40.5, 40.0).to_calib(), "1100,1500,1900,-40.5,40")
+
     def test_parse_rejects_bad(self):
         with self.assertRaises(ValueError):
             ServoSpec.parse("1,2,3")
