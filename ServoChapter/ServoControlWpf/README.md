@@ -1,6 +1,6 @@
 # ServoControlWpf — Windows(WPF)에서 WSL·Raspberry Pi 서보 제어
 
-**버전 1.3.2** — 버전은 `VERSION` 파일 하나가 기준이고(창 제목·상태 바에 표시), 변경 내역은 [CHANGELOG.md](CHANGELOG.md), 올릴 때는 `tools\bump-version.ps1 -Part patch|minor|major`(WSL: `tools/bump_version.sh`).
+**버전 1.3.3** — 버전은 `VERSION` 파일 하나가 기준이고(창 제목·상태 바에 표시), 변경 내역은 [CHANGELOG.md](CHANGELOG.md), 올릴 때는 `tools\bump-version.ps1 -Part patch|minor|major`(WSL: `tools/bump_version.sh`).
 
 Windows(WPF, C#)에서 Raspberry Pi 의 서보 모터(카메라 팬)를 움직이는 프로그램입니다. Pi 모니터에 띄우는 **카메라 영상 + 카메라 이동 로그** 프로그램(`pi_display/`, Python)이 함께 들어 있고, WPF 에서 그 영상을 받아 보며 **녹화(Pi 4 하드웨어 H.264)·5 MP 사진·카메라 설정·OpenCV 인식**을 조작하고, 녹화 파일은 **Pi → WSL 로 자동 전송**됩니다(아래 "Pi 화면 프로그램").
 HiTEC HS-311 서보를 Raspberry Pi 4B 의 pigpiod(TCP 8888)로 제어하며, 세 가지 연결 방식을 지원합니다.

@@ -5,6 +5,13 @@
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-10-27
+
+### Fixed
+- **`deploy_pi_display.sh` 가 실제 Pi 에서 "[5/5] 실행" 에서 멈추고 화면이 안 뜸**(사용자 보고, 처음으로 실제 Pi 에 배포). 원인 둘: ① `ssh rpi "pkill -f 'pi_display.py'"` 의 패턴이 그 명령을 실행하는 원격 셸(`bash -c "… pi_display.py …"`) 자신과 일치해 자기 셸을 죽임 → ssh 비정상 종료 → `set -e` 로 스크립트 중단. `'[p]i_display.py'` 로 수정. ② `cd … && nohup python3 … &` 는 `&` 가 `cd && nohup` 전체에 걸려 서브셸이 python 이 끝날 때까지 ssh 의 출력 파이프를 쥐고 있어 ssh 가 영원히 안 돌아옴. `( … setsid nohup … & )` 로 감싸 바로 돌아오게 수정.
+- 실제 Pi(Bullseye, pigpiod 실행 중)에 배포해 확인: 모니터에 pi_display v1.3.x 전체 화면, `status.json` 의 서보 상태(1678 µs, +17.8°)·녹화 폴더·MobileNet-SSD 준비. 카메라는 아직 안 붙어 있어 영상은 없음(`libcamera-hello --list-cameras` → No cameras). Pi 의 `python3-picamera2`(0.3.12) 가 설치된 `libcamera0`(0.0.5) 보다 옛 `libcamera.so.0.0.4` 를 찾아 import 실패 → libcamera-vid 로 대체됨. 카메라를 붙일 때 `sudo apt update && sudo apt full-upgrade` 로 짝을 맞출 것(H.264 녹화·5MP 사진은 picamera2 경로).
+- **카메라가 없으면 pi_display 가 종료되던 것** → `auto` 가 백엔드 넷(picamera2·libcamera-vid·picamera·opencv)을 다 실패하면 새 자리 표시 백엔드 `none`("NO CAMERA" 그림 1 fps, `pidisplay/camera/none_backend.py`)으로 내려와 계속 돈다. 서보 이동 로그·pigpiod 상태·`status.json`·보정값 수신은 카메라와 무관하게 동작하고, 녹화·사진은 503("카메라가 없습니다 … 다시 시작")으로 거절(`Recorder._require_camera`). Pi 화면 상태 줄 "카메라 없음 (모듈 연결 후 pi_display 재시작)", `--camera none` 으로 명시도 가능. 이름을 지정한 백엔드가 실패하면 전처럼 오류 종료. Python 테스트 3개(총 47).
+
 ## [1.3.2] - 2026-10-27
 
 ### Changed

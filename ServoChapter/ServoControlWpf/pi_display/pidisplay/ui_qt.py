@@ -147,7 +147,10 @@ class DisplayWindow(QMainWindow):
         else:
             self.angle_label.setText("서보 상태 ?")
             self.angle_label.setStyleSheet("color:#aaa")
-        cam = f"{self.hub.backend} · {self.hub.width}×{self.hub.height} · {self.hub.fps():.0f} fps"
+        if self.hub.backend == "none":
+            cam = "카메라 없음 (모듈 연결 후 pi_display 재시작)"
+        else:
+            cam = f"{self.hub.backend} · {self.hub.width}×{self.hub.height} · {self.hub.fps():.0f} fps"
         if self.hub.age > 3:
             cam += " · 프레임 끊김"
         pig = f"pigpiod {'연결됨' if self.poller.connected else '연결 안 됨'} ({self.poller.backend})"

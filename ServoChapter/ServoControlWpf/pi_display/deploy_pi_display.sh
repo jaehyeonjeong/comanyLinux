@@ -54,9 +54,14 @@ fi
 
 if [[ $RUN -eq 1 ]]; then
   echo "[5/5] 실행"
-  ssh "$HOST" "pkill -f 'pi_display.py' || true"
+  # '[p]i_display.py' 로 써야 이 명령을 실행하는 ssh 셸(bash -c "... pi_display.py ...") 자신은 안 잡힌다.
+  # 그냥 'pi_display.py' 로 쓰면 자기 셸을 죽여 ssh 가 비정상 종료 → set -e 로 여기서 멈춘다.
+  ssh "$HOST" "pkill -f '[p]i_display.py' || true"
   FLAGS="--fullscreen ${EXTRA[*]}"
-  ssh "$HOST" "cd '$DEST' && DISPLAY=:0 XAUTHORITY=\$HOME/.Xauthority nohup python3 pi_display.py $FLAGS > pi_display.log 2>&1 < /dev/null &"
+  # ( … & ) 괄호가 중요: 괄호 없이 "cd … && nohup … &" 로 쓰면 & 가 "cd && nohup" 전체에 걸려 bash 서브셸이
+  # python 이 끝날 때까지 남고, 그 서브셸이 ssh 의 출력 파이프를 쥐고 있어 ssh(이 스크립트)가 영원히 안 끝난다.
+  # 괄호 안에서 & 를 쓰면 서브셸은 python 을 띄우자마자 끝나고, python 의 입출력은 모두 파일/널로 돌려서 ssh 가 바로 돌아온다.
+  ssh "$HOST" "cd '$DEST' && ( DISPLAY=:0 XAUTHORITY=\$HOME/.Xauthority setsid nohup python3 pi_display.py $FLAGS > pi_display.log 2>&1 < /dev/null & )"
   sleep 4
   echo "--- pi_display.log (앞 12줄)"
   ssh "$HOST" "head -12 '$DEST/pi_display.log'"

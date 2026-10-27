@@ -27,6 +27,14 @@ Raspberry Pi(모니터 800×480)에서 돌아가는 Python 프로그램입니다
 ./deploy_pi_display.sh rpi -- --fps 15 --quality 60     # 추가 플래그
 ```
 WPF 의 "WSL / Pi 관리" 탭 [Pi 화면 배포] / [Pi 화면 배포(+apt) ↗] 버튼이 같은 스크립트를 실행합니다.
+
+```bash
+ssh rpi "pkill -f '[p]i_display.py'"                    # 끄기 — [p] 필수 (없으면 자기 ssh 셸이 먼저 죽음)
+ssh rpi "pgrep -af '[p]i_display.py' || echo 꺼짐"      # 확인
+ssh rpi 'tail -f ~/Source/pi_display/pi_display.log'   # 로그
+ssh rpi 'rm ~/.config/autostart/pi-display.desktop'    # --autostart 로 등록한 자동 시작 해제
+```
+Pi 모니터 앞에서는 ESC 또는 Q 로도 종료됩니다.
 ssh 별명 `rpi` 는 `../tools/setup_rpi_wireless.sh` 로 준비합니다.
 
 ## Pi 없이 시험 (WSL)
@@ -37,13 +45,13 @@ cd ~/MyJob/projects/comanyLinux/ServoChapter/ServoControlWpf
 ./run-from-wsl.sh fakepi             python3 pi_display/pi_display.py --no-gui --fake-camera --pigpio-host 127.0.0.1
 ```
 Windows 의 WPF 에서 에뮬레이터 · WSL 가짜 Pi · 8888 → 카메라 콤보 "Pi 카메라 (네트워크)" (URL `http://127.0.0.1:8889/stream.mjpg`) → 다이얼을 돌리면 터미널 2에 `로그: 17:05:01.123  1700 µs  +20.0°  Δ+10.0°` 가 찍힙니다. [● 녹화] → [■ 정지] 하면 `● 녹화 시작 rec_….avi (mjpeg-avi)` / `■ 녹화 끝 … 56 KB 00:00:06` 이 찍히고, ssh 별명 칸에 `local:/home/<나>/Videos/pi_display` 를 두면 전송 스크립트까지 Pi 없이 돌아갑니다.
-단위 테스트(42개): `python3 -m unittest discover -s pi_display/tests -v`
+단위 테스트(47개): `python3 -m unittest discover -s pi_display/tests -v`
 
 ## 주요 플래그
 
 | 플래그 | 기본 | 뜻 |
 |---|---|---|
-| `--camera auto\|picamera2\|libcamera-vid\|picamera\|opencv\|fake`, `--fake-camera` | auto | 카메라 백엔드 |
+| `--camera auto\|picamera2\|libcamera-vid\|picamera\|opencv\|fake\|none`, `--fake-camera` | auto | 카메라 백엔드. `auto` 가 넷 다 실패하면(카메라 미연결) 종료하지 않고 `none`(자리 표시 "NO CAMERA" 1 fps)으로 계속 돈다 — 서보 로그·status.json·보정 수신은 그대로, 녹화·사진은 503. 카메라를 붙인 뒤 다시 시작 |
 | `--width/--height/--fps/--quality` | 640/480/10/70 | 영상 크기·속도·JPEG 품질 (Wi-Fi 대역폭 조절) |
 | `--http-port/--http-bind`, `--no-http` | 8889 / 0.0.0.0 | MJPEG 서버 |
 | `--fullscreen` / `--windowed` / `--no-gui` | 전체 화면 | 화면 모드 (PyQt5 가 없으면 자동으로 `--no-gui`) |

@@ -84,7 +84,14 @@ class Recorder:
         return self._part is not None
 
     def _kind_for_backend(self) -> str:
-        return "h264" if getattr(self.backend, "record_capable", "mjpeg-avi") == "h264" else "mjpeg-avi"
+        cap = getattr(self.backend, "record_capable", "mjpeg-avi")
+        if cap == "none":
+            return "none"                       # 카메라 없음(자리 표시 백엔드) — 녹화·사진 거절
+        return "h264" if cap == "h264" else "mjpeg-avi"
+
+    def _require_camera(self) -> None:
+        if self._kind_for_backend() == "none":
+            raise ApiError("카메라가 없습니다 — 카메라 모듈을 연결한 뒤 pi_display 를 다시 시작하세요", 503)
 
     def _bytes_now(self) -> int:
         p = self._part
@@ -187,6 +194,7 @@ class Recorder:
         with self._lock:
             if self.recording:
                 raise ApiError("이미 녹화 중입니다", 409)
+            self._require_camera()
             if self.hub.latest()[0] is None:
                 raise ApiError("카메라 프레임이 아직 없습니다", 503)
             self._guard()
@@ -308,6 +316,7 @@ class Recorder:
 
     # ── 사진 ──
     def snapshot(self) -> dict:
+        self._require_camera()
         self._guard()
         stamp = time.strftime("%Y%m%d_%H%M%S", time.localtime(self._clock()))
         path = os.path.join(self.rec_dir, f"img_{stamp}.jpg")

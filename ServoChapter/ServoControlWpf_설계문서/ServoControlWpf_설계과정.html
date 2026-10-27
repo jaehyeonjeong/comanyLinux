@@ -45,7 +45,7 @@
 
 <h1>ServoControlWpf 설계 과정과 운용 원리</h1>
 <div class="sub">Windows(WPF) 에서 WSL 과 Raspberry Pi 4 B 를 거쳐 HiTEC HS-311 서보를 움직이는 프로그램 — 왜, 무엇을, 어떻게 만들었나</div>
-<div class="meta">작성 정재현 (Claude Code 와 함께 작성) · 2026. 10. 26. ~ 27. · Rev. 1.8 (v1.3.2) · 함께 보는 문서: <i>ServoControl 동작 원리와 소스코드</i>, <i>Raspberry Pi 4B + HS-311 데이터시트</i>, <i>ServoControlWpf 소스 설명</i></div>
+<div class="meta">작성 정재현 (Claude Code 와 함께 작성) · 2026. 10. 26. ~ 27. · Rev. 2.0 (v1.3.3, 실제 Pi 첫 배포 — 배포 스크립트 수정·카메라 없을 때 자리 표시) · 함께 보는 문서: <i>ServoControl 동작 원리와 소스코드</i>, <i>Raspberry Pi 4B + HS-311 데이터시트</i>, <i>ServoControlWpf 소스 설명</i></div>
 
 <div class="box">
   <b class="t">이 문서를 읽는 법 — 길고 자세하지만, 다 읽을 필요는 없습니다</b>
@@ -89,7 +89,7 @@ Windows 프로그램(WPF)으로 Raspberry Pi 에 붙은 서보 모터(카메라�
 <tr><th style="width:22%">무엇</th><th>설명</th></tr>
 <tr><td><b>서보가 움직이는 원리</b></td><td>서보는 20 ms 마다 오는 <b>펄스의 길이</b>로 각도를 받습니다. 1500 µs = 0°, 10 µs 마다 1°(HS-311). 펄스는 Pi 의 <code>pigpiod</code> 프로그램이 만들고, 우리 프로그램은 "GPIO18 을 1700 µs 로" 라는 <b>16바이트 명령</b>을 TCP(포트 8888)로 보낼 뿐입니다.</td></tr>
 <tr><td><b>프로그램 3개</b></td><td>① <b>ServoControlWpf</b>(Windows) — 다이얼·슬라이더로 조종, 카메라 화면, 설정, Pi 카메라 녹화·사진 버튼과 "Pi 카메라" 탭. ② <b>pi_display</b>(Pi, Python) — Pi 모니터에 카메라 영상 + 서보 이동 로그, 영상을 HTTP 로 내보내고 녹화·5 MP 사진·카메라 설정·OpenCV 인식을 HTTP 명령으로 받음. ③ <b>에뮬레이터</b>(가짜 pigpiod, Windows·리눅스 판) — Pi 없이 전부 시험.</td></tr>
-<tr><td><b>카메라 녹화와 전송</b></td><td>Pi 카메라(OV5647, 5 MP)로 영상을 보면서 [● 녹화]/[■ 정지] 로 Pi 에 녹화(H.264 하드웨어, 1080p30 까지)하고, 멈추면 WSL 이 <code>rsync</code> 로 <b>끌어와</b> <code>~/MyJob/projects/comanyLinux/ServoChapter/recordings</code> 에 둡니다(Pi → WSL 은 push 가 안 되므로 pull). [📷 사진] 은 2592×1944 한 장. 설정(녹화 모드·반전·밝기·대비·채도·화이트밸런스)과 인체·사물 인식은 오른쪽 "Pi 카메라" 탭(15-7~15-11).</td></tr>
+<tr><td><b>카메라 녹화와 전송</b></td><td>Pi 카메라(OV5647, 5 MP)로 영상을 보면서 [● 녹화]/[■ 정지] 로 Pi 에 녹화(H.264 하드웨어, 1080p30 까지)하고, 멈추면 WSL 이 <code>rsync</code> 로 <b>끌어와</b> <code>~/MyJob/projects/comanyLinux/ServoChapter/recordings</code> 에 둡니다(Pi → WSL 은 push 가 안 되므로 pull). [📷 사진] 은 2592×1944 한 장. 설정(녹화 모드·반전·밝기·대비·채도·화이트밸런스)과 인체·사물 인식은 오른쪽 "Pi 카메라" 탭(15-6~15-9).</td></tr>
 <tr><td><b>연결하는 세 가지 길</b></td><td><b>직접</b>: Windows → LAN → <b>실제 Pi</b> 의 8888 (Pi 가 PC 주소를 허용해야 함. 127.0.0.1 같은 자기 주소는 거부). <b>WSL 터널</b>: Windows → WSL 의 ssh → Pi (Pi 설정 불필요, 키 인증 필요, 무선에 권장). <b>에뮬레이터</b>: 가짜 Pi — 종류를 고름: <b>앱 안 가짜 Pi</b> 또는 <b>WSL 가짜 Pi</b>(앱이 WSL 에 <code>fake_pigpiod.py</code> 를 띄움). 어느 길이든 그 뒤는 같은 명령입니다.</td></tr>
 <tr><td><b>켜는 순서</b></td><td>① Pi: 서보 외부 5 V, pigpiod 켜짐. ② WPF 실행(Windows 에서 <code>dotnet run</code> 또는 WSL 에서 <code>./run-from-wsl.sh</code>). ③ 연결 방식 고르고 [연결] → 화면이 서보의 현재 각도(GPW)로 맞춰짐. ④ [0°] → 조금씩 움직임 → 끝나면 [출력 끄기]. 창을 닫으면 설정과 마지막 각도가 저장됩니다.</td></tr>
 <tr><td><b>Pi 없이 연습</b></td><td>연결 방식 "에뮬레이터" → 종류 <b>앱 안 가짜 Pi</b>(가장 쉬움) 또는 <b>WSL 가짜 Pi</b>(명령이 가상 네트워크를 실제로 건너감, 앱이 WSL 에 <code>fake_pigpiod.py</code> 를 띄움) → [연결]. Pi 화면 프로그램까지 보려면 WSL 에서 <code>python3 pi_display/pi_display.py --no-gui --fake-camera</code> 를 함께 띄움.</td></tr>
@@ -98,15 +98,11 @@ Windows 프로그램(WPF)으로 Raspberry Pi 에 붙은 서보 모터(카메라�
 </table>
 
 <div class="easy"><b class="t">자주 쓰는 명령 6개</b>
-<code>cd ~/MyJob/projects/comanyLinux/ServoChapter/ServoControlWpf</code> (WSL 프로젝트) · <code>./run-from-wsl.sh</code> (WPF 띄우기) · <code>./run-from-wsl.sh fakepi</code> (가짜 Pi 를 터미널에서 — 앱의 "WSL 가짜 Pi" 가 재사용) · <code>./tools/setup_rpi_wireless.sh &lt;Pi IP&gt; &lt;사용자&gt;</code> (ssh 준비) · <code>./pi_display/deploy_pi_display.sh rpi</code> (Pi 화면 배포) · <code>ssh rpi</code> (Pi 접속)</div>
+<code>cd ~/MyJob/projects/comanyLinux/ServoChapter/ServoControlWpf</code> (WSL 프로젝트) · <code>./run-from-wsl.sh</code> (WPF 띄우기) · <code>./run-from-wsl.sh fakepi</code> (가짜 Pi 를 터미널에서 — 앱의 "WSL 가짜 Pi" 가 재사용) · <code>./tools/setup_rpi_wireless.sh &lt;Pi IP&gt; &lt;사용자&gt;</code> (ssh 준비) · <code>./pi_display/deploy_pi_display.sh rpi</code> (Pi 화면 배포 = 모니터에 띄우기) · <code>ssh rpi "pkill -f '[p]i_display.py'"</code> (Pi 화면 끄기) · <code>ssh rpi</code> (Pi 접속)</div>
 
 <!-- ═══════════════════════════════ 1 ═══════════════════════════════ -->
 <h2>1. 한눈에 보기</h2>
 <div class="easy"><b class="t">쉬운 풀이</b> 서보는 "펄스 길이" 로 각도를 받고, 그 펄스는 Pi 의 pigpiod 가 만듭니다. 우리 프로그램이 하는 일은 "몇 µs 로 해 줘" 라는 짧은 명령을 TCP 로 보내는 것뿐이라, Windows 에서든 WSL 에서든 가짜 Pi 에든 같은 방법으로 보낼 수 있습니다.</div>
-<p><b>한 줄 요약:</b> 서보는 "펄스 길이" 로 각도를 받는다. 그 펄스를 Raspberry Pi 의 <span class="kw">pigpiod</span> 가 만들어 주고,
-Windows 의 WPF 프로그램은 "GPIO18 을 1500 µs 로" 같은 <b>16바이트 명령</b>을 TCP 로 보내기만 한다.
-명령을 보내는 길은 세 가지 — <b>직접</b>, <b>WSL 터널</b>, <b>에뮬레이터</b>(가짜 Pi) — 중에서 고른다.</p>
-
 <figure>
 <svg viewBox="0 0 900 330" width="900" height="330">
   <defs><marker id="ar" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0b3d63"/></marker>
@@ -236,10 +232,10 @@ Windows 의 WPF 프로그램은 "GPIO18 을 1500 µs 로" 같은 <b>16바이트 
 <h2 class="pb">4. 세 가지 연결 길 — 직접(실제 Pi) · WSL 터널 · 에뮬레이터(앱 안 / WSL 가짜 Pi)</h2>
 <div class="easy"><b class="t">쉬운 풀이</b> <b>직접</b>은 가장 단순하지만 Pi 가 PC 주소를 허용해야 하고 <b>실제 Pi 의 LAN 주소에만</b> 씁니다. <b>터널</b>은 WSL 의 ssh 가 길을 뚫어 주어 Pi 설정이 필요 없지만 비밀번호 없는 키 인증이 필요합니다. <b>에뮬레이터</b>는 Pi 가 없을 때 가짜 Pi 를 쓰는데, 가짜 Pi 를 <b>앱 안</b>에 둘지 <b>WSL 안</b>(리눅스 프로세스)에 둘지 종류를 고릅니다. 세 길 모두 끝에서는 같은 16바이트 명령이 pigpiod 에 닿습니다.</div>
 
-<h3>4-1. ① 직접 연결 — 실제 Pi 전용, 왜 Pi 설정을 바꾸지 않아도 되나</h3>
-<p><b>직접 연결은 실제 Pi 의 LAN 주소에만 씁니다.</b> Pi 주소 칸에 <code>127.0.0.1</code>·<code>localhost</code>·<code>::1</code>·<code>0.0.0.0</code> 을 넣고 [연결] 하면 "직접 연결은 실제 Pi(LAN 주소, 예 192.168.10.2 또는 172.30.1.81)에만 씁니다 … 가짜 Pi 로 연습하려면 연결 방식을 '에뮬레이터' 로" 라는 안내와 함께 거부합니다(<code>MainViewModel.IsLoopbackHost</code>). 자기 자신에게 "직접 연결" 한다는 것은 결국 같은 PC 의 가짜 서버에 붙는 것, 즉 에뮬레이션이기 때문입니다(4-5 절). 호스트 이름(<code>raspberrypi.local</code>)은 그대로 통과합니다.</p>
-<p>WSL2 는 기본적으로 <b>NAT</b> 방식이라 WSL 안에서 보낸 패킷은 Windows 의 주소(192.168.10.1)로 바뀌어 나갑니다.
-즉 Pi 의 pigpiod 는 지금까지도 "192.168.10.1 에서 온 접속" 을 받고 있었습니다. Windows 에서 직접 접속해도 Pi 가 보기에는 똑같은 주소이므로, <code>pi_setup.sh</code> 가 허용해 둔 목록을 그대로 씁니다.</p>
+<h3>4-1. ① 직접 연결 — 실제 Pi 전용</h3>
+<p>WPF 가 Pi 의 LAN 주소로 TCP 8888 에 바로 붙습니다. Pi 쪽 설정은 이미 있던 것을 그대로 씁니다: WSL2 는 NAT 라서 WSL 에서 나간 접속도 Pi 에는 Windows 주소(192.168.10.1)로 보였으므로, <code>pi_setup.sh</code> 가 허용해 둔 그 주소가 Windows 에서 직접 붙을 때도 같습니다(10-3).</p>
+<div class="box why"><b class="t">자기 주소(127.0.0.1·localhost·::1·0.0.0.0)는 거부</b>
+처음에는 Pi 없이 연습할 때 "WSL 터미널에서 fakepi 를 띄우고 WPF 는 직접 연결 127.0.0.1" 로 했는데, 이름만 직접 연결이고 하는 일은 에뮬레이션이라 두 가짜 Pi 가 같은 포트를 다투는 혼란(10-12)도 생겼습니다. 그래서 그 방법을 에뮬레이터 종류 "WSL 가짜 Pi" 로 넣고(4-3), 직접 연결은 <b>진짜 Pi 의 LAN 주소</b>에만 쓰도록 했습니다(<code>MainViewModel.IsLoopbackHost</code>, 16장 #19). 자기 주소를 넣으면 "직접 연결은 실제 Pi(LAN 주소)에만 씁니다 … 에뮬레이터로" 안내와 함께 거부하고, 호스트 이름(<code>raspberrypi.local</code>)은 통과합니다.</div>
 
 <h3>4-2. ② WSL 터널 — "WSL 을 거쳐서" 를 글자 그대로</h3>
 <figure>
@@ -282,9 +278,7 @@ Windows 의 WPF 프로그램은 "GPIO18 을 1500 µs 로" 같은 <b>16바이트 
 <tr><td><b>앱 안 가짜 Pi</b> (기본)</td><td>WPF 프로세스 안에서 <code>PigpioEmulatorServer</code> 가 127.0.0.1:(Pi 포트) 를 듣는다. 포트가 이미 쓰이면 빈 포트로 자동 대체(10-12)</td><td>준비물 없이 가장 간단히. 상단에 "가짜 Pi 수신 #n: SERVO …"</td></tr>
 <tr><td><b>WSL 가짜 Pi (fake_pigpiod.py)</b></td><td>앱이 <code>wsl.exe --cd tools -e python3 fake_pigpiod.py --port N --bind 0.0.0.0</code> 으로 <b>리눅스 프로세스</b>를 띄우고(<code>Model\WslFakePi</code>), 포트가 열리면 127.0.0.1:N 으로 접속. WSL2 가 WSL 안의 포트를 Windows 의 127.0.0.1 로도 열어 주므로(localhost 포워딩) 명령은 Windows → 가상 네트워크 → 리눅스로 실제로 건너간다. 가짜 Pi 의 stdout(받은 명령)이 상단에 "WSL 가짜 Pi: 10:22:26 ✓ SERVO gpio=18 1750 µs → 목표 +25.0°" 로 그대로 보임. 그 포트가 <b>이미 열려 있으면</b>(사용자가 터미널에서 <code>./run-from-wsl.sh fakepi</code> 를 띄워 둠, 또는 pigpio-emu) 새로 띄우지 않고 재사용 — "이미 떠 있는 WSL 가짜 Pi 사용 (명령 로그는 그쪽 터미널에)". 앱이 띄운 것은 창을 닫을 때 함께 끝나고, 위치 기억은 <code>~/.config/VI/fake_pigpiod.json</code> 에 남는다</td><td>"Pi 대신 리눅스가 응답해도 프로그램은 구별하지 못한다" 를 눈으로 보고 싶을 때. WSL 쪽 프로그램(pi_display)과 같은 가짜 Pi 를 공유할 때</td></tr>
 </table>
-<p>두 종류 모두 가짜 서버(프로세스)는 드라이버가 아니라 <code>MainViewModel</code> 이 들고 있어 [연결 해제] 뒤에도 살아 있고 위치를 기억합니다(10-10). 해제 중 상단에는 "가짜 Pi 기억 중: …" / "WSL 가짜 Pi 기억 중: GPIO18 1700 µs (+20.0°) 유지" 가 보입니다.</p>
-<div class="box tip"><b class="t">에뮬레이터로 확인된 것</b>
-상단 바에 "가짜 Pi 수신 #138: SERVO gpio=18 출력 끔" 처럼 <b>가짜 Pi 가 실제로 받은 바이트</b>가 표시됩니다. 즉 "화면이 움직였다" 가 아니라 "TCP 로 올바른 명령이 도착했다" 를 눈으로 확인합니다.</div>
+<p>두 종류 모두 가짜 서버(프로세스)는 드라이버가 아니라 <code>MainViewModel</code> 이 들고 있어 [연결 해제] 뒤에도 살아 있고 위치를 기억합니다(10-10). 해제 중 상단에는 "가짜 Pi 기억 중: GPIO18 1300 µs (−20.0°) 유지" 가 보이고, 연결 중에는 "가짜 Pi 수신 #138: SERVO gpio=18 출력 끔" 처럼 <b>가짜 Pi 가 실제로 받은 바이트</b>가 표시되어 "화면이 움직였다" 가 아니라 "TCP 로 올바른 명령이 도착했다" 를 확인합니다. 구현은 <code>Model\WslFakePi.cs</code>(wsl.exe 프로세스 → 포트가 열릴 때까지 대기 → 종료 시 트리째 정리, <code>WslSshTunnel</code> 과 같은 골격).</p>
 
 <h3>4-4. 비교</h3>
 <table>
@@ -295,10 +289,6 @@ Windows 의 WPF 프로그램은 "GPIO18 을 1500 µs 로" 같은 <b>16바이트 
 <tr><td>장점</td><td>가장 단순·빠름</td><td>암호화, Pi 설정 불필요, "WSL 경유" 요구 충족</td><td>Pi 없이 통신 코드 검증, 교육·시연</td><td>Windows ↔ 리눅스 네트워크를 실제로 건너는 연습, WSL 쪽 프로그램과 가짜 Pi 공유</td></tr>
 <tr><td>단점</td><td>pigpiod 가 허용 주소를 알아야 함. 자기 주소 불가</td><td>WSL·ssh 준비 필요, 터널 여는 데 1~3초</td><td>실제 서보 반응은 볼 수 없음</td><td>WSL 첫 기동에 1~3초, 실제 서보 반응은 볼 수 없음</td></tr>
 </table>
-
-<h3>4-5. 왜 "직접 연결" 에서 자기 주소를 막았나</h3>
-<div class="easy"><b class="t">쉬운 풀이</b> 처음에는 Pi 없이 연습할 때 "WSL 터미널에서 fakepi 를 띄우고, WPF 는 직접 연결 127.0.0.1" 로 했습니다. 이름만 "직접 연결" 이고 하는 일은 에뮬레이션이라 두 가짜 Pi(앱 안 / WSL)가 같은 8888 포트를 다투는 혼란(10-12)도 생겼습니다. 그래서 그 방법을 <b>에뮬레이터의 한 종류 "WSL 가짜 Pi"</b> 로 넣어 앱이 fakepi 를 대신 띄우게 하고, 직접 연결은 <b>진짜 Pi 의 LAN 주소</b>에만 쓰도록 선을 그었습니다(사용자 지적, 2026-10-27 · 16장 #19).</div>
-<p>구현은 <code>Model\WslFakePi.cs</code>(<code>WslSshTunnel</code> 과 같은 골격: wsl.exe 프로세스 → 포트가 열릴 때까지 대기 → 종료 시 트리째 정리)와 <code>MainViewModel.IsLoopbackHost</code> 입니다. 상세는 <i>소스 설명</i> PDF, 확인은 12-1 의 <code>WslFakePiTests</code>·<code>EmulatorModeTests</code> 와 12-2.</p>
 
 <!-- ═══════════════════════════════ 5 ═══════════════════════════════ -->
 <div class="box tip"><b class="t">④ 영상은 다른 길로 — HTTP 8889 MJPEG</b>
@@ -445,7 +435,7 @@ C# 에서는  BinaryPrimitives.WriteUInt32LittleEndian(req[0..4], cmd)  처럼 �
 <h2>9. 화면 설계</h2>
 <div class="easy"><b class="t">쉬운 풀이</b> 왼쪽 위는 실제 카메라 영상(노트북 웹캠 또는 Pi 카메라), 왼쪽 아래는 서보에 올린 카메라가 어디를 보는지 그린 그림(보기만, 연결됐을 때만 움직임), 가운데는 조종하는 다이얼과 각도/펄스 줄(서로 묶여 있음), 오른쪽은 메모리·스윕·보정 탭과 WSL 탭입니다.</div>
 <p>세 칸 배치입니다. 오른쪽 칸은 탭 세 개("서보", "Pi 카메라", "WSL / Pi 관리") 로 나눴습니다.</p>
-<figure><img class="shot" src="screenshot_emulator_dial.png" alt="에뮬레이터 모드, 다이얼로 조종 중인 화면"><figcaption>그림 5. 에뮬레이터에 연결해 다이얼로 +25° 를 준 화면. 왼쪽은 서보 위 카메라가 +25° 를 향해 시야(파란 쐐기)를 비추는 모습, 가운데는 원형 다이얼과 그 아래 각도 줄(25.0°)·펄스 줄(1875 µs)이 서로 묶여 있다(보정값 800/1500/2100 µs 기준). 상단에 "Pi 리비전 c03111 · pigpio v79" 와 가짜 Pi 가 받은 SERVO 명령(1875 µs)이 보인다.</figcaption></figure>
+<figure><img class="shot" src="screenshot_emulator_dial.png" alt="에뮬레이터 모드, 다이얼로 조종 중인 화면 (v1.3.2)"><figcaption>그림 5. 전체 화면 (v1.3.2). 앱 안 가짜 Pi 에 연결해 다이얼로 +25° 를 준 상태. 상단 정보 줄에 "에뮬레이터 127.0.0.1:18890 · GPIO18 · Pi 리비전 c03111 · pigpio v79 · 가짜 Pi 수신 #4: SERVO gpio=18 1750 µs". 왼쪽 위는 노트북 웹캠(1280×720 · 17 fps), 왼쪽 아래는 서보 위 카메라가 +25° 를 향해 시야를 비추는 그림, 가운데는 다이얼과 서로 묶인 각도 줄(25.0°)·펄스 줄(1750 µs), 오른쪽은 "서보" 탭(메모리·스윕·보정 — 각도/펄스 칸이 "1° 당 µs" 로 연동).</figcaption></figure>
 <table>
 <tr><th style="width:18%">영역</th><th style="width:44%">위젯</th><th>내보내는 명령 (ViewModel)</th></tr>
 <tr><td>상단 연결 바</td><td>연결 방식 콤보(직접/WSL 터널/에뮬레이터), 에뮬레이터면 종류 콤보(앱 안 / WSL 가짜 Pi, 설명은 툴팁), Pi 주소·포트 또는 ssh 별명·배포판·로컬 포트, [연결] 토글, [전체화면][종료]</td><td><code>ConnectToggleCommand</code></td></tr>
@@ -482,8 +472,8 @@ C# 에서는  BinaryPrimitives.WriteUInt32LittleEndian(req[0..4], cmd)  처럼 �
 이유는 단순합니다. 연결이 없으면 서보로 명령이 나가지 않으므로 실제 모터도 움직이지 않는데, 화면이 움직이면 "지금 모터가 돌고 있다" 는 거짓 정보가 됩니다.
 구동 조건은 <code>연결됨 AND 출력 켜짐</code> 하나로 묶었고(<code>IsDriven</code>), 연결 직후 출력이 꺼진 상태에서는 회색 카메라가 마지막 위치에 머물다가 첫 명령으로 출력이 켜질 때 목표를 향해 출발합니다. 연결을 끊으면 회전 중이던 카메라도 그 자리에서 멈춥니다(실제 서보도 힘이 빠지면 그 자리에 머묾).</li>
 </ul>
-<figure><img class="shot" src="screenshot_camera_moving.png" alt="카메라가 목표를 향해 회전 중인 화면"><figcaption>그림 6. −40° 에서 +40° 로 명령한 직후(약 60 ms 뒤) 캡처. 다이얼·펄스 줄은 이미 목표(+40°, 2100 µs)를 가리키지만, 왼쪽 카메라는 +3.4° 를 지나며 "→ 목표 +40.0° 로 회전 중" 이라고 표시한다. 실제 서보가 움직이는 데 걸리는 시간(80° ≈ 0.25 s)을 그대로 보여 준다.</figcaption></figure>
-<figure><img class="shot" src="screenshot_camera_disconnected.png" alt="연결 해제 상태의 카메라 뷰"><figcaption>그림 6-1. 연결을 끊은 뒤 다이얼을 +40° 로 돌린 화면. 오른쪽 다이얼·각도 줄·펄스 줄은 +40°, 1900 µs 를 가리키지만, 왼쪽 카메라는 끊기 전 위치(−20°)에 회색으로 멈춰 있고 "연결 안 됨" 안내가 덮여 있다. 명령이 서보로 나가지 않으니 화면도 움직이지 않는다.</figcaption></figure>
+<figure><img class="shot" src="screenshot_camera_moving.png" alt="카메라가 목표를 향해 회전 중인 화면"><figcaption>그림 6. −40° 에서 +40° 로 명령한 70 ms 뒤 캡처. 다이얼·펄스 줄은 이미 목표(+40°, 1900 µs)를 가리키고 가짜 Pi 도 "SERVO gpio=18 1900 µs" 를 받았지만, 왼쪽 카메라는 −22.9° 를 지나며 "→ 목표 +40.0° 로 회전 중" 이라고 표시한다 — 실제 서보가 80° 를 가는 데 걸리는 약 0.25 초를 그대로 보여 준다.</figcaption></figure>
+<figure><img class="shot" src="screenshot_camera_disconnected.png" alt="연결 해제 상태의 카메라 뷰"><figcaption>그림 7. "출력 유지" 로 연결을 끊은 뒤 다이얼을 +40° 로 돌린 화면. 다이얼·각도 줄·펄스 줄은 +40°, 1900 µs 를 가리키지만 왼쪽 카메라는 끊기 전 위치(−20°)에 회색으로 멈춰 "연결 안 됨" 안내가 덮여 있고, 상단에는 "가짜 Pi 기억 중: GPIO18 1300 µs (−20.0°) 유지". 명령이 서보로 나가지 않으니 화면도 움직이지 않는다.</figcaption></figure>
 
 <h3>9-3. 왼쪽 위 — 실제 카메라 영상</h3>
 <p>서보에 올린 카메라가 "실제로 무엇을 보고 있는가" 를 같은 창에서 보고 싶다는 요청으로, 왼쪽을 위·아래로 나눠 <b>위에는 실제 카메라 영상</b>, 아래에는 9-2 의 서보 그림을 두었습니다.
@@ -495,11 +485,9 @@ C# 에서는  BinaryPrimitives.WriteUInt32LittleEndian(req[0..4], cmd)  처럼 �
 <li><b>규격으로 분리</b>: 영상 장치는 <code>ICameraSource</code>(목록·시작·정지·프레임 이벤트) 뒤에 숨겨 두었습니다. 구현은 웹캠(<code>WinRtCameraSource</code>)과 Pi 네트워크 카메라(<code>MjpegCameraSource</code>)를 <code>CompositeCameraSource</code> 로 하나처럼 묶은 것이라(9-4) 화면·뷰모델은 소스가 둘인지 모릅니다. 테스트는 가짜 <code>FakeCameraSource</code> 로 뷰모델 동작(기본 장치 선택, 저장된 장치 우선, 장치 없음 안내, 꺼짐 전환, 오류 표시, 프레임 → 비트맵)을 검사합니다.</li>
 <li><b>오류 처리</b>: 권한이 없으면 설정 경로를 안내하고, 다른 프로그램이 카메라를 쓰고 있으면 그 가능성을 알려 주며, 어떤 경우에도 앱은 계속 동작합니다. 종료 때 카메라 정리는 스레드 풀에서 최대 3초만 기다립니다(UI 스레드에서 동기로 기다리면 교착되는 문제를 겪고 고침 — 18장).</li>
 </ul>
-<figure><img class="shot" src="screenshot_webcam.png" alt="노트북 카메라 영상이 나오는 화면"><figcaption>그림 6-4. 프로그램을 켠 직후. 왼쪽 위 "카메라 화면" 에 노트북 내장 카메라(Integrated Camera) 영상이 1280×720 · 17 fps 로 나오고, 아래에는 서보 그림이 있다.</figcaption></figure>
 
 <h3>9-4. 카메라 목록의 "Pi 카메라 (네트워크)"</h3>
-<p>같은 콤보박스에 Pi 의 <code>pi_display</code> 가 내보내는 MJPEG 스트림이 한 항목으로 들어갑니다. 고르면 URL 줄이 나타나고(비우면 "Pi 주소:8889" 로 자동), 영상은 웹캠과 똑같은 자리에 같은 방식으로 그려집니다.
-구조상 <code>CompositeCameraSource</code> 가 웹캠(<code>WinRtCameraSource</code>)과 네트워크(<code>MjpegCameraSource</code>)를 하나의 목록으로 합쳐 <code>CameraViewModel</code> 에 넘기므로, 뷰모델·화면은 소스가 둘인지 모릅니다. 웹캠 권한이 없어도 Pi 항목은 보입니다. 상세는 15장.</p>
+<p>같은 콤보박스에 Pi 의 <code>pi_display</code> 가 내보내는 MJPEG 스트림이 한 항목으로 들어갑니다. 고르면 URL 줄이 나타나고(비우면 "Pi 주소:8889" 로 자동), 영상은 웹캠과 같은 자리에 그려집니다. 웹캠 권한이 없어도 Pi 항목은 보입니다(구조는 15-4).</p>
 
 <h3>9-5. 긴 글이 잘리지 않게 — 글꼴 자동 축소</h3>
 <div class="easy"><b class="t">쉬운 풀이</b> "가짜 Pi 수신: ✓ SERVO gpio=18 1750 µs → 목표 +25.0°" 같은 글은 길이가 매번 달라서 자리를 넘치면 끝이 잘렸습니다. 이제 그런 자리는 <b>공간이 모자라면 글꼴을 조금씩 줄이고</b>(기준 15pt → 최소 10~11pt), 그래도 모자라면 "…" 으로 자르되 <b>마우스를 올리면 전체 글이 툴팁으로</b> 보입니다. 창을 좁혀도 버튼이 밀려 사라지지 않도록 긴 글은 연결 바 아래 전용 줄로 옮겼습니다.</div>
@@ -508,7 +496,7 @@ C# 에서는  BinaryPrimitives.WriteUInt32LittleEndian(req[0..4], cmd)  처럼 �
 <li><b>어떻게</b>: <code>View\ShrinkTextBlock</code> — TextBlock 하나를 품은 작은 컨트롤. WPF 가 Measure 때 넘겨주는 "쓸 수 있는 폭"(MaxWidth 가 있으면 그것)을 예산으로 삼아, 글의 자연 폭(<code>FormattedText</code>)이 예산보다 크면 글꼴을 비례로 줄입니다. TextBlock 을 그대로 상속하지 않은 이유는 그 Measure 가 봉인되어 있고, 잘려 그려져도 ActualWidth 는 글 전체 폭을 보고하기 때문입니다(18장).</li>
 <li><b>배치</b>: 연결 바는 조작 요소만(연결 방식·종류·주소/포트·[연결]·[전체화면]·[종료]) 두어 창 최소 폭 1120 에서도 다 보이고, 정보 줄은 ● + 장치 이름(최대 380px) + Pi 리비전(최대 320px) + 가짜 Pi 수신(남는 폭 전부)로 나눠 각자 예산 안에서 줄어듭니다.</li>
 </ul>
-<figure><img class="shot" src="screenshot_infobar_1120.png" alt="창 폭 1120 에서의 화면"><figcaption>그림 6-5. 창을 최소 폭(1120)으로 줄인 화면. 연결 바 아래 정보 줄에 "WSL 가짜 Pi (이미 떠 있던 것) 127.0.0.1:8888 · GPIO18 · Pi 리비전 c03111 · pigpio v79 · 이미 떠 있는 WSL 가짜 Pi … 사용" 이 글꼴을 줄여 한 줄에 다 들어가고, [연결 해제]·[종료] 버튼도 제자리에 있다.</figcaption></figure>
+<figure><img class="shot" src="screenshot_infobar_1120.png" alt="창 폭 1120 에서의 화면"><figcaption>그림 8. 창을 최소 폭(1120)으로 줄인 화면(에뮬레이터 연결, −30°). 세 칸이 모두 줄어들어도 정보 줄·카메라 상태 글이 글꼴을 줄여 끝까지 보이고, [연결 해제]·[전체화면]·[종료] 와 ±10° 버튼이 제자리에 있다. 오른쪽 탭은 세로 스크롤로 이어진다.</figcaption></figure>
 
 <h3>9-6. 녹화·사진 버튼과 "Pi 카메라" 탭</h3>
 <div class="easy"><b class="t">쉬운 풀이</b> Pi 카메라 영상이 들어오면 카메라 화면 안에 [● 녹화] 와 [📷 사진] 두 버튼만 나타납니다. 누르면 Pi 가 파일을 만들고, 끝나면 WSL 로 가져온 결과가 그 아래 한 줄에 보입니다. 설정·인식·전송 같은 "가끔 만지는 것" 은 처음엔 카메라 화면 안에 접이식(Expander)으로 두었는데 펼치면 영상이 줄어드는 게 불편하다는 의견(사용자)이 있어 오른쪽 탭 "Pi 카메라" 로 옮겼습니다.</div>
@@ -518,22 +506,21 @@ C# 에서는  BinaryPrimitives.WriteUInt32LittleEndian(req[0..4], cmd)  처럼 �
 <li><b>결과 줄</b>: "녹화 중: rec_….avi (MJPEG → AVI …)" → "rec_….avi → WSL 로 가져오는 중…" → "전송 완료: rec_….avi → /…/recordings (새 파일 1개)". 상태 바에도 같은 글이 4 초간.</li>
 <li><b>탭 "Pi 카메라"</b> 세 묶음: 카메라 설정(즉시 적용 값은 슬라이더를 놓고 300 ms 뒤 한 번에 전송, 모드·반전은 카메라를 다시 열어 미리보기가 잠깐 끊김), 인식(체크 + "인식: 사람 1 · 의자 2 (MobileNet-SSD 4.1 fps)"), 전송(WSL 폴더·자동 체크·버튼 4개·마지막 결과). 전송 버튼은 "WSL / Pi 관리" 탭의 스크립트 실행기를 그대로 쓰므로 로그는 그 탭에 쌓입니다.</li>
 </ul>
-<figure><img class="shot" src="screenshot_rec_recording.png" alt="녹화 중인 카메라 화면"><figcaption>그림 6-6. [● 녹화] 를 누른 지 5 초 뒤(WSL 가짜 카메라). 버튼이 "■ 정지 00:00:05" 로 바뀌고 아래 줄에 "녹화 중: rec_20261027_143313.avi (MJPEG → AVI (미리보기 화질), Pi 폴더 /tmp/recsrc)".</figcaption></figure>
-<figure><img class="shot" src="screenshot_rec_panel.png" alt="사진 전송이 끝난 카메라 화면"><figcaption>그림 6-7. [📷 사진] 뒤. 결과 줄 "전송 완료: img_20261027_143328.jpg → /tmp/recdest (새 파일 1개)" — Pi 가 저장한 사진을 WSL 의 pull_recordings.sh 가 가져왔다는 뜻.</figcaption></figure>
-<figure><img class="shot" src="screenshot_pi_camera_tab.png" alt="Pi 카메라 탭"><figcaption>그림 6-8. 오른쪽 "Pi 카메라" 탭. 밝기 슬라이더를 0.50 으로 올린 값이 Pi 의 camera.json 에 저장됐고, WSL 에는 OpenCV 가 없어 "인식 불가" 안내가 보인다. 아래는 전송 설정과 버튼 4개.</figcaption></figure>
+<figure><img class="shot" src="screenshot_rec_recording.png" alt="녹화 중인 카메라 화면"><figcaption>그림 9. [● 녹화] 를 누른 지 5 초 뒤(WSL 가짜 카메라). 버튼이 "■ 정지 00:00:05" 로 바뀌고 아래 줄에 "녹화 중: rec_20261027_143313.avi (MJPEG → AVI (미리보기 화질), Pi 폴더 /tmp/recsrc)".</figcaption></figure>
+<figure><img class="shot" src="screenshot_rec_panel.png" alt="사진 전송이 끝난 카메라 화면"><figcaption>그림 10. [📷 사진] 뒤. 결과 줄 "전송 완료: img_20261027_143328.jpg → /tmp/recdest (새 파일 1개)" — Pi 가 저장한 사진을 WSL 의 pull_recordings.sh 가 가져왔다는 뜻.</figcaption></figure>
+<figure><img class="shot" src="screenshot_pi_camera_tab.png" alt="Pi 카메라 탭"><figcaption>그림 11. 오른쪽 "Pi 카메라" 탭. 밝기 슬라이더를 0.50 으로 올린 값이 Pi 의 camera.json 에 저장됐고, WSL 에는 OpenCV 가 없어 "인식 불가" 안내가 보인다. 아래는 전송 설정과 버튼 4개.</figcaption></figure>
 
 <!-- ═══════════════════════════════ 10 ═══════════════════════════════ -->
 <h2 class="pb">10. 운용 원리와 기법</h2>
 <div class="easy"><b class="t">쉬운 풀이</b> 쓰는 순서는 "전원 → 연결 → 0° → 조금씩 → 출력 끄기". 연결하면 프로그램이 서보의 <b>지금 상태</b>(GPW)를 읽어 화면을 맞추고, 끊거나 끌 때도 위치를 기억해 다음에 이어집니다. 끝단에서 "지잉" 소리가 나면 범위를 줄이세요. 무선으로 쓰려면 10-11 절(터널 모드 권장).</div>
 <p>이 장은 "프로그램을 어떻게 돌리고, 왜 그렇게 해야 하는가" 를 다룹니다. 처음 운용하는 사람은 10-6 절차와 10-7 안전 수칙만 먼저 읽어도 됩니다.</p>
 
-<h3>10-1. 서보 제어의 원리 — 펄스 폭이 곧 각도</h3>
+<h3>10-1. 서보 제어의 원리 — 운용에서 알아 둘 숫자 셋</h3>
+<p>펄스 길이가 곧 각도라는 원리는 2-1 에 있습니다. 운용에서 더 알아 둘 것은 세 가지입니다.</p>
 <ul>
-<li><b>프레임</b>: 20 ms 마다 한 번(50 Hz). 이 주기는 거의 모든 아날로그 서보의 약속입니다.</li>
-<li><b>폭</b>: HS-311 은 1500 µs 가 0°, ±400 µs 가 ±40°. 즉 <b>10 µs = 1°</b>. 프로그램의 <code>AngleToPulse</code> 가 이 비례식을 계산합니다(중립 기준으로 + 쪽, − 쪽 따로).</li>
-<li><b>데드밴드 5 µs</b>: 펄스가 5 µs 이내로 바뀌면 서보가 움직이지 않습니다. 0.5° 미만 변화는 의미가 없다는 뜻이므로, 프로그램은 1° 단위 조작을 기본으로 둡니다.</li>
-<li><b>위치 유지</b>: 같은 펄스를 계속 받으면 서보는 외부 힘에 저항하며 그 자리를 지킵니다(이때 전류가 흐릅니다). 펄스 0 이면 힘을 뺍니다.</li>
-<li><b>속도</b>: 0.19 s/60°(4.8 V). 80° 를 가려면 약 0.25 초. 스윕 속도를 200 °/s 넘게 올려도 서보가 따라오지 못합니다(최대 약 315 °/s).</li>
+<li><b>데드밴드 5 µs</b>: 펄스가 5 µs 이내로 바뀌면 서보가 움직이지 않습니다. 0.5° 미만 변화는 의미가 없으므로 프로그램은 1° 단위 조작이 기본입니다.</li>
+<li><b>위치 유지 = 전류</b>: 같은 펄스를 계속 받으면 서보는 외부 힘에 저항하며 자리를 지키고 그동안 전류가 흐릅니다. 펄스 0 이면 힘을 뺍니다.</li>
+<li><b>속도 0.19 s/60°</b>(4.8 V): 80° 에 약 0.25 초. 스윕 속도를 200 °/s 넘게 올려도 서보가 따라오지 못합니다(최대 약 315 °/s).</li>
 </ul>
 
 <h3>10-2. 왜 pigpiod 인가 — "한 번 말하면 계속 해 주는" 데몬</h3>
@@ -604,12 +591,11 @@ C# 에서는  BinaryPrimitives.WriteUInt32LittleEndian(req[0..4], cmd)  처럼 �
 <h3>10-8. 에뮬레이터 운용 — Pi 가 없을 때</h3>
 <table>
 <tr><th style="width:30%">방법</th><th>절차</th></tr>
-<tr><td><b>A. 앱 안 가짜 Pi</b> (가장 쉬움)</td><td>연결 방식 <b>에뮬레이터</b> · 종류 <b>앱 안 가짜 Pi</b> → [연결]. 상단에 "Pi 리비전 c03111 · pigpio v79" 와 명령마다 "가짜 Pi 수신 #n: SERVO gpio=18 1700 µs". 그 뒤는 실제와 똑같이 조작.</td></tr>
-<tr><td><b>B. WSL 가짜 Pi</b></td><td>연결 방식 <b>에뮬레이터</b> · 종류 <b>WSL 가짜 Pi (fake_pigpiod.py)</b> → [연결]. 앱이 WSL 에 리눅스 가짜 Pi 를 띄우고(상태 줄 "WSL 확인 중… → 띄우는 중… → 준비됨") 붙음. 상단에 그 프로세스가 찍은 "WSL 가짜 Pi: ✓ SERVO gpio=18 1750 µs → 목표 +25.0°". 창을 닫으면 프로세스도 끝남.</td></tr>
-<tr><td><b>C. 미리 띄운 가짜 Pi 에 붙기</b></td><td>WSL 터미널에서 <code>./run-from-wsl.sh fakepi</code>, 또는 Windows 콘솔에서 <code>dotnet run --project PigpioEmulatorCli</code>(pigpio-emu) 를 먼저 띄운 뒤 B 와 같이 [연결]. 그 포트가 이미 열려 있으므로 앱은 새로 띄우지 않고 그것을 쓰고, 명령 로그는 그 터미널에 찍힘(pigpio-emu 는 위치 막대까지). 명령 로그를 터미널에서 보고 싶을 때, pi_display 와 같은 가짜 Pi 를 공유할 때, 또 WSL 에 sshd 를 넣어 "WSL 터널" 모드까지 시험할 때(13-2).</td></tr>
-<tr><td><b>D. WSL 쪽 프로그램으로 시험</b></td><td><code>dotnet run --project PigpioEmulatorCli -- 8888 0.0.0.0</code> 로 모든 주소에서 듣게 한 뒤, WSL 의 <code>pi_display.py --pigpio-host &lt;Windows 호스트 IP&gt;</code>(WSL 에서 <code>ip route | grep default</code>)가 그 가짜 Pi 를 폴링해 로그로 보여 줌. (Windows 방화벽이 물으면 허용)</td></tr>
+<tr><td><b>A. 앱 안 가짜 Pi</b> (가장 쉬움)</td><td>연결 방식 <b>에뮬레이터</b> · 종류 <b>앱 안 가짜 Pi</b> → [연결]. 상단에 "가짜 Pi 수신 #n: SERVO gpio=18 1700 µs". 그 뒤는 실제와 똑같이 조작.</td></tr>
+<tr><td><b>B. WSL 가짜 Pi</b></td><td>종류 <b>WSL 가짜 Pi (fake_pigpiod.py)</b> → [연결]. 앱이 WSL 에 리눅스 가짜 Pi 를 띄워 붙고, 그 프로세스가 찍은 "WSL 가짜 Pi: ✓ SERVO gpio=18 1750 µs → 목표 +25.0°" 를 상단에 보여 줌. 창을 닫으면 프로세스도 끝남.</td></tr>
+<tr><td><b>C. 미리 띄운 가짜 Pi 에 붙기</b></td><td>WSL 터미널에서 <code>./run-from-wsl.sh fakepi</code>(또는 Windows 콘솔 <code>pigpio-emu</code>)를 먼저 띄운 뒤 B 처럼 [연결]. 포트가 이미 열려 있으면 앱은 새로 띄우지 않고 그것을 쓰며 명령 로그는 그 터미널에 찍힘. 명령 로그를 터미널에서 보거나 pi_display 와 가짜 Pi 를 공유할 때(13-2).</td></tr>
 </table>
-<p>에뮬레이터는 펄스 검사·리비전 응답·서보 속도(0.19 s/60°) 까지 흉내 내지만, 실제 부하·끝단·전원 문제는 재현하지 못합니다. "통신과 프로그램 논리" 를 검증하는 도구로 쓰고, 보정값은 실제 서보로 다시 맞추세요. 실제 Pi 가 생기면 연결 방식을 <b>직접 연결</b>, Pi 주소를 Pi 의 LAN 주소로 바꾸면 끝입니다(Pi 쪽 <code>pi_setup.sh</code> 선행).</p>
+<p>에뮬레이터는 펄스 검사·리비전 응답·서보 속도까지 흉내 내지만 실제 부하·끝단·전원 문제는 재현하지 못합니다. "통신과 프로그램 논리" 검증용으로 쓰고, 보정값은 실제 서보로 다시 맞추세요. 실제 Pi 가 생기면 연결 방식을 <b>직접 연결</b>, Pi 주소를 Pi 의 LAN 주소로 바꾸면 됩니다(Pi 쪽 <code>pi_setup.sh</code> 선행).</p>
 
 <h3>10-9. 문제 해결표</h3>
 <table>
@@ -621,7 +607,7 @@ C# 에서는  BinaryPrimitives.WriteUInt32LittleEndian(req[0..4], cmd)  처럼 �
 <tr><td>서보가 떨린다</td><td>전원 부족, GND 불량, 끝단 걸림</td><td>2 A 이상 전원, GND 공통, 범위 줄이기</td></tr>
 <tr><td>"펄스폭은 0 또는 500~2500 µs"</td><td>보정값이 pigpio 허용 밖</td><td>최소 ≥ 500, 최대 ≤ 2500 으로 수정</td></tr>
 <tr><td>에뮬레이터(앱 안) 연결 뒤 상단에 "임시 포트 NNNN" 안내</td><td>포트 8888 을 다른 프로그램(pigpio-emu, WSL fakepi 등) 이 사용</td><td>그대로 써도 됨. 그 프로그램에 붙고 싶으면 에뮬레이터 종류를 <b>WSL 가짜 Pi</b> 로(이미 열린 포트를 재사용) — 10-12</td></tr>
-<tr><td>직접 연결에 127.0.0.1 → "직접 연결은 실제 Pi(LAN 주소)에만 씁니다"</td><td>자기 주소는 직접 연결에서 거부(4-5)</td><td>연결 방식을 <b>에뮬레이터</b> 로 바꾸고 종류(앱 안 / WSL 가짜 Pi)를 고름. 실제 Pi 면 Pi 의 LAN 주소 입력</td></tr>
+<tr><td>직접 연결에 127.0.0.1 → "직접 연결은 실제 Pi(LAN 주소)에만 씁니다"</td><td>자기 주소는 직접 연결에서 거부(4-1)</td><td>연결 방식을 <b>에뮬레이터</b> 로 바꾸고 종류(앱 안 / WSL 가짜 Pi)를 고름. 실제 Pi 면 Pi 의 LAN 주소 입력</td></tr>
 <tr><td>WSL 가짜 Pi → "WSL 의 fake_pigpiod.py 가 바로 종료되었습니다" / "10초 안에 … 포트가 열리지 않았습니다"</td><td>WSL 에 python3 없음, tools 폴더 못 찾음, WSL 첫 기동 지연</td><td>WSL 에서 <code>python3 --version</code>; 프로그램 폴더에 <code>tools\fake_pigpiod.py</code> 가 있는지; 한 번 더 [연결]. 급하면 종류를 "앱 안 가짜 Pi" 로</td></tr>
 <tr><td>닫았는데 서보가 힘을 주고 있음</td><td>비정상 종료로 0 을 못 보냄</td><td>다시 연결 후 [출력 끄기], 또는 Pi 에서 <code>pigs s 18 0</code></td></tr>
 <tr><td>WSL 탭 글자가 깨짐</td><td>UTF-16/UTF-8 혼동</td><td>앱은 <code>-l</code> 은 UTF-16, 나머지는 UTF-8 로 처리함. 스크립트 자체가 다른 인코딩이면 <code>iconv</code></td></tr>
@@ -655,8 +641,8 @@ C# 에서는  BinaryPrimitives.WriteUInt32LittleEndian(req[0..4], cmd)  처럼 �
 가짜 pigpiod(<code>PigpioEmulatorServer</code>)는 원래 드라이버와 함께 만들어지고 함께 사라졌습니다. 그러면 해제할 때 기억이 날아갑니다. 그래서 ① 서버의 수명을 <code>MainViewModel</code> 로 옮겨 <b>앱이 살아 있는 동안 한 번만 띄우고</b> [연결 해제] 뒤에도 그대로 두며, ② <b>상태 파일</b>(<code>%APPDATA%\VI\PigpioEmulator.json</code>)에 펄스·흉내 낸 각도를 저장해 <b>프로그램을 껐다 켜도 같은 가짜 서보가 같은 자리에서 다시 뜨게</b> 했습니다 — 실제 Pi 의 pigpiod 가 프로그램과 무관하게 계속 돌고, 서보가 전원과 무관하게 그 자리에 머무는 것과 같습니다.
 서버에 <code>GPW</code> 처리를 추가해(설정한 적 없는 핀은 실제처럼 −93) 다시 접속한 프로그램이 이전 펄스를 읽을 수 있게 했고, 해제 중에는 상단에 "가짜 Pi 기억 중: GPIO18 1300 µs (−20.0°) 유지 — 다시 [연결]하면 이 위치로 화면을 맞춥니다" 를 보여 줍니다. 콘솔 <code>pigpio-emu</code> 는 같은 상태 파일을 쓰고, 리눅스용 <code>fake_pigpiod.py</code> 도 <code>~/.config/VI/fake_pigpiod.json</code> 에 같은 방식으로 저장합니다.
 이렇게 해 두면 <b>실제 서보를 붙였을 때 일어날 일을 Pi 없이 그대로 미리 볼 수 있습니다.</b></div>
-<figure><img class="shot" src="screenshot_reconnect_restored.png" alt="재연결 후 기억한 위치로 복원된 화면"><figcaption>그림 6-2. 에뮬레이터에 연결해 −20° 로 보낸 뒤 "출력 유지" 로 해제하고 다이얼을 +40° 로 돌렸다가 다시 [연결]한 직후. 상단에 "GPW gpio=18 → 1300 µs (기억하고 있던 펄스)", 다이얼·각도 줄·펄스 줄은 −20°/1300 µs 로 돌아왔고, 상태 줄은 "서보가 이미 −20.0° (1300 µs)로 구동 중이어서 화면을 그 위치에 맞췄습니다".</figcaption></figure>
-<figure><img class="shot" src="screenshot_restart_before_connect.png" alt="프로그램을 다시 켠 직후"><figcaption>그림 6-3. 에뮬레이터에 −25° 로 보내고 종료한 뒤 프로그램을 <b>다시 켠 직후(아직 연결 전)</b>. 다이얼·각도 줄·펄스 줄이 저장된 −25°/1250 µs 에서 시작하고, 왼쪽 카메라도 그 각도에 놓인 채 "연결 안 됨" 막이 덮여 있다. 이 상태에서 [연결]하면 에뮬레이터가 상태 파일에서 되살린 1250 µs 를 GPW 로 돌려주어 출력 켜짐으로 확정된다.</figcaption></figure>
+<figure><img class="shot" src="screenshot_reconnect_restored.png" alt="재연결 후 기억한 위치로 복원된 화면"><figcaption>그림 12. 그림 7 의 상태(해제 중 다이얼 +40°)에서 다시 [연결]한 직후. 상단에 "가짜 Pi 수신 #10: GPW gpio=18 → 1300 µs (기억하고 있던 펄스)", 다이얼·각도 줄·펄스 줄은 −20°/1300 µs 로 돌아왔고 왼쪽 카메라도 회전 없이 −20° 에 놓였다.</figcaption></figure>
+<figure><img class="shot" src="screenshot_restart_before_connect.png" alt="프로그램을 다시 켠 직후"><figcaption>그림 13. 에뮬레이터에 −25° 로 보내고 종료한 뒤 프로그램을 <b>다시 켠 직후(아직 연결 전)</b>. 다이얼·각도 줄·펄스 줄이 저장된 −25°/1250 µs 에서 시작하고, 왼쪽 카메라도 그 각도에 놓인 채 "연결 안 됨" 막이 덮여 있다. [연결]하면 에뮬레이터가 상태 파일에서 되살린 1250 µs 를 GPW 로 돌려주어 출력 켜짐으로 확정된다.</figcaption></figure>
 <div class="box warn"><b class="t">주의 — 출력 유지는 전류가 계속 흐른다는 뜻</b>
 서보가 위치를 지키는 동안 코일에 전류가 흐르고, 끝단에 걸려 있으면 열이 납니다. 옵션이 켜져 있으면 <b>창을 닫아도 서보는 계속 구동</b>됩니다. 오래 자리를 비울 때는 [출력 끄기(Space)] 를 누른 뒤 종료하거나 옵션을 끄세요. 그래도 마지막 각도는 저장되므로 다음 실행은 그 각도에서 시작합니다.</div>
 
@@ -665,36 +651,8 @@ C# 에서는  BinaryPrimitives.WriteUInt32LittleEndian(req[0..4], cmd)  처럼 �
 <b>① Pi 가 Wi-Fi 에 붙어 IP 를 갖는다</b>, <b>② pigpiod 의 허용 주소(<code>-n</code>)가 PC 의 Wi-Fi IP 와 맞아야 한다(직접 연결) — 또는 ssh 터널로 우회한다(WSL 터널)</b>.
 공유기가 주는 IP 는 바뀔 수 있으므로 무선에서는 <b>WSL 터널 모드를 권합니다</b>(Pi 쪽 설정이 전혀 없고, PC IP 가 바뀌어도 됨).</p>
 
-<h4 style="color:#1a4f7a;margin:10px 0 4px 0">A. Pi 쪽 (Raspberry Pi OS Bookworm 기준, 모니터·키보드 또는 이더넷 ssh 로 한 번)</h4>
-<div class="box warn"><b class="t">이 명령들은 Pi 의 터미널에서 — WSL 에서 치면 "네트워크 관리자가 실행 중이 아닙니다" 오류</b>
-WSL(Ubuntu)에는 NetworkManager 가 돌지 않고 네트워크는 Windows 가 대신 관리하므로, <b>WSL 에서는 Wi-Fi 설정을 할 것이 없습니다</b>. 어디인지 헷갈리면 <code>hostname; head -2 /etc/os-release</code> — Pi 면 <code>raspberrypi</code> / Debian 12 (bookworm).
-Pi 인데도 같은 오류가 나면 구버전(Bullseye, dhcpcd)입니다: <code>sudo raspi-config</code> → System Options → Wireless LAN 으로 SSID 를 넣고, IP 고정은 <code>/etc/dhcpcd.conf</code> 끝에 <code>interface wlan0 / static ip_address=192.168.0.50/24 / static routers=192.168.0.1 / static domain_name_servers=192.168.0.1 8.8.8.8</code> 를 추가한 뒤 재부팅. Bookworm 인데 꺼져 있으면 <code>sudo systemctl enable --now NetworkManager</code>.</div>
-<pre># 1) Wi-Fi 연결 (NetworkManager)
-sudo nmcli dev wifi list                                   # 보이는 SSID 확인
-sudo nmcli dev wifi connect "우리집SSID" password "비밀번호"
-ip -br addr show wlan0                                     # 예: wlan0 UP 192.168.0.50/24
-hostname -I
-
-# 2) (권장) IP 고정 — 매번 바뀌지 않게. 공유기의 DHCP 예약으로 해도 됨
-sudo nmcli con mod "우리집SSID" ipv4.method manual ipv4.addresses 192.168.0.50/24 ipv4.gateway 192.168.0.1 ipv4.dns "192.168.0.1 8.8.8.8"
-sudo nmcli con up "우리집SSID"
-
-# 3) ssh 켜기 (이미 켜져 있으면 생략)
-sudo raspi-config nonint do_ssh 0
-systemctl is-active ssh
-
-# 4) pigpiod — WSL 터널 모드만 쓸 거면 설치만: 기존 pi_setup.sh 가 설치·허용을 모두 해 줌 (아래 B 의 3번)
-#    Wi-Fi 절전으로 끊김이 잦으면: sudo iw dev wlan0 set power_save off  (부팅마다 필요하면 /etc/rc.local 등에)</pre>
-
-<h4 style="color:#1a4f7a;margin:10px 0 4px 0">B. WSL 쪽 — <code>tools/setup_rpi_wireless.sh</code> 한 번</h4>
-<pre>cd ~/MyJob/projects/comanyLinux/ServoChapter/ServoControlWpf
-./tools/setup_rpi_wireless.sh 192.168.0.50 pi        # Pi 의 Wi-Fi IP, Pi 사용자. 별명은 rpi
-#   [1/4] ssh 키 (~/.ssh/id_ed25519, 없으면 생성)
-#   [2/4] ~/.ssh/config 에  Host rpi / HostName 192.168.0.50 / User pi / IdentityFile …
-#   [3/4] ssh-copy-id 로 Pi 에 공개키 복사 (Pi 비밀번호 한 번)
-#   [4/4] ssh rpi 로 hostname·pigpiod 상태 확인, PC 의 Wi-Fi IP 출력</pre>
-<p>스크립트가 하는 일은 손으로 해도 같습니다: <code>ssh-keygen -t ed25519</code> → <code>~/.ssh/config</code> 에 <code>Host rpi</code> 블록 → <code>ssh-copy-id rpi</code> → <code>ssh rpi hostname</code> 이 비밀번호 없이 되면 끝.
-WPF 의 터널은 <code>BatchMode=yes</code> 라 비밀번호를 물을 수 없으므로 <b>키 인증이 꼭 필요</b>합니다(8장).</p>
+<p><b>A. Pi 쪽 (Pi 터미널에서 한 번).</b> 이 사용자의 Pi 는 Bullseye(dhcpcd)이므로 <code>sudo raspi-config</code> → System Options → Wireless LAN 으로 SSID 를 넣고, IP 를 고정하려면 <code>/etc/dhcpcd.conf</code> 끝에 <code>interface wlan0 / static ip_address=192.168.0.50/24 / static routers=192.168.0.1 / static domain_name_servers=192.168.0.1 8.8.8.8</code> 를 추가한 뒤 재부팅. ssh 는 <code>sudo raspi-config nonint do_ssh 0</code>. (Bookworm 이면 <code>nmcli dev wifi connect "SSID" password "…"</code> — 17-8. 이 명령들은 Pi 에서만: WSL 에는 NetworkManager 가 없어 "네트워크 관리자가 실행 중이 아닙니다" 가 납니다.) Wi-Fi 절전으로 끊김이 잦으면 <code>sudo iw dev wlan0 set power_save off</code>.</p>
+<p><b>B. WSL 쪽 — 스크립트 한 번.</b> <code>./tools/setup_rpi_wireless.sh 192.168.0.50 &lt;Pi사용자&gt;</code> 가 ssh 키 생성 → <code>~/.ssh/config</code> 의 <code>Host rpi</code> → <code>ssh-copy-id</code>(Pi 비밀번호 한 번) → <code>ssh rpi</code> 확인 → PC 의 LAN IP 안내까지 합니다(손으로 하는 명령은 17-4). WPF 의 터널은 <code>BatchMode=yes</code> 라 비밀번호를 물을 수 없으므로 <b>키 인증이 꼭 필요</b>합니다.</p>
 
 <table>
 <tr><th style="width:18%">모드</th><th style="width:40%">Pi 쪽 추가 설정</th><th>WPF 에서</th></tr>
@@ -702,17 +660,7 @@ WPF 의 터널은 <code>BatchMode=yes</code> 라 비밀번호를 물을 수 없�
 <tr><td><b>직접 연결</b></td><td>pigpiod 가 <b>PC 의 Wi-Fi IP</b> 를 허용해야 함: WSL 에서 <code>./tools/pi/pi_setup.sh rpi &lt;PC_WIFI_IP&gt;</code> (스크립트가 <code>-n 127.0.0.1 -n &lt;PC_WIFI_IP&gt;</code> 로 서비스를 덮어씀). PC IP 가 바뀌면 다시 실행 — 공유기에서 PC 도 DHCP 예약 권장</td><td>연결 방식 "직접 연결", Pi 주소 <code>192.168.0.50</code>, 포트 8888 → [연결]</td></tr>
 </table>
 
-<div class="box why"><b class="t">PC 의 "어느 IP" 를 허용해야 하나 — WSL2 의 NAT</b>
-WSL2 는 자체 가상 네트워크(172.x) 뒤에 있고 바깥으로 나갈 때 <b>Windows 의 주소로 바뀌어</b> 나갑니다. 그래서 Pi 가 보는 접속 주소는 WSL 의 172.x 가 아니라 <b>Windows Wi-Fi 어댑터의 IP</b>(예 192.168.0.10)입니다. WPF 는 Windows 에서 직접 나가므로 당연히 같은 주소입니다.
-이 주소는 Windows 에서 <code>ipconfig</code>(공유기로 나가는 어댑터 — Wi-Fi 또는 이더넷 — 의 IPv4), WSL 에서는 <code>setup_rpi_wireless.sh</code> 가 <code>powershell.exe</code> 로 기본 게이트웨이가 걸린 어댑터의 IP 를 찾아 알려 줍니다(이 PC 에서는 이더넷 172.30.1.29 로 확인). <code>pi_setup.sh</code> 의 둘째 인수에 이 값을 줍니다.</div>
-
-<div class="box tip"><b class="t">점검 순서 (안 될 때)</b>
-<ol style="margin:4px 0 0 0">
-<li>Windows 에서 <code>ping 192.168.0.50</code> — 안 되면 같은 Wi-Fi 인지, 공유기의 "AP 격리(무선 단말 간 통신 차단)" 가 켜져 있지 않은지 확인</li>
-<li>WSL 에서 <code>ssh rpi hostname</code> — 비밀번호를 물으면 키 복사가 안 된 것(<code>ssh-copy-id rpi</code>), "Host key verification" 이면 <code>ssh-keygen -R 192.168.0.50</code> 후 다시</li>
-<li>직접 연결이 1.5초 뒤 실패하면 Pi 에서 <code>systemctl status pigpiod</code> 와 <code>cat /etc/systemd/system/pigpiod.service.d/remote.conf</code> 로 <code>-n</code> 에 PC IP 가 있는지. PC IP 가 바뀌었으면 <code>pi_setup.sh</code> 재실행</li>
-<li>WPF 의 "WSL / Pi 관리" 탭 → [Pi 상태 확인] 이 hostname·IP·pigpiod 상태·8888 접속 수를 한 번에 보여 줌</li>
-</ol></div>
+<p class="small">직접 연결에서 허용할 PC 주소는 WSL 의 172.x 가 아니라 <b>Windows 어댑터의 IP</b>입니다(WSL2 NAT, 10-3). <code>setup_rpi_wireless.sh</code> 가 그 값을 찾아 알려 주고, <code>pi_setup.sh</code> 의 둘째 인수에 줍니다. 안 될 때는 <code>ping</code> → <code>ssh rpi hostname</code> → [Pi 상태 확인] 순서로 10-9 표를 따릅니다.</p>
 
 <h3>10-12. 에뮬레이션이 안 될 때 — 포트 8888 을 누가 쓰고 있나</h3>
 <div class="easy"><b class="t">쉬운 풀이</b> "앱 안 가짜 Pi" 는 127.0.0.1:8888 을 들어야 하는데, <b>같은 PC 에서 이미 누군가 8888 을 듣고 있으면</b> 같은 자리에 앉을 수 없습니다. 특히 WSL 에서 <code>fake_pigpiod.py</code> 를 띄워 두면 WSL2 가 그 포트를 Windows 의 127.0.0.1 로도 열어 줍니다(wslrelay.exe). 앱은 빈 포트를 골라 자동으로 피하고 알려 주며, 그 WSL 가짜 Pi 에 붙고 싶으면 종류를 "WSL 가짜 Pi" 로 바꾸면 됩니다.</div>
@@ -747,7 +695,7 @@ WSL2 는 자체 가상 네트워크(172.x) 뒤에 있고 바깥으로 나갈 때
 <li><b>설정에서 읽어 온 값</b>은 연동 계산 없이 그대로 보여 줍니다. 그래서 − 쪽과 + 쪽 기울기가 다른 비대칭 보정도 지워지지 않고, 기울기 칸은 + 쪽에서 구합니다(1100/1500/1800, ±40° → 7.5). 그 뒤 편집부터는 표시된 기울기로 연동되므로, 양쪽을 다르게 두고 싶으면 펄스 칸을 직접 고치면 됩니다(각도가 따라 바뀜).</li>
 <li><b>왜 ViewModel 에서</b>: 연동은 화면 입력의 규칙이지 서보 모델의 규칙이 아니므로 <code>MainViewModel</code> 의 <code>Cal*</code> setter 에서 처리하고(되돌아오는 setter 가 다시 계산하지 않게 <code>_calLinking</code> 플래그), <code>ServoSpec</code>(양쪽 따로 비례)은 그대로입니다.</li>
 </ul>
-<figure><img class="shot" src="screenshot_calib_linked.png" alt="보정 입력칸 연동" style="max-width:62%"><figcaption>그림 6-9. 보정 칸(설정 600/1500/2400 ±90°, 기울기 10)에서 최대 각도에 60 을 넣고 Enter 를 친 직후. 최대 펄스가 2100 으로 따라 바뀌고 요약 줄이 "+60° = 2100 µs" 로 갱신됐다. 이 PC 에서 UI 자동화로 입력해 캡처.</figcaption></figure>
+<figure><img class="shot" src="screenshot_calib_linked.png" alt="보정 입력칸 연동" style="max-width:62%"><figcaption>그림 14. 보정 칸(설정 600/1500/2400 ±90°, 기울기 10)에서 최대 각도에 60 을 넣고 Enter 를 친 직후. 최대 펄스가 2100 으로 따라 바뀌고 요약 줄이 "+60° = 2100 µs" 로 갱신됐다. 이 PC 에서 UI 자동화로 입력해 캡처.</figcaption></figure>
 
 <h2 class="pb">11. 안전 장치 (소프트웨어)</h2>
 <div class="easy"><b class="t">쉬운 풀이</b> 프로그램이 알아서 지키는 것: 범위 밖 각도는 잘라서 보냄, 통신이 끊기면 스스로 연결을 정리함, 종료 때 펄스 0(출력 유지 옵션이 꺼져 있을 때), 확장 범위를 쓰기 전에 경고. 사람이 지킬 것은 외부 전원과 끝단 소리입니다.</div>
@@ -767,7 +715,7 @@ WSL2 는 자체 가상 네트워크(172.x) 뒤에 있고 바깥으로 나갈 때
 
 <!-- ═══════════════════════════════ 12 ═══════════════════════════════ -->
 <h2>12. 테스트와 검증 결과</h2>
-<div class="easy"><b class="t">쉬운 풀이</b> 자동 테스트 262개(xUnit 218 + Python 44)가 계산·통신·되돌리기·녹화·전송 규칙을 지키고, 화면은 자동 조작 도구(UI Automation)로 눌러 보며 캡처했습니다. 실제 Pi·카메라는 아직 없어 가짜 Pi 와 가짜 카메라로 확인했습니다. 검증 중 찾아서 고친 버그는 18장 오류표에, Pi 가 오면 할 확인은 14장에 있습니다.</div>
+<div class="easy"><b class="t">쉬운 풀이</b> 자동 테스트 262개(xUnit 218 + Python 44)가 계산·통신·되돌리기·녹화·전송·보정 규칙을 지키고, 화면은 자동 조작 도구(UI Automation)로 눌러 보며 캡처했습니다(이 문서의 그림은 모두 v1.3.2 화면). 대부분은 가짜 Pi 와 가짜 카메라로 확인했고, 실제 Pi 는 v1.3.3 에서 처음 배포해 모니터 화면·서보 상태까지 확인했습니다(카메라 모듈은 아직 없음). 고친 버그는 18장, 카메라가 오면 할 확인은 14장.</div>
 <h3>12-1. 자동 테스트 (xUnit 218개 + Python 44개, 모두 통과)</h3>
 <table>
 <tr><th style="width:26%">파일</th><th class="c" style="width:8%">개수</th><th>검증 내용</th></tr>
@@ -795,31 +743,26 @@ WSL2 는 자체 가상 네트워크(172.x) 뒤에 있고 바깥으로 나갈 때
 </table>
 
 <h3>12-2. 화면 자동 조작 검증 (UI Automation, 이 PC)</h3>
+<p>PowerShell 의 UI Automation 으로 실제 창을 눌러 보고 글·캡처로 확인한 것입니다. 각 줄은 "조작 → 확인한 결과" 입니다.</p>
 <table>
-<tr><th style="width:44%">조작</th><th>결과</th></tr>
-<tr><td>시뮬레이션에서 +10°, +1°, [현재 위치 저장]</td><td>"펄스폭 1610 µs", "+11.0°", P1 에 +11.0° 저장, 상태 바 "P1에 11.0° 저장"</td></tr>
-<tr><td>스윕 시작 → 정지 → [출력 끄기]</td><td>"출력 꺼짐 · 손으로 돌릴 수 있음", "펄스폭 — µs"</td></tr>
-<tr><td>직접 연결 192.168.10.2 (Pi 없음) → [연결]</td><td>1.5 초 뒤 오류 창 "연결할 수 없습니다 … pi_setup.sh …", 버튼 "연결" 로 복구</td></tr>
-<tr><td>직접 연결 127.0.0.1 → [연결]</td><td>즉시 "연결 실패", 오류 창 "직접 연결은 실제 Pi(LAN 주소, 예 192.168.10.2 또는 172.30.1.81)에만 씁니다 … 연결 방식을 '에뮬레이터' 로 …", 버튼 "연결" 유지</td></tr>
-<tr><td>에뮬레이터(앱 안) → [연결] → +10° ×2 → 스윕 → 출력 끄기 → 연결 해제</td><td>"Pi 리비전 c03111 · pigpio v79", "가짜 Pi 수신 #4: SERVO gpio=18 1700 µs", 스윕 중 #72 … 1288 µs, 끄기 #138 "출력 끔", 해제 후 "연결 안 됨 (시뮬레이션)"</td></tr>
-<tr><td>에뮬레이터(앱 안), 8888 을 다른 리스너가 점유한 상태 → [연결] → 25° → 스윕 → 출력 끄기 → 해제 → 재연결 → 종료</td><td>연결됨, 상단 "가짜 Pi(임시 포트 NNNN) 수신 #n: SERVO …", 상태 줄에 포트 안내, 나머지 흐름 정상, 종료 후 프로세스 없음</td></tr>
-<tr><td>에뮬레이터 · <b>WSL 가짜 Pi</b> · 포트 18890(비어 있음) → [연결] → 25° → 출력 끄기 → 해제 → 재연결 → [종료]</td><td>연결 바 "WSL 가짜 Pi (fake_pigpiod.py) 127.0.0.1:18890 · GPIO18", WSL 에 <code>python3 fake_pigpiod.py --port 18890</code> 프로세스 생김. 상단 "WSL 가짜 Pi: ✓ GPW gpio=18 → 0" → "✓ SERVO gpio=18 1750 µs → 목표 +25.0°" → "✓ SERVO gpio=18 출력 끔". 해제 후 "WSL 가짜 Pi 기억 중: GPIO18 출력 꺼짐", 프로세스 유지. [종료] 뒤 프로세스 없음</td></tr>
-<tr><td>WSL 터미널에서 먼저 <code>fake_pigpiod.py --port 8888</code> 을 띄운 뒤 에뮬레이터 · WSL 가짜 Pi · 8888 → [연결] → 출력 끄기 → 해제 → [종료]</td><td>연결 바 "WSL 가짜 Pi (이미 떠 있던 것) 127.0.0.1:8888", 상단 "이미 떠 있는 WSL 가짜 Pi 사용 (명령 로그는 그쪽 터미널에)". 그 터미널에 <code>● 접속 / ✓ HWVER → 0xc03111 / ✓ PIGPV → 79 / ✓ GPW gpio=18 → 0 / ✓ SERVO gpio=18 출력 끔 / ○ 해제</code>. [종료] 뒤에도 그 프로세스는 살아 있음(앱이 띄운 것이 아니므로)</td></tr>
-<tr><td>다이얼: −45° 방향 누름 → 0°/45°/90° 로 끌기 → 놓기 → 빈 구간(160°) 누름</td><td>−13°(1370 µs) → 1500/1630/1770 µs → 다이얼 27 → 가까운 끝 40°(1900 µs). [+10°] 버튼을 누르면 다이얼이 따라 돎</td></tr>
-<tr><td>각도 ↔ 펄스 (보정 800/1500/2100): 펄스 슬라이더 1650 / 다이얼 30 / 펄스 입력칸 1234 / 각도 입력칸 −5 / 펄스 2400</td><td>각도 10.0° / 펄스 1950 / 각도 −15.2° / 펄스 1413 / 최대 2100 으로 잘려 40.0°. 매번 가짜 Pi 가 같은 µs 를 수신</td></tr>
-<tr><td>카메라 뷰: −40° → +40° 명령 60 ms 뒤 캡처 / 왼쪽 화면 클릭</td><td>"+3.4° → 목표 +40.0° 로 회전 중" 표시 후 0.25 s 안에 +40° 도달 / 클릭 전후 각도 10 → 10 (입력을 받지 않음)</td></tr>
-<tr><td>카메라 뷰 연결 조건: 연결 전 다이얼 30° → 에뮬레이터 연결 → −20° → 연결 해제 → 다이얼 40° → 재연결 → 39°</td><td>연결 전·해제 후에는 "연결 안 됨" 안내만 보이고 카메라 제자리(0° → 연결 후 −20° 도달 → 해제 뒤 40° 로 돌려도 −20° 유지). 재연결 직후 회색 카메라 −20° "출력 꺼짐", 첫 명령 39° 에 다시 회전 (그림 6-1)</td></tr>
-<tr><td>위치 기억·재연결: 에뮬레이터 연결 → −20° → [연결 해제](출력 유지 켜짐) → 다이얼 40° → [연결] / 옵션 끄고 10° → 해제 → 다이얼 −35° → [연결]</td><td>해제 후 상단 "가짜 Pi 기억 중: GPIO18 1300 µs (−20.0°) 유지". 다이얼을 40° 로 돌려도 재연결하면 "GPW → 1300 µs (기억하고 있던 펄스)" 로 다이얼·펄스 줄이 −20°/1300 µs 로 돌아옴 (그림 6-2). 옵션을 끄면 재연결 시 "GPW → 0" → 마지막 위치 +10° 로 복원, 출력 꺼짐</td></tr>
-<tr><td>프로그램 껐다 켜기(3회): ① 에뮬레이터 −25° → 종료(옵션 켜짐) ② 재실행 → [연결] → 옵션 끄고 +30° → 종료 ③ 재실행 → [연결]</td><td>① 상태 파일 <code>{"18":{"Pulse":1250,"Angle":-25}}</code>. ② 시작 직후(연결 전) 다이얼 −25° → 연결하면 "GPW → 1250 µs", "서보가 이미 −25.0° 로 구동 중" → 종료 후 <code>Pulse 0, Angle 30</code>. ③ 시작 직후 다이얼 +30° → 연결하면 "GPW → 0", "출력은 꺼져 있고 마지막 위치 +30.0°" (그림 6-3)</td></tr>
-<tr><td>카메라 화면: 시작 6초 뒤 상태 → [정지] → [시작] → [종료]</td><td>"1280×720 · 17 fps", "Integrated Camera · 영상 수신 중" → "카메라 정지됨" → 다시 "영상 수신 중" → 종료 후 프로세스 없음 (그림 6-4)</td></tr>
-<tr><td>Pi 화면 프로그램까지(Pi 없이): WSL 에 <code>fake_pigpiod.py</code> + <code>pi_display.py --no-gui --fake-camera</code> → WPF 를 그 가짜 Pi 에 연결 → 다이얼 10°, 20°</td><td>WSL 의 pi_display 터미널에 <code>로그: 출력 켜짐 1600 µs +10.0°</code>, <code>1700 µs +20.0° Δ+10.0°</code>, <code>/status.json</code> 이 <code>pulse 1700, angle 20.0, backend fake</code>. 네트워크 카메라 영상 수신은 단위 테스트(가짜 MJPEG 서버)로만 확인 — 실제 Pi 카메라가 없어 화면 시험은 건너뜀(사용자 요청)</td></tr>
-<tr><td>긴 글 축소: WSL 가짜 Pi 연결 → 창을 1320 → 1120(최소) 으로 줄임 → −30° → 해제</td><td>정보 줄 "WSL 가짜 Pi (이미 떠 있던 것) 127.0.0.1:8888 · GPIO18 / Pi 리비전 c03111 · pigpio v79 / 이미 떠 있는 WSL 가짜 Pi … 사용" 이 1120 에서도 글꼴만 작아지고 끝까지 보임(그림 6-5). [연결 해제]·[전체화면]·[종료] 버튼 제자리. 해제 후 "WSL 가짜 Pi 기억 중: GPIO18 1200 µs (-30.0°) 유지 — 다시 [연결]하면 …" 도 한 줄에 표시</td></tr>
-<tr><td><b>녹화·전송(Pi 없이)</b>: WSL 에 <code>fake_pigpiod.py</code> + <code>pi_display.py --no-gui --fake-camera --rec-dir /tmp/recsrc</code>, WPF 는 에뮬레이터·WSL 가짜 Pi + Pi 카메라 URL 127.0.0.1:8889, ssh 별명 <code>local:/tmp/recsrc</code>(시험용 로컬 원본), WSL 폴더 /tmp/recdest → [연결] → [● 녹화] 6 초 → [■ 정지] → [📷 사진] → 탭 "Pi 카메라" 인식 체크 → 밝기 0.5 → [종료]</td><td>pi_display 로그 <code>● 녹화 시작 rec_20261027_143313.avi (mjpeg-avi)</code> → <code>■ 녹화 끝 … 56 KB 00:00:06</code> → <code>📷 사진 img_… 64×48</code>. WPF: 버튼 "■ 정지 00:00:05", 결과 줄 "전송 완료: rec_….avi → /tmp/recdest (새 파일 1개)" 와 "전송 완료: img_….jpg …", <code>pull.log</code> 에 가져오기 3회, <code>/tmp/recdest</code> 에 .avi·.jpg 도착(.part 없음), AVI 헤더 62 프레임·9.98 fps·MJPG, <code>camera.json</code> 에 <code>brightness 0.5</code>, 인식은 "인식 불가 (OpenCV 없음)" 안내(WSL). [종료] 뒤 프로세스 없음 (그림 6-6~6-8)</td></tr>
-<tr><td>[종료]</td><td>프로세스 종료, <code>ServoControl.json</code> 에 모드·에뮬레이터 종류·주소·보정·P1 저장됨</td></tr>
+<tr><th style="width:40%">조작</th><th>확인한 결과</th></tr>
+<tr><td>시뮬레이션에서 +10°, +1°, [현재 위치 저장] → 스윕 → [출력 끄기]</td><td>"펄스폭 1610 µs", P1 에 +11.0° 저장, 스윕 뒤 "출력 꺼짐 · 손으로 돌릴 수 있음"</td></tr>
+<tr><td>직접 연결 192.168.10.2(Pi 없음) / 127.0.0.1</td><td>1.5 초 뒤 "연결할 수 없습니다 … pi_setup.sh" / 즉시 "직접 연결은 실제 Pi(LAN 주소)에만 씁니다 … 에뮬레이터로" (4-1). 버튼은 "연결" 로 복구</td></tr>
+<tr><td>에뮬레이터(앱 안) → [연결] → 다이얼·스윕·출력 끄기·해제</td><td>"Pi 리비전 c03111 · pigpio v79", 명령마다 "가짜 Pi 수신 #n: SERVO gpio=18 1700 µs", 끄기 "출력 끔", 해제 후 "가짜 Pi 기억 중" (그림 5)</td></tr>
+<tr><td>8888 을 다른 리스너가 점유한 상태에서 앱 안 에뮬레이터</td><td>임시 포트로 연결되고 상단·상태 줄에 안내 (10-12)</td></tr>
+<tr><td>에뮬레이터 · WSL 가짜 Pi · 빈 포트 18890 / 이미 띄운 8888</td><td>WSL 에 <code>python3 fake_pigpiod.py --port 18890</code> 가 생기고 상단에 "WSL 가짜 Pi: ✓ SERVO gpio=18 1750 µs → 목표 +25.0°"; [종료] 뒤 프로세스 없음. 이미 떠 있던 8888 은 재사용하고 로그는 그 터미널에, [종료] 뒤에도 살아 있음</td></tr>
+<tr><td>다이얼: −45° 방향 누름 → 끌기 → 빈 구간(160°) 누름 / 각도 ↔ 펄스 칸 왕복</td><td>−13° → 1500/1630/1770 µs → 가까운 끝 40°; 펄스 1650 → 10.0°, 각도 −5 → 1413 µs, 2400 → 최대로 잘려 40° (보정 800/1500/2100). 매번 가짜 Pi 가 같은 µs 를 수신</td></tr>
+<tr><td>카메라 뷰: −40° → +40° 명령 70 ms 뒤 캡처 / 왼쪽 화면 클릭 / 연결 조건</td><td>"−22.9°, → 목표 +40.0° 로 회전 중" 뒤 0.25 s 안에 도달 (그림 6) / 클릭해도 각도 불변 / 해제 상태에서는 다이얼을 돌려도 카메라 제자리 + "연결 안 됨" (그림 7)</td></tr>
+<tr><td>위치 기억: −20° → 해제(출력 유지) → 다이얼 40° → [연결] / 옵션 끄고 → 해제 → [연결]</td><td>"가짜 Pi 기억 중: GPIO18 1300 µs (−20.0°) 유지" → 재연결 시 "GPW → 1300 µs (기억하고 있던 펄스)" 로 −20° 복원 (그림 12). 옵션을 끄면 "GPW → 0" → 마지막 위치, 출력 꺼짐</td></tr>
+<tr><td>껐다 켜기: −25° 로 보내고 종료 → 재실행</td><td>연결 전부터 다이얼·펄스 줄이 −25°/1250 µs, 출력 꺼짐 표시 (그림 13); [연결]하면 상태 파일의 1250 µs 를 GPW 로 받아 "구동 중" 으로 확정</td></tr>
+<tr><td>카메라 화면: 시작 → [정지] → [시작] → [종료]</td><td>"Integrated Camera · 영상 수신 중 1280×720 · 17 fps" → "정지됨" → 수신 중 → 종료 후 프로세스 없음 (그림 5 왼쪽 위)</td></tr>
+<tr><td>Pi 화면 프로그램까지(Pi 없이): WSL <code>fake_pigpiod.py</code> + <code>pi_display.py --no-gui --fake-camera</code> → 다이얼 10°, 20°</td><td>pi_display 터미널에 <code>로그: 1700 µs +20.0° Δ+10.0°</code>, <code>/status.json</code> 의 <code>pulse 1700</code>. Pi 카메라 영상 자체는 실물이 없어 가짜 MJPEG 로만</td></tr>
+<tr><td>긴 글 축소: 창을 1120(최소)으로 줄임</td><td>정보 줄이 글꼴만 작아지고 끝까지 보이며 버튼 제자리 (그림 8)</td></tr>
+<tr><td>녹화·전송(Pi 없이): WSL 가짜 카메라 + ssh 별명 <code>local:/tmp/recsrc</code> → [● 녹화] 6 초 → [■ 정지] → [📷 사진] → 탭 "Pi 카메라" 인식 체크·밝기 0.5</td><td>pi_display 로그 "● 녹화 시작 … ■ 녹화 끝 56 KB 00:00:06 … 📷 사진"; WPF "전송 완료: rec_….avi → /tmp/recdest (새 파일 1개)", <code>.part</code> 없음, AVI 62 프레임·9.98 fps, <code>camera.json</code> 에 brightness 0.5, WSL 은 "인식 불가 (OpenCV 없음)" (그림 9~11)</td></tr>
+<tr><td>보정 칸 연동: 최대 각도 60 + Enter</td><td>최대 펄스 2100, 요약 줄 "+60° = 2100 µs" (그림 14)</td></tr>
+<tr><td>보정값 전달: 보정 600/1500/2400 ±80° 로 WSL 가짜 Pi 에 −80° → 해제</td><td>"WSL 가짜 Pi 기억 중: GPIO18 600 µs (−80.0°)" — 전에는 −90.0° (10-13)</td></tr>
 </table>
-<figure><img class="shot" src="screenshot_simulation.png" alt="연결 전 첫 화면"><figcaption>그림 7. 처음 실행한 화면 (연결 전, 출력 꺼짐). 왼쪽 카메라가 회색이고 시야가 없다 = 힘이 빠진 상태. 이 PC 에서 캡처.</figcaption></figure>
-
-<p class="small">검증 중 찾아서 고친 프로그램 버그(터널 "연결 중…" 멈춤, 카메라 뷰 바인딩 누락, 웹캠 종료 교착, 테스트가 설정 파일을 덮어쓴 문제 등)는 다른 오류와 함께 18장 표에 모았습니다.</p>
+<p class="small">검증 중 찾아서 고친 프로그램 버그는 18장 표에 모았습니다.</p>
 
 <!-- ═══════════════════════════════ 13 ═══════════════════════════════ -->
 <h2 class="pb">13. 만들기·실행하기</h2>
@@ -827,7 +770,7 @@ WSL2 는 자체 가상 네트워크(172.x) 뒤에 있고 바깥으로 나갈 때
 <pre># 필요: .NET SDK 8 이상 (SDK 10 으로 빌드 확인), Windows 10/11
 cd ServoChapter\ServoControlWpf
 dotnet build ServoControlWpf.sln -c Release      # 경고 0, 오류 0
-dotnet test  ServoControlWpf.sln -c Release      # 137 통과
+dotnet test  ServoControlWpf.sln -c Release      # 218 통과
 dotnet run   --project ServoControlWpf           # 앱 실행
 
 # 가짜 pigpiod 콘솔
@@ -895,44 +838,37 @@ dotnet run --project PigpioEmulatorCli -- 8888 0.0.0.0</pre>
 </table>
 
 <h3>13-2. Pi 없이 "WSL 을 가짜 Pi" 로 만들기</h3>
-<p>가장 짧은 길은 앱에 맡기는 것입니다: WSL 터미널에서 <code>./run-from-wsl.sh</code> 로 WPF 를 띄우고 연결 방식 <b>에뮬레이터 · WSL 가짜 Pi</b> → [연결]. 앱이 <code>wsl.exe --cd tools -e python3 fake_pigpiod.py --port 8888 --bind 0.0.0.0</code> 을 띄우고 붙으며, 받은 명령이 상단에 찍힙니다(10-8 B). 아래는 그 원리와, 터미널에서 손으로 띄울 때·터널 모드까지 시험할 때의 절차입니다.</p>
-<ol>
-<li><b>터미널에서 가짜 Pi 띄우기</b> (sudo 불필요, <b>이 PC 에서 확인됨</b>): WSL 에서 <code>./run-from-wsl.sh fakepi</code> → 리눅스 프로세스가 0.0.0.0:8888 에서 듣는다. WSL2 는 WSL 안의 포트를 Windows 의 <code>127.0.0.1</code> 로도 열어 주므로(localhost 포워딩), WPF 의 <b>에뮬레이터 · WSL 가짜 Pi · 8888</b> 은 새로 띄우지 않고 이것에 붙는다. 명령은 Windows → (가상 네트워크) → WSL 리눅스 프로세스로 실제로 건너간다.
-<pre># WSL 쪽 가짜 pigpiod 가 찍은 로그 (WPF 를 붙인 뒤 다이얼 −20° → +30° → 출력 끄기)
-● 접속 127.0.0.1:60440
-11:14:35  ✓ HWVER → 0xc03111
-11:14:35  ✓ PIGPV → 79
+<p>가장 짧은 길은 앱에 맡기는 것입니다: 연결 방식 <b>에뮬레이터 · WSL 가짜 Pi</b> → [연결] (4-3, 10-8 B). 터미널에서 명령 로그를 직접 보려면 <code>./run-from-wsl.sh fakepi</code> 를 먼저 띄워 두면 앱이 그것을 재사용합니다. 그때 가짜 Pi 터미널에는 다음처럼 찍히고, WPF 연결 바에는 "Pi 리비전 c03111 · pigpio v79" 가 떠서 <b>Pi 대신 WSL 이 응답해도 프로그램은 구별하지 못함</b>을 보여 줍니다.</p>
+<pre>● 접속 127.0.0.1:60440
+11:14:35  ✓ HWVER → 0xc03111          11:14:35  ✓ PIGPV → 79
 11:14:40  ✓ SERVO gpio=18 1300 µs → 목표 -20.0°
-11:14:43  ✓ SERVO gpio=18 1800 µs → 목표 +30.0°
-11:14:45  ✓ SERVO gpio=18 출력 끔
-○ 해제 127.0.0.1:60440</pre>
-WPF 쪽 연결 바에는 "pigpio @ 127.0.0.1:8888 · GPIO18 · Pi 리비전 c03111 · pigpio v79" 가 떴다. 즉 <b>Pi 대신 WSL 이 응답해도 프로그램은 구별하지 못한다</b>.</li>
-<li><b>WSL 터널로 시험</b> (sudo 필요, 한 번만): WSL 에 SSH 서버를 넣고 자기 자신을 <code>rpi</code> 라는 별명으로 등록하면, 앱의 "WSL 터널" 모드가 WSL 의 sshd 를 거쳐 1번의 가짜 pigpiod 에 닿는다.
+11:14:45  ✓ SERVO gpio=18 출력 끔     ○ 해제 127.0.0.1:60440</pre>
+<p><b>WSL 터널 모드까지 시험하려면</b> (sudo 한 번) WSL 에 SSH 서버를 넣고 자기 자신을 <code>rpi</code> 로 등록합니다 — 그러면 "WSL 터널" 이 WSL 의 sshd 를 거쳐 위 가짜 pigpiod 에 닿습니다. 이 PC 에서는 sudo 비밀번호가 필요해 실행하지 못했으므로 사용자가 직접 확인해야 합니다.</p>
 <pre>sudo apt install -y openssh-server && sudo systemctl enable --now ssh
 ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519      # 키가 없을 때
 cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
 printf 'Host rpi\n    HostName 127.0.0.1\n    User %s\n' "$USER" >> ~/.ssh/config
-ssh -o StrictHostKeyChecking=accept-new rpi true && echo "ssh rpi OK"</pre>
-그 다음 WPF 에서 <b>WSL 터널 · ssh 별명 rpi · Pi 포트 8888</b> → [연결]. 이 PC 에서는 sudo 비밀번호가 필요해 2번은 실행하지 못했고, 사용자가 위 명령을 직접 실행한 뒤 확인해야 합니다.</li>
-</ol>
+ssh -o StrictHostKeyChecking=accept-new rpi true && echo "ssh rpi OK"      # 그 뒤 WPF: WSL 터널 · rpi · 8888</pre>
 
 <!-- ═══════════════════════════════ 14 ═══════════════════════════════ -->
 <h3>13-3. 버전 올리기와 Pi 화면 프로그램 배포</h3>
 <table>
 <tr><th style="width:34%">할 일</th><th>명령</th></tr>
-<tr><td>지금 버전 보기</td><td>창 제목·상태 바 오른쪽 <code>v1.3.2</code> / 파일 <code>VERSION</code> / <code>CHANGELOG.md</code></td></tr>
+<tr><td>지금 버전 보기</td><td>창 제목·상태 바 오른쪽 <code>v1.3.3</code> / 파일 <code>VERSION</code> / <code>CHANGELOG.md</code></td></tr>
 <tr><td>릴리스 전에 변경 내용 적기</td><td><code>CHANGELOG.md</code> 의 <code>## [Unreleased]</code> 아래에 Added/Changed/Fixed 로 적는다</td></tr>
 <tr><td>버전 올리기</td><td>Windows: <code>.\tools\bump-version.ps1 -Part patch|minor|major</code> (<code>-DryRun</code> 으로 미리 보기) · WSL: <code>./tools/bump_version.sh patch</code>. VERSION 갱신 + Unreleased 를 새 버전 절로 승격. 그 뒤 <code>dotnet build</code>(제목에 새 버전), <code>dotnet test</code>(VersionTests 가 일치 검사)</td></tr>
 <tr><td>Pi 화면 프로그램 처음 배포</td><td>WSL: <code>./pi_display/deploy_pi_display.sh rpi --install-deps --autostart</code> (apt 설치: PyQt5·picamera2·pigpio·<b>ffmpeg·python3-opencv</b> + 인식 모델 23 MB 내려받기 + <code>~/Videos/pi_display</code> 폴더, 로그인 자동 시작) — WPF "WSL / Pi 관리" 탭 [Pi 화면 배포(+apt) ↗] 와 같음</td></tr>
-<tr><td>그 뒤 배포</td><td><code>./pi_display/deploy_pi_display.sh rpi</code> — 복사 → 재실행 → <code>status.json</code> 확인. WPF [Pi 화면 배포] 버튼과 같음</td></tr>
+<tr><td>그 뒤 배포 (= Pi 모니터에 띄우기)</td><td><code>./pi_display/deploy_pi_display.sh rpi</code> — 복사 → 떠 있던 것 종료 → 모니터(DISPLAY=:0)에 전체 화면으로 실행 → 4 초 뒤 로그·<code>status.json</code> 확인. WPF [Pi 화면 배포] 버튼과 같음. 추가 플래그는 <code>--</code> 뒤에(<code>-- --calib 600,1500,2400,-80,80</code>)</td></tr>
+<tr><td>Pi 화면 프로그램 끄기</td><td>WSL: <code>ssh rpi "pkill -f '[p]i_display.py'"</code> — 대괄호 <code>[p]</code> 가 꼭 필요. 없이 <code>'pi_display.py'</code> 로 치면 그 명령을 실행하는 ssh 셸 자신(명령줄에 같은 글자가 있음)이 먼저 죽어 실제 프로그램은 남을 수 있다(18장). 확인: <code>ssh rpi "pgrep -af '[p]i_display.py' || echo 꺼짐"</code>. Pi 모니터 앞에서는 <b>ESC</b> 또는 <b>Q</b>. <code>--autostart</code> 로 등록해 두었으면 다음 로그인 때 다시 뜨므로, 자동 시작까지 없애려면 <code>ssh rpi 'rm ~/.config/autostart/pi-display.desktop'</code>(<code>--service</code> 로 등록했으면 <code>ssh rpi 'sudo systemctl disable --now pi-display'</code>)</td></tr>
+<tr><td>로그 보기</td><td><code>ssh rpi 'tail -f ~/Source/pi_display/pi_display.log'</code> · 브라우저 <code>http://172.30.1.81:8889/</code> · <code>curl -s http://172.30.1.81:8889/status.json</code></td></tr>
 <tr><td>녹화 가져오기 자동화</td><td>WPF 가 녹화 정지·사진 뒤 자동으로 <code>./pi_display/pull_recordings.sh rpi</code> 를 실행(탭 "Pi 카메라" 의 체크). WPF 가 꺼져 있어도 가져오려면 한 번 <code>./pi_display/watch_recordings.sh rpi --install</code>(systemd user 서비스, 30 초 주기) — 탭 [감시 서비스 설치]. 상태는 <code>--status</code>, 해제는 <code>--uninstall</code></td></tr>
 <tr><td>Pi 없이 전체 흐름 연습</td><td>WSL 1: <code>./run-from-wsl.sh fakepi</code> · WSL 2: <code>python3 pi_display/pi_display.py --no-gui --fake-camera --pigpio-host 127.0.0.1</code> · WPF: <b>에뮬레이터 · WSL 가짜 Pi · 8888</b>(WSL 1 을 재사용), 카메라 콤보 "Pi 카메라 (네트워크)" → [● 녹화]/[📷 사진]. 전송까지 Pi 없이 보려면 ssh 별명 칸에 <code>local:/home/jhjung/Videos/pi_display</code> 처럼 <b>local:원본폴더</b> 를 넣으면 스크립트가 ssh 대신 그 폴더에서 복사(시험용)</td></tr>
 </table>
 
 <h2>14. 한계와 다음 단계</h2>
-<div class="easy"><b class="t">쉬운 풀이</b> 아직 실제 Pi·카메라로는 못 해 봤고, 터널은 키 인증만 됩니다. WPF 자체는 Pi 에서 못 돌지만 서보·통신 코드는 리눅스에서 컴파일되므로 화면만 Avalonia 로 바꾸면 Pi 에서도 돌릴 수 있습니다(14-1).</div>
+<div class="easy"><b class="t">쉬운 풀이</b> 실제 Pi 에는 화면 프로그램을 띄워 서보 상태까지 봤지만 카메라 모듈이 아직 없어 영상·녹화는 못 해 봤고, 터널은 키 인증만 됩니다. WPF 자체는 Pi 에서 못 돌지만 서보·통신 코드는 리눅스에서 컴파일되므로 화면만 Avalonia 로 바꾸면 Pi 에서도 돌릴 수 있습니다(14-1).</div>
 <ul>
-<li><b>실제 Pi 검증은 아직</b>: 실제 장치가 물리적으로 연결되어 있지 않아 직접·터널 모드는 가짜 pigpiod 와 오류 경로로만 확인했습니다. 터널의 성공 경로는 SSH 서버(Pi 또는 13-2 의 WSL sshd)가 있어야 합니다. <b>Pi 가 오면 확인할 것</b>: ① 직접 연결 → "Pi 리비전 … · pigpio v…" → [0°] 중립 → 스윕 → [출력 끄기] 로 힘 빠짐 ② WSL 터널 → 같은 동작, Pi 에서 <code>ss -tn | grep 8888</code> 에 127.0.0.1 접속 ③ WSL 탭 [Pi 상태 확인]·[pi_info.sh]·[pi_setup.sh ↗] ④ 창 닫기(출력 유지 꺼짐) 뒤 서보가 손으로 돌아가는지 ⑤ Pi 카메라: <code>deploy_pi_display.sh rpi --install-deps --autostart</code> 후 800×480 화면·자동 시작·선택된 카메라 백엔드, WPF 카메라 콤보 "Pi 카메라 (네트워크)" 로 실제 영상(Bullseye 32-bit 에 <code>python3-picamera2</code> 가 없으면 libcamera-vid 로 넘어가는지). ⑥ <b>녹화·사진·인식(15-7~15-11)</b>: <code>status.json</code> 의 <code>settings.record_capable</code> 가 <code>h264</code> 인지(picamera2 두 스트림이 열렸는지, <code>backend_detail</code>), [● 녹화] 1 분 → <code>~/Videos/pi_display/rec_….mp4</code> 가 VLC 로 재생되고 1920×1080 30 fps 인지, [📷 사진] 이 2592×1944 인지, 720p60/480p90 모드 전환 뒤 미리보기가 돌아오는지, 반전이 화면에 반영되는지, 인식 체크 뒤 사람 앞에서 박스가 그려지고 fps 가 3~5 인지, 정지 뒤 WSL 폴더에 파일이 도착하는지(<code>pull.log</code>), <code>watch_recordings.sh --install</code> 뒤 WPF 를 끄고 Pi 모니터 쪽에서 만든 파일도 30 초 안에 오는지. H.264 경로·5 MP·인식 속도는 실제 카메라가 없어 이 PC 에서 검증하지 못했습니다.</li>
+<li><b>실제 Pi 검증은 절반</b>: 2026-10-27 실제 Pi(Bullseye 32-bit, 172.30.1.81, pigpiod 실행 중)에 <code>deploy_pi_display.sh rpi</code> 로 처음 배포해 모니터에 pi_display 가 뜨고 <code>status.json</code> 에 서보 상태(1678 µs, +17.8°)·녹화 폴더·MobileNet-SSD 준비가 보이는 것까지 확인했습니다(그 과정에서 찾은 스크립트 버그 두 개는 18장). 카메라 모듈은 아직 안 붙어 있어 화면은 "NO CAMERA" 자리 표시이고, Pi 의 <code>python3-picamera2</code>(0.3.12)가 설치된 <code>libcamera0</code>(0.0.5)보다 옛 <code>libcamera.so.0.0.4</code> 를 찾아 import 에 실패하는 상태라 카메라를 붙일 때 <code>sudo apt update &amp;&amp; sudo apt full-upgrade</code> 로 짝을 맞춰야 합니다. WPF 의 직접·터널 모드는 아직 가짜 pigpiod 와 오류 경로로만 확인했고, 터널의 성공 경로는 SSH 서버(Pi 또는 13-2 의 WSL sshd)가 있어야 합니다. <b>남은 확인</b>: ① 직접 연결 → "Pi 리비전 … · pigpio v…" → [0°] 중립 → 스윕 → [출력 끄기] 로 힘 빠짐 ② WSL 터널 → 같은 동작, Pi 에서 <code>ss -tn | grep 8888</code> 에 127.0.0.1 접속 ③ WSL 탭 [Pi 상태 확인]·[pi_info.sh]·[pi_setup.sh ↗] ④ 창 닫기(출력 유지 꺼짐) 뒤 서보가 손으로 돌아가는지 ⑤ Pi 카메라: <code>deploy_pi_display.sh rpi --install-deps --autostart</code> 후 800×480 화면·자동 시작·선택된 카메라 백엔드, WPF 카메라 콤보 "Pi 카메라 (네트워크)" 로 실제 영상(Bullseye 32-bit 에 <code>python3-picamera2</code> 가 없으면 libcamera-vid 로 넘어가는지). ⑥ <b>녹화·사진·인식(15-6~15-9)</b>: <code>status.json</code> 의 <code>settings.record_capable</code> 가 <code>h264</code> 인지(picamera2 두 스트림이 열렸는지, <code>backend_detail</code>), [● 녹화] 1 분 → <code>~/Videos/pi_display/rec_….mp4</code> 가 VLC 로 재생되고 1920×1080 30 fps 인지, [📷 사진] 이 2592×1944 인지, 720p60/480p90 모드 전환 뒤 미리보기가 돌아오는지, 반전이 화면에 반영되는지, 인식 체크 뒤 사람 앞에서 박스가 그려지고 fps 가 3~5 인지, 정지 뒤 WSL 폴더에 파일이 도착하는지(<code>pull.log</code>), <code>watch_recordings.sh --install</code> 뒤 WPF 를 끄고 Pi 모니터 쪽에서 만든 파일도 30 초 안에 오는지. H.264 경로·5 MP·인식 속도는 실제 카메라가 없어 이 PC 에서 검증하지 못했습니다.</li>
 <li><b>카메라 API 에 인증이 없음</b>: pi_display 의 HTTP(8889)는 LAN 안의 누구나 녹화를 시작·정지할 수 있습니다. 집 안 Wi-Fi 전제. 밖에 노출하려면 토큰 헤더나 ssh 터널(8889 도 <code>-L</code>)을 붙여야 합니다.</li>
 <li><b>WSL 터널의 비밀번호 입력 불가</b>: 설계상 키 인증 전제. 비밀번호 방식이 꼭 필요하면 터널도 "새 터미널 창" 으로 여는 선택지를 추가할 수 있습니다.</li>
 <li><b>서보 명령은 동기 호출</b>: 1.5 초 타임아웃 동안 화면이 잠깐 멈출 수 있습니다(연결 단계만 비동기). 사용감이 문제되면 명령 큐 + 백그라운드 스레드로 바꿀 수 있습니다.</li>
@@ -947,7 +883,7 @@ ssh -o StrictHostKeyChecking=accept-new rpi true && echo "ssh rpi OK"</pre>
 <tr><td>Model 9개 · Services 2개 · ViewModel 밑바탕 4개 파일을 WPF 없이 리눅스 .NET 10 으로 컴파일 (<code>tools/portcheck</code>, WSL 에서 <code>dotnet build tools/portcheck</code>)</td><td><b>경고 0 · 오류 0.</b> 이 층들은 <code>System.Windows</code> 를 전혀 쓰지 않는다</td></tr>
 <tr><td>이 PC 에서 Pi 용 실행 파일 만들기 (<code>dotnet publish PigpioEmulatorCli -r linux-arm64 --self-contained</code>)</td><td>단일 파일 <code>pigpio-emu</code>(70 MB, ELF 64-bit AArch64) 생성. Pi 4 의 64-bit OS 에서 .NET 설치 없이 실행 가능한 형식</td></tr>
 <tr><td>WPF·Windows 에 묶인 파일</td><td><code>View\</code> 5개(MainWindow, ServoDial, ServoCameraView, DialogService, App), <code>MainViewModel</code> 의 <code>DispatcherTimer</code> 2개(스윕·상태 줄), <code>CameraViewModel</code> 의 <code>WriteableBitmap</code>, 그리고 <code>WinRtCameraSource</code>(Windows 10 API). 카메라는 <code>ICameraSource</code> 규격 뒤에 있으므로 Pi 에서는 V4L2/libcamera 구현으로 바꿔 끼우면 됨. <code>RelayCommand</code> 의 <code>ICommand</code> 는 리눅스에서도 있는 기본 형식이라 문제없음</td></tr>
-<tr><td>Pi 에서 의미가 없어지는 부분</td><td>WSL 터널 모드와 "WSL / Pi 관리" 탭(Pi 안에서는 WSL 이 없음). Pi 에서는 <b>직접 연결 · 주소 127.0.0.1 · 포트 8888</b> 하나면 충분 — pigpiod 가 같은 기기 안에 있음. 단 Pi 판에서는 직접 연결의 "자기 주소 거부"(4-5)를 풀어야 함</td></tr>
+<tr><td>Pi 에서 의미가 없어지는 부분</td><td>WSL 터널 모드와 "WSL / Pi 관리" 탭(Pi 안에서는 WSL 이 없음). Pi 에서는 <b>직접 연결 · 주소 127.0.0.1 · 포트 8888</b> 하나면 충분 — pigpiod 가 같은 기기 안에 있음. 단 Pi 판에서는 직접 연결의 "자기 주소 거부"(4-1)를 풀어야 함</td></tr>
 </table>
 
 <div class="box why"><b class="t">세 가지 길 비교</b>
@@ -958,17 +894,7 @@ ssh -o StrictHostKeyChecking=accept-new rpi true && echo "ssh rpi OK"</pre>
 <tr><td><b>C. Pi 에 Windows 설치</b></td><td>Pi 4 에 Windows on ARM 을 올리는 비공식 방법(WoR). WPF 가 그대로 돌긴 함</td><td>공식 지원 없음, 느림, GPIO/pigpiod 가 리눅스용이라 서보 제어 자체가 막힘. <b>권하지 않음</b></td></tr>
 </table></div>
 
-<p><b>A 방식의 작업 순서</b> (Pi 4, Raspberry Pi OS 64-bit 기준)</p>
-<ol>
-<li>프로젝트 <code>ServoControlAvalonia</code> 를 만들고 <code>Model\</code>·<code>Services\</code>·<code>ViewModel\</code>(ObservableObject, RelayCommand, IDialogService, PresetSlot, MainViewModel) 파일을 링크로 포함한다(<code>tools/portcheck/PortCheck.csproj</code> 의 <code>&lt;Compile Include="..\ServoControlWpf\Model\*.cs"/&gt;</code> 방식). 소스 복사본이 아니라 <b>같은 파일</b>을 두 앱이 쓴다.</li>
-<li><code>MainViewModel</code> 의 <code>DispatcherTimer</code> 를 Avalonia 의 <code>DispatcherTimer</code>(<code>Avalonia.Threading</code>)로 바꾼다 — 이름과 쓰임이 같아 using 한 줄 차이. WSL 관련(<code>Wsl</code> 속성, 터널 모드)은 <code>#if</code> 나 별도 ViewModel 로 떼어 Pi 판에서는 숨긴다.</li>
-<li><code>ServoDial</code>·<code>ServoCameraView</code> 를 Avalonia <code>Control</code> 로 이식한다. <code>OnRender(DrawingContext)</code> → <code>Render(DrawingContext)</code>, <code>DependencyProperty</code> → <code>StyledProperty</code>, <code>FormattedText</code> 생성자 인자만 다르고 그리기 호출(<code>DrawGeometry</code>, <code>DrawEllipse</code>, <code>PushTransform</code>)은 거의 같다.</li>
-<li><code>MainWindow.axaml</code> 은 WPF XAML 을 거의 그대로 옮긴다(<code>Visibility</code> → <code>IsVisible</code>, <code>GroupBox</code> → <code>HeaderedContentControl</code> 정도).</li>
-<li>PC 에서 <code>dotnet publish ServoControlAvalonia -c Release -r linux-arm64 --self-contained -p:PublishSingleFile=true</code> → <code>scp</code> 로 Pi 에 복사 → Pi 에서 <code>chmod +x</code> 후 실행. 접속은 <b>직접 연결 127.0.0.1:8888</b>. Pi 쪽 <code>pi_setup.sh</code> 는 이미 pigpiod 를 켜 두므로 추가 설정 없음.</li>
-<li>검증은 Pi 없이도 가능: WSL 에서 <code>-r linux-x64</code> 로 publish 해 WSLg 창으로 띄우고(Avalonia 는 WSLg 에서 동작) <code>./run-from-wsl.sh fakepi</code> 의 가짜 pigpiod 에 127.0.0.1:8888 로 붙여 본다.</li>
-</ol>
-<div class="box tip"><b class="t">왜 Avalonia 인가</b>
-.NET MAUI 는 리눅스를 지원하지 않고, Uno Platform 은 가능하지만 WPF 와의 거리가 더 멉니다. Avalonia 는 "리눅스에서 도는 WPF" 에 가장 가까워, 이 프로젝트처럼 <code>OnRender</code> 로 직접 그린 컨트롤과 MVVM 바인딩을 가장 적게 고치고 옮길 수 있습니다. Pi 4 에서 Avalonia 앱은 X11 데스크톱(기본 Raspberry Pi OS) 위에서 그대로 뜨며, 화면 없이 직접 프레임버퍼로 띄우는 방법(DRM)도 있습니다.</div>
+<p><b>A 방식의 요지</b>: 새 프로젝트가 <code>Model\</code>·<code>Services\</code>·<code>ViewModel\</code> 파일을 링크로 <b>같이 쓰고</b>(<code>tools/portcheck</code> 방식), <code>DispatcherTimer</code> 두 줄과 <code>View\</code> 다섯 파일(<code>OnRender</code> → <code>Render</code>, <code>DependencyProperty</code> → <code>StyledProperty</code>, <code>Visibility</code> → <code>IsVisible</code>)만 Avalonia 로 옮긴 뒤 <code>dotnet publish -r linux-arm64 --self-contained</code> 로 단일 실행 파일을 만들어 Pi 로 복사합니다. 검증은 Pi 없이 WSLg 창 + <code>./run-from-wsl.sh fakepi</code> 로 가능합니다. Avalonia 를 고른 이유는 .NET MAUI 가 리눅스를 지원하지 않고 Uno 는 WPF 와 더 멀기 때문입니다.</p>
 
 <!-- ═══════════════════════════════ 15 ═══════════════════════════════ -->
 <h2 class="pb">15. Pi 화면 프로그램(카메라·이동 로그)과 버전 관리</h2>
@@ -1009,22 +935,19 @@ ssh -o StrictHostKeyChecking=accept-new rpi true && echo "ssh rpi OK"</pre>
 <p>버전의 단일 진실은 <code>VERSION</code> 파일(예 <code>1.1.0</code>)입니다. <code>Directory.Build.props</code> 가 빌드 때 이것을 읽어 모든 프로젝트의 어셈블리 버전에 박고, 프로그램은 <code>AppVersion</code> 으로 꺼내 제목 표시줄과 상태 바에 보여 줍니다. Pi 프로그램은 같은 파일을 rsync 로 받아 <code>--version</code>·화면 제목·<code>status.json</code> 에 씁니다.
 <code>tools/bump-version.ps1</code>(또는 <code>bump_version.sh</code>)은 SemVer 검증 → 커졌는지 확인 → <code>CHANGELOG.md</code> 의 <code>[Unreleased]</code> 에 내용이 있는지 확인 → 새 버전 절로 승격 → VERSION 기록(BOM 없음) 순서로, 모두 성공할 때만 파일을 씁니다. <code>VersionTests</code> 가 VERSION·어셈블리·CHANGELOG 의 일치를 검사합니다.</p>
 
-<h3>15-6. 확인한 것과 남은 것</h3>
-<p>확인: WSL 가짜 pigpiod + 가짜 카메라 pi_display 와 WPF 로 다이얼 이동이 Pi 쪽 로그와 <code>/status.json</code> 에 찍힘(12-2), Python 테스트, bump 스크립트, <code>pi_display.py --version</code>. 남은 것은 실제 Pi 카메라 확인(14장)과, 터널 모드에서 카메라 8889 도 ssh 로 함께 터널링하기(CHANGELOG 계획).</p>
-
-<h3>15-7. 카메라 모듈(OV5647, 5 MP)이 할 수 있는 것</h3>
-<div class="easy"><b class="t">쉬운 풀이</b> 붙일 카메라는 "비디오 모듈 OV5647 5 메가픽셀 1080p" — 첫 세대 Pi 카메라 모듈과 같은 센서입니다. 사진은 2592×1944(5 MP), 동영상은 1080p 30 fps / 720p 60 fps / 640×480 90 fps 중 하나입니다. 초점은 고정(자동 초점 없음), 적외선은 걸러집니다(야간 모드 없음). Pi 4 의 하드웨어 H.264 인코더가 1080p30 까지 받아 주므로 CPU 를 거의 쓰지 않고 녹화할 수 있습니다. 이 사양을 그대로 기능으로 옮긴 것이 아래 15-8~15-11 입니다.</div>
+<h3>15-6. 카메라 모듈(OV5647, 5 MP)이 할 수 있는 것</h3>
+<div class="easy"><b class="t">쉬운 풀이</b> 붙일 카메라는 "비디오 모듈 OV5647 5 메가픽셀 1080p" — 첫 세대 Pi 카메라 모듈과 같은 센서입니다. 사진은 2592×1944(5 MP), 동영상은 1080p 30 fps / 720p 60 fps / 640×480 90 fps 중 하나입니다. 초점은 고정(자동 초점 없음), 적외선은 걸러집니다(야간 모드 없음). Pi 4 의 하드웨어 H.264 인코더가 1080p30 까지 받아 주므로 CPU 를 거의 쓰지 않고 녹화할 수 있습니다. 이 사양을 그대로 기능으로 옮긴 것이 아래 15-7~15-10 입니다.</div>
 <table>
 <tr><th style="width:24%">사양</th><th style="width:36%">값</th><th>프로그램에서</th></tr>
 <tr><td>센서 해상도</td><td>2592×1944 (5 MP), 1/4" 롤링 셔터</td><td>[📷 사진] — <code>create_still_configuration</code> 으로 잠시 모드를 바꿔 한 장(약 1 초 미리보기 정지)</td></tr>
 <tr><td>비디오 모드</td><td>1920×1080 @30 · 1280×720 @60 · 640×480 @90</td><td>"Pi 카메라" 탭 녹화 모드 콤보. 카메라 main 스트림 크기·fps 가 이 값, 미리보기(lores 640×480)는 따로</td></tr>
 <tr><td>Pi 4 하드웨어 인코더</td><td>H.264 최대 1080p30 (화소/초 기준 720p60·480p90 도 이내)</td><td><code>H264Encoder</code> 비트레이트 모드별 8/6/4 Mbps → ffmpeg 가 있으면 .mp4, 없으면 .h264</td></tr>
 <tr><td>초점·렌즈</td><td>고정 초점(약 1 m~∞), 수평 시야 약 54°</td><td>조정 항목 없음. 서보 그림의 시야 쐐기(62°)는 v2 기준이라 OV5647 이면 조금 좁게 보면 됨</td></tr>
-<tr><td>이미지 조정</td><td>밝기·대비·채도·화이트밸런스(libcamera 컨트롤), 좌우/상하 반전(Transform)</td><td>슬라이더·콤보·체크(15-10). 노출은 자동에 맡김</td></tr>
+<tr><td>이미지 조정</td><td>밝기·대비·채도·화이트밸런스(libcamera 컨트롤), 좌우/상하 반전(Transform)</td><td>슬라이더·콤보·체크(15-9). 노출은 자동에 맡김</td></tr>
 <tr><td>없는 것</td><td>자동 초점, 광학 줌, IR 야간 모드, HDR</td><td>탭에 두지 않음</td></tr>
 </table>
 
-<h3>15-8. 녹화 — 하드웨어 H.264 경로와 AVI 대체 경로</h3>
+<h3>15-7. 녹화 — 하드웨어 H.264 경로와 AVI 대체 경로</h3>
 <p>녹화는 Pi 가 합니다(WPF 가 받은 MJPEG 를 저장하면 화질이 미리보기 수준이고 Wi-Fi 끊김에 약합니다). <code>pidisplay/recorder.py</code> 가 두 길 중 하나를 고릅니다.</p>
 <table>
 <tr><th style="width:18%">경로</th><th style="width:30%">언제</th><th>어떻게</th></tr>
@@ -1038,7 +961,7 @@ ssh -o StrictHostKeyChecking=accept-new rpi true && echo "ssh rpi OK"</pre>
 <li><b>프로그램 종료</b>: pi_display 가 끝날 때 녹화 중이면 먼저 닫아 <code>.part</code> 를 최종 이름으로 바꿈. WPF 를 닫을 때는 녹화 정지만 보내고(최대 2 초) 가져오기는 감시 서비스에 맡김.</li>
 </ul>
 
-<h3>15-9. Pi → WSL 자동 전송 — 왜 "끌어오기(pull)" 인가</h3>
+<h3>15-8. Pi → WSL 자동 전송 — 왜 "끌어오기(pull)" 인가</h3>
 <div class="easy"><b class="t">쉬운 풀이</b> "Pi 가 WSL 로 보내 주면" 좋겠지만 WSL2 는 Windows 안의 작은 가상 네트워크(NAT) 뒤에 있어 Pi 에서는 보이지 않습니다. 반대로 WSL → Pi 는 이미 ssh 별명 <code>rpi</code> 로 열려 있으니, <b>WSL 이 Pi 의 폴더를 rsync 로 끌어오는</b> 쪽이 자연스럽습니다. 끌어오는 계기는 두 가지: WPF 가 녹화를 멈춘 직후(바로), 그리고 30 초마다 도는 감시 서비스(WPF 가 꺼져 있어도).</div>
 <table>
 <tr><th style="width:30%">부품</th><th>하는 일</th></tr>
@@ -1048,7 +971,7 @@ ssh -o StrictHostKeyChecking=accept-new rpi true && echo "ssh rpi OK"</pre>
 </table>
 <p>Windows 에서 파일을 보려면 탐색기 주소 <code>\\wsl.localhost\Ubuntu\home\jhjung\MyJob\projects\comanyLinux\ServoChapter\recordings</code>. WSL 이 켜져 있는 동안만 서비스가 돌므로, PC 부팅 때부터 돌리려면 시작 프로그램에 <code>wsl -d Ubuntu -e true</code> 를 넣어 WSL 을 깨워 둡니다.</p>
 
-<h3>15-10. 카메라 설정 — 즉시 적용되는 값과 다시 열어야 하는 값</h3>
+<h3>15-9. 카메라 설정 — 즉시 적용되는 값과 다시 열어야 하는 값</h3>
 <p>설정은 Pi 의 <code>~/.config/pi_display/camera.json</code> 에 저장되어 다음 실행에도 유지됩니다(<code>pidisplay/camera_settings.py</code>). WPF 는 탭의 슬라이더·콤보를 바꾸면 <b>300 ms 동안 모아서</b> 바뀐 키만 <code>POST /camera/settings</code> 로 보내고, 응답의 확정값으로 화면을 맞춥니다(서버 값을 화면에 넣을 때는 다시 보내지 않도록 <code>_applyingRemote</code> 로 막음).</p>
 <table>
 <tr><th style="width:30%">항목</th><th style="width:22%">적용 방식</th><th>메모</th></tr>
@@ -1056,7 +979,7 @@ ssh -o StrictHostKeyChecking=accept-new rpi true && echo "ssh rpi OK"</pre>
 <tr><td>녹화 모드(1080p30/720p60/480p90) · 좌우 반전 · 상하 반전</td><td>카메라를 닫고 다시 염 — <code>CameraManager.apply</code></td><td>미리보기가 1~2 초 끊김. <b>녹화 중에는 409 로 거부</b>(먼저 정지). 반전은 libcamera <code>Transform(hflip, vflip)</code></td></tr>
 </table>
 
-<h3>15-11. 인체·사물 인식 — 박스를 어디서 그리나</h3>
+<h3>15-10. 인체·사물 인식 — 박스를 어디서 그리나</h3>
 <p>사용자 요청으로 OpenCV 인식을 넣었습니다(<code>pidisplay/detector.py</code>). 핵심 결정은 "추론은 느리니(Pi 4 에서 100~300 ms) <b>미리보기 흐름을 막지 않게</b>" 입니다.</p>
 <ul>
 <li><b>엔진</b>: ① MobileNet-SSD(Caffe, VOC 20종 — 사람·자동차·개·고양이·병·의자·모니터…) 파일 2개가 <code>~/.local/share/pi_display/models/</code> 에 있으면 <code>cv2.dnn</code> 으로(300×300 입력), ② 없으면 OpenCV 내장 HOG 사람 검출기(사람만, 더 느림), ③ OpenCV 자체가 없으면(WSL) <code>available=false</code> — API 는 살아 있고 WPF 는 "인식 불가 (OpenCV 없음)" 를 보여 줌. 모델은 <code>install_pi_deps.sh</code> 가 내려받음(23 MB, <code>--no-models</code> 로 생략).</li>
@@ -1096,9 +1019,11 @@ ssh -o StrictHostKeyChecking=accept-new rpi true && echo "ssh rpi OK"</pre>
 <tr><td>18</td><td>Qt 는 안 쓰니 지우기, 에뮬레이션이 안 됨</td><td>v1.1.1: Qt 내용 제거(deploy.sh 버튼, tools\pi 로 스크립트 이동), 포트 충돌 시 임시 포트 자동 대체(10-12), 오류 창 전 busy 해제</td><td>UIA(8888 점유 상태)</td></tr>
 <tr><td>19</td><td>"직접 연결 중 WSL fakepi 는 에뮬레이터와 같다" → fakepi 를 에뮬레이터로, 직접 연결은 진짜 LAN 만</td><td>v1.2.0: 에뮬레이터 종류 콤보(앱 안 / WSL 가짜 Pi — 앱이 wsl.exe 로 fake_pigpiod.py 를 띄움, 이미 있으면 재사용), 직접 연결에 자기 주소(127.x·localhost) 거부 + 안내, <code>Model\WslFakePi</code>, 설정 <code>EmulatorKind</code>, 접근성 이름. 4-1·4-3·4-5·10-8·13-2 수정</td><td>xUnit 124, UIA 두 경로(18890 기동·8888 재사용), 종료 후 프로세스 확인</td></tr>
 <tr><td>20</td><td>문서 중복 정리 · 화면의 긴 글이 잘림</td><td>설계 문서 Rev 1.4(중복 절·버전 꼬리표 제거). v1.2.1: <code>ShrinkTextBlock</code>(글꼴 자동 축소 + … + 툴팁), 긴 글을 연결 바 아래 정보 줄로 이동, 서보 그림 상태 글 축소, 창 최소 폭 1120 (9-5)</td><td>xUnit 137, 1320/1120 폭 캡처</td></tr>
-<tr><td>21</td><td>카메라(OV5647 5 MP 1080p) 사양으로 더할 기능? 녹화 + Pi→WSL 자동 전송. 질문 답: 수동 녹화, WPF 자동 + WSL 감시, 폴더 ~/MyJob/…/recordings, 5 MP 사진·이미지 설정·녹화 모드·OpenCV 인식. 중간 의견: "설정을 펼치면 영상이 줄어드니 오른쪽 탭으로"</td><td>v1.3.0: Pi 쪽 <code>recorder</code>(H.264 하드웨어 / 순수 Python AVI)·<code>avi_writer</code>·<code>camera_settings</code>·<code>detector</code>, HTTP API 확장, picamera2 두 스트림, <code>pull_recordings.sh</code>·<code>watch_recordings.sh</code>(systemd user). WPF <code>PiCameraApi</code>, 카메라 패널 [● 녹화][📷 사진], 새 탭 "Pi 카메라"(설정·인식·전송), 자동 가져오기. 15-7~15-11, 9-6</td><td>xUnit 200 + Py 42, WSL 가짜 카메라로 녹화→전송→사진→설정 UIA(그림 6-6~6-8), 스크립트 로컬 모드</td></tr>
+<tr><td>21</td><td>카메라(OV5647 5 MP 1080p) 사양으로 더할 기능? 녹화 + Pi→WSL 자동 전송. 질문 답: 수동 녹화, WPF 자동 + WSL 감시, 폴더 ~/MyJob/…/recordings, 5 MP 사진·이미지 설정·녹화 모드·OpenCV 인식. 중간 의견: "설정을 펼치면 영상이 줄어드니 오른쪽 탭으로"</td><td>v1.3.0: Pi 쪽 <code>recorder</code>(H.264 하드웨어 / 순수 Python AVI)·<code>avi_writer</code>·<code>camera_settings</code>·<code>detector</code>, HTTP API 확장, picamera2 두 스트림, <code>pull_recordings.sh</code>·<code>watch_recordings.sh</code>(systemd user). WPF <code>PiCameraApi</code>, 카메라 패널 [● 녹화][📷 사진], 새 탭 "Pi 카메라"(설정·인식·전송), 자동 가져오기. 15-6~15-9, 9-6</td><td>xUnit 200 + Py 42, WSL 가짜 카메라로 녹화→전송→사진→설정 UIA(그림 9~11), 스크립트 로컬 모드</td></tr>
 <tr><td>22</td><td>"에뮬레이터는 −90° 인데 프로그램 보정값은 ±80° — 실제 연결에서도 안 맞을 수 있다"</td><td>v1.3.1: 보정값은 WPF 가 기준 — 앱 안 가짜 Pi <code>SetCalibration</code>, WSL 가짜 Pi <code>--calib</code> + CF1(87), pi_display <code>POST /servo/calib</code>(자동), 상태 파일에 보정값 저장, 옛 상태 파일 호환 (10-13). fake_pigpiod 포트 충돌 안내문. 경쟁으로 가끔 실패하던 테스트 2개 보강</td><td>xUnit 208 + Py 44, WslFakePiTests 가 실제 WSL 에서 −80°/−90° 줄 확인</td></tr>
 <tr><td>23</td><td>"서보 탭에서 각도를 고치면 펄스가, 펄스를 고치면 각도가 따라 바뀌어야 한다"</td><td>v1.3.2: 보정 칸을 "1° 당 µs" 기울기로 묶음(펄스 = 중립 + 각도 × 기울기), 칸 순서 재배치·요약 줄·Enter 반영, 설정값은 그대로 표시 (10-14)</td><td>xUnit 218 + Py 44</td></tr>
+<tr><td>24</td><td>"설계 문서 정리 — 옛 화면 그림이 헷갈림, 요약·중복 제거"</td><td>문서 Rev 1.9: 그림 5~8·12·13 을 v1.3.2 화면으로 다시 캡처(웹캠·첫 화면 그림은 중복이라 삭제), 그림 번호 1~14 로 통일. 1장 한 줄 요약·4-5·15-6 삭제(4-1·12/14 장과 중복), 10-1·10-8·10-11·13-2·14-1 요약, 12-2 검증표를 결과 중심으로 압축</td><td>PDF 재생성</td></tr>
+<tr><td>25</td><td>"Pi 모니터에 프로그램 띄우는 WSL 명령어" → <code>deploy_pi_display.sh rpi</code> 가 "[5/5] 실행" 에서 멈춤 — <b>실제 Pi 첫 배포</b></td><td>v1.3.3: 스크립트의 <code>pkill -f 'pi_display.py'</code> 가 자기 ssh 셸을 죽여 <code>set -e</code> 로 중단 → <code>'[p]i_display.py'</code>; <code>cd &amp;&amp; nohup … &amp;</code> 의 서브셸이 ssh 출력 파이프를 쥐어 ssh 가 안 끝남 → <code>( … setsid nohup … &amp; )</code>. 카메라가 없으면 pi_display 가 종료되던 것을 자리 표시 백엔드 <code>none</code>("NO CAMERA" 1 fps, 녹화·사진 503)으로 계속 돌게. 실제 Pi 에서 화면·서보 상태(1678 µs, +17.8°) 확인 (14장)</td><td>Py 47(+3), 실제 Pi 배포</td></tr>
 </table>
 
 <!-- ═══════════════════════════════ 17 ═══════════════════════════════ -->
@@ -1210,6 +1135,7 @@ export LANG=C.UTF-8; export LC_ALL=; alias ls='gnuls --color=auto'   # 한글 �
 <tr><td class="cmd">./tools/setup_rpi_wireless.sh &lt;Pi IP&gt; [사용자] [별명]</td><td>ssh 키·config·키 복사·확인·PC LAN IP 안내</td></tr>
 <tr><td class="cmd">./tools/pi/pi_setup.sh rpi &lt;PC IP&gt;</td><td>Pi 에 pigpio 설치 + 원격 허용 (직접 연결용)</td></tr>
 <tr><td class="cmd">./pi_display/deploy_pi_display.sh rpi [--install-deps] [--autostart|--service] [--no-run] [-- 플래그]</td><td>Pi 화면 프로그램 배포: rsync → (apt: PyQt5·picamera2·pigpio·ffmpeg·OpenCV·인식 모델) → 실행 → status.json. 플래그 예 <code>-- --rec-dir ~/Videos/pi_display --rec-max-gb 8 --detect</code></td></tr>
+<tr><td class="cmd">ssh rpi "pkill -f '[p]i_display.py'"</td><td>Pi 화면 프로그램 끄기(<code>[p]</code> 필수 — 자기 ssh 셸이 안 잡히게). 확인 <code>ssh rpi "pgrep -af '[p]i_display.py'"</code>, 로그 <code>ssh rpi 'tail -f ~/Source/pi_display/pi_display.log'</code>, 자동 시작 해제 <code>ssh rpi 'rm ~/.config/autostart/pi-display.desktop'</code></td></tr>
 <tr><td class="cmd">./pi_display/pull_recordings.sh [rpi] [목적지] [--remove-source]</td><td>Pi 의 ~/Videos/pi_display 에서 새 녹화·사진을 rsync 로 끌어옴(*.part 제외). 마지막 줄 <code>PULLED n</code>. 시험: 별명 자리에 <code>local:/경로</code></td></tr>
 <tr><td class="cmd">./pi_display/watch_recordings.sh rpi --install &nbsp;/&nbsp; --status &nbsp;/&nbsp; --uninstall</td><td>30 초마다 가져오는 systemd user 서비스 등록 / 상태·최근 기록 / 해제 (sudo 불필요)</td></tr>
 <tr><td class="cmd">systemctl --user status pi-recordings-watch &nbsp;/&nbsp; journalctl --user -u pi-recordings-watch -n 20</td><td>감시 서비스 상태 / 로그</td></tr>
@@ -1249,6 +1175,8 @@ export LANG=C.UTF-8; export LC_ALL=; alias ls='gnuls --color=auto'   # 한글 �
 <tr><td>보정 탭 600/1500/2400 ±80° 인데 가짜 Pi 메모리 표시는 "600 µs (−90.0°)" (사용자 보고)</td><td>가짜 Pi(앱 안·WSL)와 pi_display 가 각자 공식값(10 µs/°)으로 각도를 계산 — pigpiod 규약에는 각도가 없음</td><td>WPF 보정값을 전달: <code>SetCalibration</code> / <code>--calib</code> + CF1(87) / <code>POST /servo/calib</code>, 상태 파일에 저장 (10-13). 펄스는 바뀌지 않으므로 서보 동작은 영향 없음</td></tr>
 <tr><td>보정 칸에서 최대 각도를 바꿔도 최대 펄스가 그대로 (사용자 보고)</td><td>보정 입력칸 6개가 서로 독립 — 각도와 펄스를 잇는 기울기가 화면에 없었음</td><td>"1° 당 µs" 칸으로 묶어 짝이 되는 칸이 따라 바뀌게 (10-14). <code>MainViewModel.Cal*</code> setter 연동 + 테스트 6건</td></tr>
 <tr><td><code>./run-from-wsl.sh fakepi</code> → <code>OSError: [Errno 98] Address already in use</code></td><td>이미 8888 을 듣는 fake_pigpiod.py(검증용으로 띄워 둔 것)</td><td>그대로 쓰거나 <code>pkill -f '[f]ake_pigpiod.py'</code>. 스크립트가 이제 누가 듣는지와 할 일을 한글로 안내</td></tr>
+<tr><td><code>./pi_display/deploy_pi_display.sh rpi</code> 가 "[5/5] 실행" 줄에서 멈추고 Pi 모니터에 아무것도 안 뜸 (사용자 보고, 실제 Pi 첫 배포)</td><td>① <code>ssh rpi "pkill -f 'pi_display.py'"</code> — 패턴이 그 명령을 실행하는 원격 셸(<code>bash -c "… pi_display.py …"</code>) 자신과 일치해 자기 셸을 죽임 → ssh 비정상 종료 → <code>set -e</code> 로 스크립트 중단(Pi 에서 <code>pgrep -af pi_display.py</code> 를 ssh 로 치면 그 셸이 목록에 나오는 것으로 확인). ② 고친 뒤에는 <code>cd … &amp;&amp; nohup python3 … &amp;</code> 의 <code>&amp;</code> 가 <code>cd &amp;&amp; nohup</code> 전체에 걸려 bash 서브셸이 python 이 끝날 때까지 남고, 그 서브셸이 ssh 의 출력 파이프를 쥐고 있어 ssh(스크립트)가 영원히 안 끝남</td><td>① <code>'[p]i_display.py'</code>(위 "pkill -f 뒤 셸이 죽음" 과 같은 트릭 — 이번엔 ssh 원격 명령에서). ② <code>( DISPLAY=:0 … setsid nohup python3 … &gt; log 2&gt;&amp;1 &lt; /dev/null &amp; )</code> 로 감싸 서브셸이 바로 끝나게. 배포가 10 초 안에 돌아오고 status.json 이 찍힘</td></tr>
+<tr><td>실제 Pi 에서 pi_display 가 "카메라를 열 수 없습니다 … (--fake-camera 로…)" 를 찍고 종료 — 모니터에 화면 없음</td><td>카메라 모듈이 아직 없음 + <code>python3-picamera2</code> 가 옛 <code>libcamera.so.0.0.4</code> 를 찾음(설치된 libcamera0 은 0.0.5) → 백엔드 넷이 모두 실패하면 <code>select_backend</code> 가 예외로 끝냈음. 서보 로그·status.json 은 카메라와 무관한데 함께 죽는 설계였음</td><td><code>auto</code> 가 전부 실패하면 자리 표시 백엔드 <code>none</code>("NO CAMERA" 1 fps)으로 계속 실행, 상태 줄 "카메라 없음 (모듈 연결 후 pi_display 재시작)", 녹화·사진은 503. picamera2 는 카메라를 붙일 때 <code>apt full-upgrade</code> 로 짝 맞추기. <code>test_camera_select.py</code> 3건</td></tr>
 <tr><td>UIA 로 [녹화] 버튼의 바뀐 글("■ 정지 …")을 읽을 수 없음</td><td><code>AutomationProperties.Name="녹화"</code> 가 Content 보다 우선해 이름이 고정</td><td>의도한 동작(검사 스크립트가 늘 "녹화" 로 찾음). 바뀐 글은 Text 요소 목록이나 캡처로 확인</td></tr>
 </table>
 
